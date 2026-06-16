@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KinéApp — Dashboard de Suivi</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--text:#1a202c;--text2:#4a5568;--text3:#718096;
+  --border:#e2e8f0;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6;
+  --shadow:0 2px 12px rgba(0,0,0,.07);--shadow2:0 8px 32px rgba(0,0,0,.12);
+  --radius:14px;--radius-sm:9px;
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text2:#cbd5e1;--text3:#64748b;
+  --border:#334155;--shadow:0 2px 12px rgba(0,0,0,.3);--shadow2:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;box-shadow:var(--shadow)}
+.tb-left{display:flex;align-items:center;gap:14px}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px}
+.logo-text{font-size:15px;font-weight:700;color:var(--text)}
+.tb-title{font-size:16px;font-weight:700;color:var(--text)}
+.tb-sub{font-size:11px;color:var(--text3)}
+.tb-btn{background:var(--bg);border:1px solid var(--border);color:var(--text2);width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s}
+.tb-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+.page{padding:24px;max-width:1400px;margin:0 auto}
+
+/* FILTER BAR */
+.filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.filter-select{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:13px;color:var(--text);outline:none;cursor:pointer;min-width:180px}
+.filter-select:focus{border-color:var(--accent)}
+.period-pills{display:flex;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px}
+.period-pill{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .2s}
+.period-pill.active{background:var(--accent);color:#fff}
+
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.stat-icon.blue{background:#dbeafe;color:#1d4ed8}.stat-icon.green{background:#d1fae5;color:#065f46}
+.stat-icon.orange{background:#fed7aa;color:#92400e}.stat-icon.red{background:#fee2e2;color:#991b1b}
+.stat-icon.purple{background:#ede9fe;color:#5b21b6}
+[data-theme="dark"] .stat-icon.blue{background:rgba(59,130,246,.2);color:#60a5fa}
+[data-theme="dark"] .stat-icon.green{background:rgba(16,185,129,.2);color:#34d399}
+[data-theme="dark"] .stat-icon.orange{background:rgba(245,158,11,.2);color:#fbbf24}
+[data-theme="dark"] .stat-icon.red{background:rgba(239,68,68,.2);color:#fca5a5}
+[data-theme="dark"] .stat-icon.purple{background:rgba(139,92,246,.2);color:#a78bfa}
+.stat-trend{font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px}
+.stat-trend.up{background:#d1fae5;color:#065f46}.stat-trend.down{background:#fee2e2;color:#991b1b}
+[data-theme="dark"] .stat-trend.up{background:rgba(16,185,129,.2);color:#34d399}
+[data-theme="dark"] .stat-trend.down{background:rgba(239,68,68,.2);color:#fca5a5}
+.stat-value{font-size:26px;font-weight:800;color:var(--text);line-height:1}
+.stat-label{font-size:12px;color:var(--text3);margin-top:4px}
+
+/* GRID LAYOUT */
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px}
+.panel{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
+.panel-hdr{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.panel-title{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.panel-title i{color:var(--accent)}
+.panel-body{padding:18px}
+
+/* CHART LEGEND */
+.chart-legend{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+/* SVG CHART */
+.chart-wrap{position:relative;width:100%;height:240px}
+.chart-tooltip{position:absolute;background:#1e293b;color:#fff;padding:7px 11px;border-radius:8px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;white-space:nowrap;box-shadow:var(--shadow2)}
+
+/* ALERTS LIST */
+.alert-item{display:flex;align-items:flex-start;gap:11px;padding:12px;border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border);cursor:pointer;transition:all .2s}
+.alert-item:hover{border-color:var(--accent);background:var(--bg)}
+.alert-item.danger{background:#fff1f2;border-color:#fca5a5}
+.alert-item.warn{background:#fffbeb;border-color:#fcd34d}
+[data-theme="dark"] .alert-item.danger{background:rgba(239,68,68,.08);border-color:#7f1d1d}
+[data-theme="dark"] .alert-item.warn{background:rgba(245,158,11,.08);border-color:#92400e}
+.alert-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.alert-icon.danger{background:#fee2e2;color:#dc2626}
+.alert-icon.warn{background:#fef3c7;color:#d97706}
+[data-theme="dark"] .alert-icon.danger{background:rgba(239,68,68,.2);color:#fca5a5}
+[data-theme="dark"] .alert-icon.warn{background:rgba(245,158,11,.2);color:#fbbf24}
+.alert-text{font-size:12.5px;color:var(--text);line-height:1.4}
+.alert-text strong{font-weight:700}
+.alert-time{font-size:10.5px;color:var(--text3);margin-top:2px}
+.empty-state{text-align:center;padding:30px 16px;color:var(--text3);font-size:13px}
+.empty-state i{font-size:28px;margin-bottom:10px;display:block;color:var(--green)}
+
+/* PATIENT COMPARISON TABLE */
+.comp-table{width:100%;border-collapse:collapse}
+.comp-table th{padding:10px 14px;text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);background:var(--bg);border-bottom:1px solid var(--border)}
+.comp-table td{padding:11px 14px;font-size:12.5px;color:var(--text2);border-bottom:1px solid var(--border);vertical-align:middle}
+.comp-table tr:last-child td{border-bottom:none}
+.comp-table tr:hover td{background:var(--bg);cursor:pointer}
+.pt-cell{display:flex;align-items:center;gap:9px}
+.pt-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff;flex-shrink:0}
+.pt-name{font-weight:600;color:var(--text);font-size:12.5px}
+.mini-bar-bg{width:60px;height:6px;background:var(--bg);border-radius:10px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+.mini-bar-fill{height:100%;border-radius:10px}
+.trend-arrow{font-size:11px;font-weight:700}
+.trend-arrow.up-bad{color:#dc2626}
+.trend-arrow.down-good{color:#059669}
+.trend-arrow.flat{color:var(--text3)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700}
+.badge-green{background:#d1fae5;color:#065f46}.badge-orange{background:#fef3c7;color:#92400e}.badge-red{background:#fee2e2;color:#991b1b}
+[data-theme="dark"] .badge-green{background:rgba(16,185,129,.2);color:#34d399}
+[data-theme="dark"] .badge-orange{background:rgba(245,158,11,.2);color:#fbbf24}
+[data-theme="dark"] .badge-red{background:rgba(239,68,68,.2);color:#fca5a5}
+
+/* PATIENT DEEP DIVE */
+.deep-dive-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.symptom-bars{display:flex;flex-direction:column;gap:10px}
+.symptom-bar-row{display:flex;align-items:center;gap:10px}
+.symptom-bar-label{font-size:12px;color:var(--text2);width:130px;flex-shrink:0}
+.symptom-bar-track{flex:1;height:10px;background:var(--bg);border-radius:10px;overflow:hidden}
+.symptom-bar-fill{height:100%;background:linear-gradient(90deg,#f59e0b,#ef4444);border-radius:10px;transition:width .4s}
+.symptom-bar-count{font-size:11px;font-weight:700;color:var(--text3);width:24px;text-align:right}
+
+/* EXPORT BTN */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#6366f1);color:#fff}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{background:var(--bg);border:1.5px solid var(--border);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+
+/* RESPONSIVE */
+@media(max-width:1100px){
+  .stats-row{grid-template-columns:repeat(3,1fr)}
+  .dash-grid{grid-template-columns:1fr}
+  .deep-dive-grid{grid-template-columns:1fr}
+}
+@media(max-width:640px){
+  .stats-row{grid-template-columns:1fr 1fr}
+  .page{padding:14px}
+  .filter-bar{flex-direction:column;align-items:stretch}
+}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.fade-in{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-left">
+    <div class="logo"><div class="logo-icon"><i class="fa-solid fa-chart-line"></i></div><div class="logo-text">KinéApp</div></div>
+    <div style="border-left:1px solid var(--border);padding-left:14px">
+      <div class="tb-title">Dashboard de Suivi</div>
+      <div class="tb-sub">Vue d'ensemble de tous vos patients</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="tb-btn" onclick="exportData()" title="Exporter"><i class="fa-solid fa-file-export"></i></button>
+    <button class="tb-btn" onclick="toggleTheme()" id="themeBtn" title="Thème"><i class="fa-solid fa-moon"></i></button>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- FILTERS -->
+  <div class="filter-bar">
+    <select class="filter-select" id="patientFilter" onchange="onPatientFilterChange()">
+      <option value="all">📊 Tous les patients</option>
+    </select>
+    <div class="period-pills">
+      <div class="period-pill active" onclick="setPeriod(7,this)">7 jours</div>
+      <div class="period-pill" onclick="setPeriod(30,this)">30 jours</div>
+      <div class="period-pill" onclick="setPeriod(90,this)">90 jours</div>
+      <div class="period-pill" onclick="setPeriod(9999,this)">Tout</div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row" id="statsRow"></div>
+
+  <!-- MAIN GRID -->
+  <div class="dash-grid">
+    <!-- EVOLUTION CHART -->
+    <div class="panel">
+      <div class="panel-hdr">
+        <div class="panel-title"><i class="fa-solid fa-chart-line"></i>Évolution Douleur (EVA) & Fatigue (Borg)</div>
+        <div class="chart-legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>EVA</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Borg</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart-wrap" id="chartWrap"></div>
+      </div>
+    </div>
+    <!-- ALERTS -->
+    <div class="panel">
+      <div class="panel-hdr"><div class="panel-title"><i class="fa-solid fa-bell"></i>Alertes</div></div>
+      <div class="panel-body" id="alertsPanel" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+  </div>
+
+  <!-- COMPARISON TABLE -->
+  <div class="panel" style="margin-bottom:18px">
+    <div class="panel-hdr">
+      <div class="panel-title"><i class="fa-solid fa-users"></i>Vue comparative multi-patients</div>
+      <button class="btn btn-secondary" onclick="exportData()"><i class="fa-solid fa-file-export"></i>Exporter CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="comp-table">
+        <thead><tr>
+          <th>Patient</th><th>Statut</th><th>Adhérence</th><th>EVA moy.</th><th>Borg moy.</th><th>Tendance EVA</th><th>Dernière séance</th>
+        </tr></thead>
+        <tbody id="compTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DEEP DIVE (selected patient) -->
+  <div class="panel" id="deepDivePanel" style="display:none">
+    <div class="panel-hdr"><div class="panel-title"><i class="fa-solid fa-magnifying-glass-chart"></i><span id="deepDiveTitle">Détail patient</span></div></div>
+    <div class="panel-body">
+      <div class="deep-dive-grid">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Symptômes les plus fréquents</div>
+          <div class="symptom-bars" id="symptomBars"></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Historique des séances</div>
+          <div id="sessionTimeline" style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===== DEMO DATA GENERATION =====
+// In production: fetched from Supabase (patients table + sessions table)
+function generateDemoData(){
+  const names = [
+    {first:'Marie',last:'Dupont',patho:'Syndrome Bandelette Ilio-Tibiale',color:'#3b82f6'},
+    {first:'Thomas',last:'Bernard',patho:'Tendinopathie rotulienne',color:'#10b981'},
+    {first:'Sophie',last:'Martin',patho:'Lombalgie chronique',color:'#8b5cf6'},
+    {first:'Lucas',last:'Petit',patho:'Entorse cheville',color:'#f59e0b'},
+    {first:'Emma',last:'Robert',patho:'Capsulite épaule',color:'#ef4444'},
+    {first:'Nathan',last:'Richard',patho:'Syndrome Bandelette Ilio-Tibiale',color:'#06b6d4'},
+  ];
+  const symptomPool=['Douleur latérale','Gonflement','Raideur matinale','Brûlure','Douleur nocturne','Fatigue musculaire','Instabilité','Engourdissement'];
+  const patients = names.map((n,i)=>{
+    const id='p'+i;
+    const nbSessions = i===3?0:Math.floor(Math.random()*18)+5; // Lucas = inactive
+    const sessions=[];
+    let baseEva = 6 - i*0.3;
+    for(let s=0;s<nbSessions;s++){
+      const daysAgo = Math.floor((nbSessions-s)*2.2);
+      const trend = (s/nbSessions)*3; // improvement over time
+      const eva = Math.max(0,Math.min(10,Math.round(baseEva - trend + (Math.random()*2-1))));
+      const borg = Math.max(6,Math.min(20,Math.round(13 - trend*1.5 + (Math.random()*3-1.5))));
+      const symptoms = symptomPool.filter(()=>Math.random()<0.25);
+      sessions.push({
+        date:new Date(Date.now()-daysAgo*86400000).toISOString(),
+        eva, borg, symptoms,
+        note: s%4===0?'Séance plutôt bien passée, légère gêne en fin.':''
+      });
+    }
+    return {
+      id, firstName:n.first, lastName:n.last, pathology:n.patho, color:n.color,
+      status: i===3?'pause':(i===5?'pause':'active'),
+      sessions
+    };
+  });
+  return patients;
+}
+
+let allPatients = JSON.parse(localStorage.getItem('demoPatientsData')||'null');
+if(!allPatients){ allPatients = generateDemoData(); localStorage.setItem('demoPatientsData', JSON.stringify(allPatients)); }
+
+let currentFilter='all';
+let currentPeriod=30;
+let selectedPatientId=null;
+
+// ===== INIT =====
+function init(){
+  const sel=document.getElementById('patientFilter');
+  allPatients.forEach(p=>{
+    const opt=document.createElement('option');
+    opt.value=p.id; opt.textContent=`${p.firstName} ${p.lastName}`;
+    sel.appendChild(opt);
+  });
+  renderAll();
+}
+
+function onPatientFilterChange(){
+  currentFilter=document.getElementById('patientFilter').value;
+  selectedPatientId = currentFilter==='all'?null:currentFilter;
+  renderAll();
+}
+function setPeriod(days,el){
+  currentPeriod=days;
+  document.querySelectorAll('.period-pill').forEach(p=>p.classList.remove('active'));
+  el.classList.add('active');
+  renderAll();
+}
+
+function getFilteredSessions(p){
+  const cutoff=Date.now()-currentPeriod*86400000;
+  return p.sessions.filter(s=>new Date(s.date).getTime()>=cutoff);
+}
+function getActivePatients(){
+  return currentFilter==='all'?allPatients:allPatients.filter(p=>p.id===currentFilter);
+}
+
+// ===== RENDER ALL =====
+function renderAll(){
+  renderStats();
+  renderChart();
+  renderAlerts();
+  renderCompTable();
+  if(selectedPatientId) renderDeepDive(selectedPatientId);
+  else document.getElementById('deepDivePanel').style.display='none';
+}
+
+// ===== STATS =====
+function renderStats(){
+  const pats = getActivePatients();
+  const activeCount = pats.filter(p=>p.status==='active').length;
+  let allSessions = [];
+  pats.forEach(p=>allSessions.push(...getFilteredSessions(p).map(s=>({...s,patientId:p.id}))));
+  const avgEva = allSessions.length? (allSessions.reduce((a,s)=>a+s.eva,0)/allSessions.length).toFixed(1) : '—';
+  const avgBorg = allSessions.length? (allSessions.reduce((a,s)=>a+s.borg,0)/allSessions.length).toFixed(1) : '—';
+  const inactiveCount = pats.filter(p=>{
+    const recent=getFilteredSessions(p);
+    return recent.length===0;
+  }).length;
+  const adherence = pats.length? Math.round(pats.reduce((a,p)=>a+computeAdherence(p),0)/pats.length) : 0;
+
+  const stats=[
+    {icon:'fa-users',cls:'blue',val:activeCount,label:'Patients actifs',trend:null},
+    {icon:'fa-calendar-check',cls:'green',val:allSessions.length,label:'Séances (période)',trend:null},
+    {icon:'fa-heart-pulse',cls:'orange',val:avgEva+(avgEva!=='—'?'/10':''),label:'EVA moyenne',trend:avgEva!=='—'&&avgEva<4?'down':null},
+    {icon:'fa-fire',cls:'red',val:avgBorg+(avgBorg!=='—'?'/20':''),label:'Borg moyen',trend:null},
+    {icon:'fa-triangle-exclamation',cls:'purple',val:inactiveCount,label:'Patients sans séance',trend:inactiveCount>0?'down':null},
+  ];
+  document.getElementById('statsRow').innerHTML = stats.map(s=>`
+    <div class="stat-card">
+      <div class="stat-top">
+        <div class="stat-icon ${s.cls}"><i class="fa-solid ${s.icon}"></i></div>
+        ${s.trend?`<span class="stat-trend ${s.trend==='down'?'up':'down'}">${s.trend==='down'?'↓ mieux':'↑ attn.'}</span>`:''}
+      </div>
+      <div class="stat-value">${s.val}</div>
+      <div class="stat-label">${s.label}</div>
+    </div>`).join('');
+}
+function computeAdherence(p){
+  if(!p.sessions.length)return 0;
+  const expected = currentPeriod>=9999? p.sessions.length : Math.round(currentPeriod/3.5);
+  const actual = getFilteredSessions(p).length;
+  return Math.min(100,Math.round((actual/Math.max(expected,1))*100));
+}
+
+// ===== CHART (custom SVG line chart, no deps) =====
+function renderChart(){
+  const pats=getActivePatients();
+  let sessions=[];
+  pats.forEach(p=>sessions.push(...getFilteredSessions(p)));
+  sessions.sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  const wrap=document.getElementById('chartWrap');
+  if(!sessions.length){
+    wrap.innerHTML=`<div class="empty-state"><i class="fa-solid fa-chart-line"></i>Aucune donnée pour cette période</div>`;
+    return;
+  }
+  // aggregate by day (average if multiple patients)
+  const byDay={};
+  sessions.forEach(s=>{
+    const day=new Date(s.date).toISOString().slice(0,10);
+    if(!byDay[day])byDay[day]={eva:[],borg:[]};
+    byDay[day].eva.push(s.eva); byDay[day].borg.push(s.borg);
+  });
+  const days=Object.keys(byDay).sort();
+  const points=days.map(d=>({
+    day:d,
+    eva: byDay[d].eva.reduce((a,b)=>a+b,0)/byDay[d].eva.length,
+    borg: byDay[d].borg.reduce((a,b)=>a+b,0)/byDay[d].borg.length
+  }));
+
+  const W=800,H=240,padL=36,padR=10,padT=14,padB=28;
+  const innerW=W-padL-padR, innerH=H-padT-padB;
+  const xStep = points.length>1? innerW/(points.length-1) : 0;
+  const yEva = v=> padT + innerH - (v/10)*innerH;
+  const yBorg = v=> padT + innerH - ((v-6)/14)*innerH;
+
+  const evaPath = points.map((p,i)=>`${i===0?'M':'L'} ${padL+i*xStep} ${yEva(p.eva)}`).join(' ');
+  const borgPath = points.map((p,i)=>`${i===0?'M':'L'} ${padL+i*xStep} ${yBorg(p.borg)}`).join(' ');
+
+  const gridLines=[0,2,4,6,8,10].map(v=>`<line x1="${padL}" y1="${yEva(v)}" x2="${W-padR}" y2="${yEva(v)}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3,3"/><text x="${padL-7}" y="${yEva(v)+3}" font-size="9" fill="var(--text3)" text-anchor="end">${v}</text>`).join('');
+
+  const xLabels = points.map((p,i)=>{
+    if(points.length>10 && i%Math.ceil(points.length/6)!==0 && i!==points.length-1) return '';
+    return `<text x="${padL+i*xStep}" y="${H-8}" font-size="9" fill="var(--text3)" text-anchor="middle">${new Date(p.day).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</text>`;
+  }).join('');
+
+  const evaDots = points.map((p,i)=>`<circle cx="${padL+i*xStep}" cy="${yEva(p.eva)}" r="3.5" fill="#ef4444" stroke="var(--card)" stroke-width="1.5" class="chart-dot" data-info="EVA: ${p.eva.toFixed(1)}/10 — ${new Date(p.day).toLocaleDateString('fr-FR')}"/>`).join('');
+  const borgDots = points.map((p,i)=>`<circle cx="${padL+i*xStep}" cy="${yBorg(p.borg)}" r="3.5" fill="#f59e0b" stroke="var(--card)" stroke-width="1.5" class="chart-dot" data-info="Borg: ${p.borg.toFixed(1)}/20 — ${new Date(p.day).toLocaleDateString('fr-FR')}"/>`).join('');
+
+  wrap.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%;overflow:visible">
+      ${gridLines}
+      <path d="${evaPath}" fill="none" stroke="#ef4444" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="${borgPath}" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linejoin="round" stroke-dasharray="0"/>
+      ${evaDots}${borgDots}
+      ${xLabels}
+    </svg>
+    <div class="chart-tooltip" id="chartTooltip"></div>`;
+
+  // tooltip interactions
+  const tooltip=document.getElementById('chartTooltip');
+  wrap.querySelectorAll('.chart-dot').forEach(dot=>{
+    dot.addEventListener('mouseenter',e=>{
+      tooltip.textContent=dot.getAttribute('data-info');
+      tooltip.style.opacity=1;
+      const rect=wrap.getBoundingClientRect();
+      const cx=parseFloat(dot.getAttribute('cx'))/W*rect.width;
+      const cy=parseFloat(dot.getAttribute('cy'))/H*rect.height;
+      tooltip.style.left=Math.min(cx,rect.width-100)+'px';
+      tooltip.style.top=(cy-36)+'px';
+    });
+    dot.addEventListener('mouseleave',()=>tooltip.style.opacity=0);
+  });
+}
+
+// ===== ALERTS =====
+function renderAlerts(){
+  const pats=getActivePatients();
+  const alerts=[];
+  pats.forEach(p=>{
+    const recent=getFilteredSessions(p);
+    const lastSession = p.sessions.length? p.sessions[p.sessions.length-1]:null;
+    const daysSince = lastSession? Math.floor((Date.now()-new Date(lastSession.date).getTime())/86400000) : null;
+
+    if(p.status==='active' && (daysSince===null || daysSince>5)){
+      alerts.push({type:'danger',icon:'fa-triangle-exclamation',text:`<strong>${p.firstName} ${p.lastName}</strong> n'a pas fait de séance depuis ${daysSince===null?'le début':daysSince+' jours'}`,time:'Maintenant'});
+    }
+    if(lastSession && lastSession.eva>=7){
+      alerts.push({type:'danger',icon:'fa-heart-crack',text:`<strong>${p.firstName} ${p.lastName}</strong> a déclaré une douleur élevée (EVA ${lastSession.eva}/10)`,time:new Date(lastSession.date).toLocaleDateString('fr-FR')});
+    }
+    if(lastSession && lastSession.symptoms && lastSession.symptoms.length>=3){
+      alerts.push({type:'warn',icon:'fa-stethoscope',text:`<strong>${p.firstName} ${p.lastName}</strong> a signalé ${lastSession.symptoms.length} symptômes simultanés`,time:new Date(lastSession.date).toLocaleDateString('fr-FR')});
+    }
+  });
+
+  const panel=document.getElementById('alertsPanel');
+  if(!alerts.length){
+    panel.innerHTML=`<div class="empty-state"><i class="fa-solid fa-circle-check"></i>Aucune alerte active.<br>Tout va bien ! 🎉</div>`;
+    return;
+  }
+  panel.innerHTML = alerts.map(a=>`
+    <div class="alert-item ${a.type}">
+      <div class="alert-icon ${a.type}"><i class="fa-solid ${a.icon}"></i></div>
+      <div><div class="alert-text">${a.text}</div><div class="alert-time">${a.time}</div></div>
+    </div>`).join('');
+}
+
+// ===== COMPARISON TABLE =====
+function renderCompTable(){
+  const pats=getActivePatients();
+  const body=document.getElementById('compTableBody');
+  if(!pats.length){body.innerHTML=`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">Aucun patient</td></tr>`;return;}
+
+  body.innerHTML = pats.map(p=>{
+    const recent=getFilteredSessions(p);
+    const avgEva = recent.length? (recent.reduce((a,s)=>a+s.eva,0)/recent.length).toFixed(1) : '—';
+    const avgBorg = recent.length? (recent.reduce((a,s)=>a+s.borg,0)/recent.length).toFixed(1) : '—';
+    const adherence = computeAdherence(p);
+    const lastSession = p.sessions.length? p.sessions[p.sessions.length-1] : null;
+    const lastDate = lastSession? new Date(lastSession.date).toLocaleDateString('fr-FR') : 'Jamais';
+
+    // trend: compare first half vs second half of recent sessions
+    let trendIcon='<span class="trend-arrow flat">→</span>';
+    if(recent.length>=4){
+      const half=Math.floor(recent.length/2);
+      const firstAvg=recent.slice(0,half).reduce((a,s)=>a+s.eva,0)/half;
+      const secondAvg=recent.slice(half).reduce((a,s)=>a+s.eva,0)/(recent.length-half);
+      if(secondAvg<firstAvg-0.5) trendIcon='<span class="trend-arrow down-good">↓ Amélioration</span>';
+      else if(secondAvg>firstAvg+0.5) trendIcon='<span class="trend-arrow up-bad">↑ Aggravation</span>';
+      else trendIcon='<span class="trend-arrow flat">→ Stable</span>';
+    }
+
+    const statusBadge = p.status==='active'?'<span class="badge badge-green">Actif</span>':p.status==='pause'?'<span class="badge badge-orange">En pause</span>':'<span class="badge badge-red">Terminé</span>';
+    const adherColor = adherence>=70?'#10b981':adherence>=40?'#f59e0b':'#ef4444';
+
+    return `<tr onclick="selectPatientFromTable('${p.id}')">
+      <td><div class="pt-cell"><div class="pt-avatar" style="background:${p.color}">${(p.firstName[0]+p.lastName[0]).toUpperCase()}</div><div><div class="pt-name">${p.firstName} ${p.lastName}</div><div style="font-size:10.5px;color:var(--text3)">${p.pathology}</div></div></div></td>
+      <td>${statusBadge}</td>
+      <td><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${adherence}%;background:${adherColor}"></div></div>${adherence}%</td>
+      <td><span class="badge ${avgEva==='—'?'badge-red':avgEva<=3?'badge-green':avgEva<=6?'badge-orange':'badge-red'}">${avgEva}${avgEva!=='—'?'/10':''}</span></td>
+      <td><span class="badge badge-orange">${avgBorg}${avgBorg!=='—'?'/20':''}</span></td>
+      <td>${trendIcon}</td>
+      <td style="font-size:11.5px">${lastDate}</td>
+    </tr>`;
+  }).join('');
+}
+function selectPatientFromTable(id){
+  document.getElementById('patientFilter').value=id;
+  currentFilter=id; selectedPatientId=id;
+  renderAll();
+  document.getElementById('deepDivePanel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ===== DEEP DIVE =====
+function renderDeepDive(id){
+  const p=allPatients.find(x=>x.id===id);
+  if(!p)return;
+  const panel=document.getElementById('deepDivePanel');
+  panel.style.display='block';
+  document.getElementById('deepDiveTitle').textContent=`Détail — ${p.firstName} ${p.lastName}`;
+
+  // symptom frequency
+  const symptomCount={};
+  p.sessions.forEach(s=>(s.symptoms||[]).forEach(sym=>{symptomCount[sym]=(symptomCount[sym]||0)+1}));
+  const sortedSymptoms=Object.entries(symptomCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxCount=sortedSymptoms.length?sortedSymptoms[0][1]:1;
+  const symptomBars=document.getElementById('symptomBars');
+  if(!sortedSymptoms.length){
+    symptomBars.innerHTML=`<div class="empty-state" style="padding:16px"><i class="fa-solid fa-face-smile" style="color:var(--green)"></i>Aucun symptôme signalé</div>`;
+  } else {
+    symptomBars.innerHTML=sortedSymptoms.map(([sym,count])=>`
+      <div class="symptom-bar-row">
+        <div class="symptom-bar-label">${sym}</div>
+        <div class="symptom-bar-track"><div class="symptom-bar-fill" style="width:${(count/maxCount)*100}%"></div></div>
+        <div class="symptom-bar-count">${count}</div>
+      </div>`).join('');
+  }
+
+  // session timeline
+  const timeline=document.getElementById('sessionTimeline');
+  if(!p.sessions.length){
+    timeline.innerHTML=`<div class="empty-state"><i class="fa-solid fa-calendar-xmark"></i>Aucune séance enregistrée</div>`;
+  } else {
+    timeline.innerHTML=p.sessions.slice().reverse().slice(0,15).map(s=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--text3);width:64px;flex-shrink:0">${new Date(s.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</div>
+        <span class="badge ${s.eva<=3?'badge-green':s.eva<=6?'badge-orange':'badge-red'}">EVA ${s.eva}</span>
+        <span class="badge badge-orange">Borg ${s.borg}</span>
+        ${s.symptoms&&s.symptoms.length?`<span style="font-size:10.5px;color:var(--text3)">${s.symptoms.length} sympt.</span>`:''}
+      </div>`).join('');
+  }
+}
+
+// ===== EXPORT =====
+function exportData(){
+  const pats=getActivePatients();
+  let csv='Patient,Pathologie,Statut,Date,EVA,Borg,Symptomes,Note\n';
+  pats.forEach(p=>{
+    p.sessions.forEach(s=>{
+      csv+=`"${p.firstName} ${p.lastName}","${p.pathology}","${p.status}","${new Date(s.date).toLocaleDateString('fr-FR')}",${s.eva},${s.borg},"${(s.symptoms||[]).join('; ')}","${(s.note||'').replace(/"/g,"'")}"\n`;
+    });
+  });
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`kineapp_export_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('Export CSV téléchargé ✓');
+}
+
+// ===== THEME =====
+function toggleTheme(){
+  const d=document.documentElement;
+  const dark=d.getAttribute('data-theme')==='dark';
+  d.setAttribute('data-theme',dark?'light':'dark');
+  document.getElementById('themeBtn').innerHTML=dark?'<i class="fa-solid fa-moon"></i>':'<i class="fa-solid fa-sun"></i>';
+  renderChart();
+}
+
+// ===== TOAST =====
+let toastTimer;
+function showToast(msg){
+  const ex=document.querySelector('.toast-dash');if(ex)ex.remove();
+  const t=document.createElement('div');
+  t.className='toast-dash';
+  t.style.cssText='position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.3)';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),2500);
+}
+
+init();
+</script>
+</body>
+</html>
