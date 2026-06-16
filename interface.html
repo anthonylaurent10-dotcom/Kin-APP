@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="theme-color" content="#3b82f6"/>
+<title>KinéApp — Mon Programme</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--text:#1a202c;--text2:#4a5568;--text3:#718096;
+  --border:#e2e8f0;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--orange:#f59e0b;
+  --purple:#8b5cf6;--teal:#0d9488;
+  --shadow:0 2px 12px rgba(0,0,0,.07);--shadow2:0 8px 32px rgba(0,0,0,.12);
+  --radius:16px;--radius-sm:10px;
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text2:#cbd5e1;--text3:#64748b;
+  --border:#334155;--shadow:0 2px 12px rgba(0,0,0,.3);--shadow2:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;position:relative}
+
+/* HEADER */
+.pat-header{background:linear-gradient(135deg,#1e293b,#1e3a8a);padding:calc(16px + var(--safe-top)) 16px 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow2)}
+.pat-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pat-logo{display:flex;align-items:center;gap:9px}
+.pat-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+.pat-logo-text{font-size:14px;font-weight:700;color:#fff}
+.pat-header-actions{display:flex;gap:8px}
+.pat-hdr-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s}
+.pat-hdr-btn:hover{background:rgba(255,255,255,.2)}
+.pat-welcome{color:#93c5fd;font-size:12px;font-weight:600;margin-bottom:3px}
+.pat-name{color:#fff;font-size:19px;font-weight:800;margin-bottom:2px}
+.pat-pathology{color:#94a3b8;font-size:12px}
+
+/* SESSION PROGRESS */
+.session-progress{background:rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;margin-top:14px}
+.sp-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sp-label{font-size:12px;color:#93c5fd;font-weight:600}
+.sp-pct{font-size:18px;font-weight:800;color:#fff}
+.sp-bar-bg{height:6px;background:rgba(255,255,255,.15);border-radius:20px;overflow:hidden}
+.sp-bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:20px;transition:width .4s ease}
+.sp-stats{display:flex;gap:12px;margin-top:8px}
+.sp-stat{font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px}
+.sp-stat i{color:#60a5fa;font-size:10px}
+
+/* EVA BANNER */
+.eva-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #f59e0b;border-radius:var(--radius-sm);padding:10px 14px;margin:12px 16px 0;display:flex;align-items:center;gap:10px}
+[data-theme="dark"] .eva-banner{background:linear-gradient(135deg,#3a2800,#4a3200);border-color:#b45309}
+.eva-banner i{color:#d97706;font-size:15px;flex-shrink:0}
+.eva-text{font-size:12px;color:#92400e;font-weight:500;line-height:1.4}
+[data-theme="dark"] .eva-text{color:#fbbf24}
+.eva-pill{display:inline-flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;border-radius:6px;padding:2px 7px;font-weight:700;font-size:12px}
+
+/* LEGAL NOTICE */
+.legal-notice{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin:10px 16px 0;display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text3)}
+.legal-notice i{color:var(--accent);flex-shrink:0;margin-top:1px}
+
+/* PHASE TABS */
+.phase-tabs{display:flex;margin:12px 16px 0;gap:8px}
+.phase-tab{flex:1;padding:11px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text2);font-weight:600;font-size:12px;cursor:pointer;transition:all .25s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
+.phase-tab .t-icon{font-size:18px}
+.phase-tab .t-lbl{font-size:10px;color:var(--text3)}
+.phase-tab.act-crisis{background:linear-gradient(135deg,#fef2f2,#fee2e2);border-color:#ef4444;color:#ef4444}
+.phase-tab.act-renfo{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#10b981;color:#10b981}
+[data-theme="dark"] .phase-tab.act-crisis{background:linear-gradient(135deg,#2d1010,#3d1515);border-color:#f87171;color:#f87171}
+[data-theme="dark"] .phase-tab.act-renfo{background:linear-gradient(135deg,#0d2818,#0f3320);border-color:#34d399;color:#34d399}
+
+/* CONTENT */
+.pat-content{padding:0 16px 120px}
+.phase-panel{display:none}
+.phase-panel.active{display:block;animation:fadeIn .25s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* GLOBAL INFO */
+.global-info{background:var(--card);border-radius:var(--radius);padding:13px 15px;margin:12px 0;border:1px solid var(--border);box-shadow:var(--shadow)}
+.gi-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:9px;display:flex;align-items:center;gap:6px}
+.gi-badges{display:flex;flex-wrap:wrap;gap:6px}
+.gi-badge{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:20px;padding:5px 9px;font-size:11px;font-weight:500;color:var(--text2)}
+.gi-badge i{font-size:10px;color:var(--accent)}
+
+/* SECTION TITLE */
+.sec-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin:16px 0 8px;display:flex;align-items:center;gap:7px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* SUBSESSION TABS */
+.ss-tabs{display:flex;gap:6px;margin:10px 0;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.ss-tabs::-webkit-scrollbar{display:none}
+.ss-tab{flex-shrink:0;padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.ss-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* EXERCISE CARD */
+.ex-card{background:var(--card);border-radius:var(--radius);border:1.5px solid var(--border);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow);transition:border-color .2s}
+.ex-card.done{border-color:var(--green)}
+.ex-card-hdr{display:flex;align-items:center;gap:11px;padding:13px 13px 13px 11px;cursor:pointer;user-select:none}
+.ex-num{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ex-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;flex:1}
+.ex-quick{font-size:10px;color:var(--text3);margin-top:2px}
+.chk-btn{width:28px;height:28px;border-radius:8px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;transition:all .2s;flex-shrink:0}
+.chk-btn.checked{background:var(--green);border-color:var(--green);color:#fff}
+.ex-chevron{color:var(--text3);font-size:11px;transition:transform .3s;flex-shrink:0;margin-left:2px}
+.ex-card.open .ex-chevron{transform:rotate(180deg)}
+.ex-body{display:none;padding:0 13px 13px;border-top:1px solid var(--border)}
+.ex-card.open .ex-body{display:block}
+
+/* DOSAGE GRID */
+.dosage-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0}
+.d-item{background:var(--bg);border-radius:var(--radius-sm);padding:9px 11px;border:1px solid var(--border)}
+.d-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:3px}
+.d-value{font-size:13px;font-weight:700;color:var(--text)}
+.d-item.full{grid-column:1/-1}
+
+/* TEMPO */
+.tempo-row{display:flex;gap:5px;margin:9px 0;align-items:center}
+.tempo-lbl{font-size:10px;font-weight:700;color:var(--text3);flex-shrink:0}
+.tempo-blocks{display:flex;gap:3px}
+.tempo-block{background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border-radius:7px;padding:5px 9px;font-size:13px;font-weight:700;text-align:center;min-width:30px}
+.tempo-sep{color:var(--text3);font-size:12px;font-weight:700;align-self:center}
+
+/* FOCUS BOX */
+.focus-box{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;border-radius:var(--radius-sm);padding:9px 11px;margin:7px 0;display:flex;gap:7px;align-items:flex-start}
+[data-theme="dark"] .focus-box{background:linear-gradient(135deg,#1e3a5f22,#1e3a8a22);border-color:#3b82f6}
+.focus-box i{color:var(--accent);font-size:13px;margin-top:1px;flex-shrink:0}
+.focus-box p{font-size:12px;color:#1e40af;line-height:1.4;font-style:italic}
+[data-theme="dark"] .focus-box p{color:#93c5fd}
+
+/* NOTE BOX */
+.note-box{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #c4b5fd;border-radius:var(--radius-sm);padding:9px 11px;margin:7px 0;display:flex;gap:7px;align-items:flex-start}
+[data-theme="dark"] .note-box{background:linear-gradient(135deg,#1e144022,#2d1f5e22);border-color:#7c3aed}
+.note-box i{color:#8b5cf6;font-size:13px;margin-top:1px;flex-shrink:0}
+.note-box p{font-size:12px;color:#5b21b6;line-height:1.4}
+[data-theme="dark"] .note-box p{color:#c4b5fd}
+
+/* ADAPT */
+.adapt-row{display:flex;gap:7px;margin:5px 0;align-items:flex-start}
+.adapt-badge{flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px}
+.adapt-regress{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+.adapt-progress{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+[data-theme="dark"] .adapt-regress{background:#2d1f00;color:#fbbf24;border-color:#92400e}
+[data-theme="dark"] .adapt-progress{background:#022c1a;color:#34d399;border-color:#065f46}
+.adapt-text{font-size:11px;color:var(--text2);line-height:1.4;padding-top:2px}
+
+/* WARN BOX */
+.warn-box{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1.5px solid #fca5a5;border-radius:var(--radius-sm);padding:9px 11px;margin:7px 0;display:flex;gap:7px;align-items:flex-start}
+[data-theme="dark"] .warn-box{background:linear-gradient(135deg,#2d0a0a,#3d1010);border-color:#dc2626}
+.warn-box i{color:var(--red);font-size:13px;flex-shrink:0;margin-top:1px}
+.warn-box p{font-size:12px;color:#991b1b;font-weight:600;line-height:1.4}
+[data-theme="dark"] .warn-box p{color:#fca5a5}
+
+/* ACTION ROW */
+.action-row{display:flex;gap:7px;margin-top:11px}
+.btn-video{flex:1;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;transition:opacity .2s}
+.btn-video:hover{opacity:.88}
+.btn-mat{background:var(--bg);border:1.5px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);padding:9px 11px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all .2s;white-space:nowrap}
+.btn-mat:hover{border-color:var(--accent);color:var(--accent)}
+
+/* CARDIO BOX */
+.cardio-box{background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:1.5px solid #6ee7b7;border-radius:var(--radius);padding:13px 15px;margin:10px 0}
+[data-theme="dark"] .cardio-box{background:linear-gradient(135deg,#0d2818,#0f3320);border-color:#065f46}
+.cardio-box-title{font-size:12px;font-weight:700;color:#065f46;display:flex;align-items:center;gap:7px;margin-bottom:6px}
+[data-theme="dark"] .cardio-box-title{color:#6ee7b7}
+.cardio-box p{font-size:12px;color:#047857;line-height:1.5}
+[data-theme="dark"] .cardio-box p{color:#a7f3d0}
+
+/* BOTTOM FIXED */
+.bottom-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);padding:12px 16px calc(12px + var(--safe-bottom));display:flex;gap:10px;align-items:center;z-index:90;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+.btn-session{flex:1;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:opacity .2s}
+.btn-session:hover{opacity:.9}
+.btn-msg{background:var(--bg);border:1.5px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .2s;flex-shrink:0;position:relative}
+.btn-msg:hover{border-color:var(--accent);color:var(--accent)}
+.msg-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--card)}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow2);padding-bottom:var(--safe-bottom)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-hdr-title{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.modal-close{background:var(--bg);border:1px solid var(--border);width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:13px;transition:all .2s}
+.modal-close:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.modal-body{padding:18px;overflow-y:auto;flex:1}
+
+/* VIDEO */
+.video-container{position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
+.video-container iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+
+/* SESSION FORM */
+.session-form{display:flex;flex-direction:column;gap:16px}
+.sf-section{background:var(--bg);border-radius:var(--radius-sm);padding:14px;border:1px solid var(--border)}
+.sf-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+/* EVA SLIDER */
+.slider-wrap{position:relative;margin:8px 0}
+.eva-track{display:flex;height:8px;border-radius:20px;overflow:hidden;margin-bottom:8px}
+.eva-seg{flex:1}
+input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:20px;background:linear-gradient(90deg,#10b981,#f59e0b,#ef4444);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer}
+.slider-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px}
+.slider-val{text-align:center;font-size:22px;font-weight:800;color:var(--accent);margin-bottom:4px}
+.slider-desc{text-align:center;font-size:12px;font-weight:600;margin-bottom:6px}
+/* BORG SCALE */
+.borg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:8px 0}
+.borg-btn{padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;text-align:center;transition:all .2s;font-size:12px;font-weight:700;color:var(--text2)}
+.borg-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.borg-desc{text-align:center;font-size:11px;color:var(--text3);margin-top:4px}
+/* SYMPTOMS */
+.symptoms-grid{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+.symptom-btn{padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);transition:all .2s;display:flex;align-items:center;gap:5px}
+.symptom-btn.selected{background:linear-gradient(135deg,#fee2e2,#fecaca);border-color:#f87171;color:#991b1b}
+[data-theme="dark"] .symptom-btn.selected{background:linear-gradient(135deg,#2d0a0a,#3d1010);border-color:#dc2626;color:#fca5a5}
+/* NOTE */
+.sf-textarea{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);outline:none;resize:none;min-height:70px;font-family:inherit;transition:border-color .2s}
+.sf-textarea:focus{border-color:var(--accent)}
+/* SUBMIT */
+.btn-submit{width:100%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:var(--radius-sm);padding:13px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .2s}
+.btn-submit:hover{opacity:.9}
+
+/* MESSAGES */
+.messages-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:280px;overflow-y:auto}
+.msg-bubble{display:flex;flex-direction:column}
+.msg-bubble.kine{align-items:flex-end}
+.msg-bubble.patient{align-items:flex-start}
+.msg-text{max-width:80%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.4;border:1px solid var(--border)}
+.msg-bubble.kine .msg-text{background:var(--accent);color:#fff;border-radius:14px 14px 4px 14px;border-color:var(--accent)}
+.msg-bubble.patient .msg-text{background:var(--bg);color:var(--text);border-radius:14px 14px 14px 4px}
+.msg-meta{font-size:10px;color:var(--text3);margin-top:3px}
+.msg-input-row{display:flex;gap:8px}
+.msg-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit}
+.msg-input:focus{border-color:var(--accent)}
+.msg-send-btn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0}
+
+/* MATERIAL */
+.mat-list{display:flex;flex-direction:column;gap:8px}
+.mat-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.mat-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0}
+.mat-text{font-size:12px;color:var(--text2);line-height:1.3}
+.mat-text strong{display:block;font-size:11px;color:var(--text);font-weight:700}
+
+/* SUCCESS ANIMATION */
+.success-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.success-overlay.show{display:flex;animation:fadeIn .3s ease}
+.success-card{background:var(--card);border-radius:24px;padding:32px 28px;text-align:center;max-width:300px;width:90%;box-shadow:var(--shadow2)}
+.success-icon{width:64px;height:64px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 16px;animation:scaleIn .4s ease}
+@keyframes scaleIn{from{transform:scale(0)}to{transform:scale(1)}}
+.success-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px}
+.success-sub{font-size:13px;color:var(--text3);line-height:1.5}
+.success-close{margin-top:20px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:10px;padding:11px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;z-index:999;box-shadow:var(--shadow2);animation:slideUp .3s ease;white-space:nowrap;max-width:90vw}
+@keyframes slideUp{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+</style>
+</head>
+<body>
+
+<!-- PATIENT HEADER -->
+<div class="pat-header">
+  <div class="pat-header-top">
+    <div class="pat-logo">
+      <div class="pat-logo-icon"><i class="fa-solid fa-person-running"></i></div>
+      <div class="pat-logo-text">KinéApp</div>
+    </div>
+    <div class="pat-header-actions">
+      <button class="pat-hdr-btn" onclick="openMessages()" title="Messages" id="msgHeaderBtn"><i class="fa-solid fa-comment-medical"></i></button>
+      <button class="pat-hdr-btn" onclick="toggleTheme()" id="themeBtn"><i class="fa-solid fa-moon"></i></button>
+    </div>
+  </div>
+  <div class="pat-welcome" id="patWelcome">Bonjour 👋</div>
+  <div class="pat-name" id="patName">Marie Dupont</div>
+  <div class="pat-pathology" id="patPathology">Syndrome de la Bandelette Ilio-Tibiale</div>
+  <div class="session-progress">
+    <div class="sp-top">
+      <span class="sp-label" id="spLabel">Séance en cours</span>
+      <span class="sp-pct" id="spPct">0%</span>
+    </div>
+    <div class="sp-bar-bg"><div class="sp-bar-fill" id="spBar" style="width:0%"></div></div>
+    <div class="sp-stats">
+      <span class="sp-stat"><i class="fa-solid fa-circle-check"></i><span id="spDone">0</span> / <span id="spTotal">0</span> <span id="spExLabel">exercices</span></span>
+      <span class="sp-stat"><i class="fa-solid fa-calendar-day"></i><span id="spDate"></span></span>
+    </div>
+  </div>
+</div>
+
+<!-- EVA BANNER -->
+<div class="eva-banner">
+  <i class="fa-solid fa-heart-pulse"></i>
+  <div class="eva-text">Règle douleur : rester <span class="eva-pill">≤ 3-4/10</span> pendant l'effort. Si douleur > 4 → stopper ou régresser.</div>
+</div>
+
+<!-- LEGAL -->
+<div class="legal-notice">
+  <i class="fa-solid fa-shield-halved"></i>
+  <span>Ces exercices sont prescrits par votre kinésithérapeute. Ils ne remplacent pas une consultation. En cas de douleur inhabituelle, contactez votre praticien.</span>
+</div>
+
+<!-- PHASE TABS -->
+<div class="phase-tabs" id="phaseTabs"></div>
+
+<!-- CONTENT -->
+<div class="pat-content" id="patContent"></div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <button class="btn-session" onclick="openSessionModal()">
+    <i class="fa-solid fa-clipboard-check"></i>
+    <span id="btnSession">Valider ma séance</span>
+  </button>
+  <button class="btn-msg" onclick="openMessages()" id="msgBtn">
+    <i class="fa-solid fa-comment-medical"></i>
+    <span class="msg-dot" id="msgDot" style="display:none"></span>
+  </button>
+</div>
+
+<!-- VIDEO MODAL -->
+<div class="modal-overlay" id="videoModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title"><i class="fa-brands fa-youtube" style="color:#ef4444"></i><span id="videoTitle">Vidéo</span></div>
+      <button class="modal-close" onclick="closeModal('videoModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="video-container"><iframe id="videoIframe" src="" allowfullscreen allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"></iframe></div>
+      <div style="font-size:11px;color:var(--text3);text-align:center;margin-top:6px"><i class="fa-solid fa-circle-info"></i> Vidéo fournie par votre kinésithérapeute</div>
+    </div>
+  </div>
+</div>
+
+<!-- MATERIAL MODAL -->
+<div class="modal-overlay" id="matModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i>Matériel Système D</div>
+      <button class="modal-close" onclick="closeModal('matModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:12px">Pas de matériel pro ? Voici des alternatives :</p>
+      <div class="mat-list">
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-ring"></i></div><div class="mat-text"><strong>Élastique</strong>Collants épais / ceinture de peignoir / sangle nouée</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-wine-bottle"></i></div><div class="mat-text"><strong>Lest / Haltères</strong>Bouteilles d'eau (1.5L ≈ 1.5kg) / sac à dos lesté</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-couch"></i></div><div class="mat-text"><strong>Surface surélevée</strong>Marche d'escalier / bord du canapé / repose-pieds</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-person-falling-burst"></i></div><div class="mat-text"><strong>Tapis / Sol rembourré</strong>Couverture pliée / serviette épaisse</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-grip-lines-vertical"></i></div><div class="mat-text"><strong>Point d'ancrage</strong>Pied de table / poignée de porte / radiateur</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-ruler-vertical"></i></div><div class="mat-text"><strong>Équilibre</strong>Dos de chaise / mur / cadre de porte</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION MODAL -->
+<div class="modal-overlay" id="sessionModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title"><i class="fa-solid fa-clipboard-check" style="color:var(--green)"></i><span id="sessionModalTitle">Valider ma séance</span></div>
+      <button class="modal-close" onclick="closeModal('sessionModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="session-form">
+
+        <!-- EVA -->
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-heart-pulse" style="color:#ef4444"></i>Douleur ressentie — Échelle EVA</div>
+          <div class="slider-val" id="evaVal">0<span style="font-size:14px">/10</span></div>
+          <div class="slider-desc" id="evaDesc" style="color:var(--green)">Pas de douleur</div>
+          <input type="range" min="0" max="10" value="0" id="evaSlider" oninput="updateEVA(this.value)"/>
+          <div class="slider-labels"><span>0 — Aucune</span><span>5 — Modérée</span><span>10 — Max</span></div>
+        </div>
+
+        <!-- BORG -->
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-fire" style="color:#f59e0b"></i>Fatigue perçue — Échelle de Borg (6–20)</div>
+          <div class="borg-grid" id="borgGrid"></div>
+          <div class="borg-desc" id="borgDesc">Sélectionnez votre niveau de fatigue</div>
+        </div>
+
+        <!-- SYMPTOMS -->
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-stethoscope" style="color:var(--purple)"></i>Symptômes ressentis</div>
+          <div class="symptoms-grid" id="symptomsGrid"></div>
+        </div>
+
+        <!-- EXERCISES DONE -->
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i>Exercices réalisés</div>
+          <div id="sessionExSummary" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+
+        <!-- NOTE LIBRE -->
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-pen-to-square" style="color:var(--teal)"></i>Note libre</div>
+          <textarea class="sf-textarea" id="sessionNote" placeholder="Comment s'est passée votre séance ? Une gêne particulière ? Un exercice trop difficile ?"></textarea>
+        </div>
+
+        <button class="btn-submit" onclick="submitSession()">
+          <i class="fa-solid fa-circle-check"></i>
+          <span id="btnSubmitSession">Enregistrer ma séance</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MESSAGES MODAL -->
+<div class="modal-overlay" id="messagesModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title"><i class="fa-solid fa-comment-medical" style="color:var(--accent)"></i><span id="msgModalTitle">Messages de votre kiné</span></div>
+      <button class="modal-close" onclick="closeModal('messagesModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="messages-list" id="messagesList"></div>
+      <div class="msg-input-row">
+        <input class="msg-input" id="patMsgInput" placeholder="Répondre à votre kiné..."/>
+        <button class="msg-send-btn" onclick="sendPatientMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <div class="success-icon"><i class="fa-solid fa-trophy"></i></div>
+    <div class="success-title" id="successTitle">Séance validée ! 🎉</div>
+    <div class="success-sub" id="successSub">Bravo ! Vos données ont été transmises à votre kinésithérapeute. À la prochaine séance !</div>
+    <button class="success-close" onclick="closeSuccess()" id="btnSuccessClose">Retour au programme</button>
+  </div>
+</div>
+
+<script>
+// ===== DEMO DATA =====
+// In production this comes from Supabase via the patient token in the URL
+const DEMO_PROGRAM = {
+  patient: {firstName:'Marie', lastName:'Dupont', pathology:'Syndrome de la Bandelette Ilio-Tibiale'},
+  phases: [
+    {
+      id:'crisis', label:'Phase Crise', icon:'🔴', tabClass:'act-crisis',
+      globalInfo:{badges:['Poids du corps','Isométrique','45s / série','Repos 45–60s']},
+      subsessions: null,
+      exercises: [
+        {id:'c1',name:'Chaise sur une jambe contre un mur',series:'4',reps:'45s',rest:'45–60s',focus:'Dos bien à plat contre le mur, genou à 90° aligné avec le 2e orteil.',regression:'Faire sur 2 jambes.',progression:'Descendre plus bas ou lest sur la cuisse.',video:'dQw4w9WgXcQ',evaTarget:'≤ 4/10'},
+        {id:'c2',name:'Step down en iso',series:'4',reps:'45s / jambe',rest:'45–60s',focus:'Jambe pathologique légèrement fléchie, bassin droit, contrôle de l\'équilibre.',regression:'Diminuer la flexion ou se tenir à une rampe.',progression:'Augmenter la flexion du genou.',video:'dQw4w9WgXcQ',evaTarget:'≤ 4/10'},
+        {id:'c3',name:'Planche latérale isométrique',series:'3',reps:'45s / côté',rest:'45–60s',focus:'Aligner chevilles, hanches, épaules. Repousser le sol avec le coude.',regression:'Sur les genoux (90°).',progression:'Lever la jambe en étoile.',video:'dQw4w9WgXcQ',evaTarget:'≤ 4/10'},
+        {id:'c4',name:'Frog pump avec élastique',series:'4',reps:'45s',rest:'45–60s',focus:'Pieds serrés, écarter les genoux activement contre l\'élastique.',regression:'Sans élastique.',progression:'Pieds sur surface surélevée.',video:'dQw4w9WgXcQ',evaTarget:'≤ 4/10'},
+      ]
+    },
+    {
+      id:'renfo', label:'Renforcement', icon:'🟢', tabClass:'act-renfo',
+      globalInfo:{badges:['2–3 séances/sem.','Poids du corps','Repos 60–90s','Tempo 3-1-3']},
+      subsessions: [
+        {
+          id:'quadri', label:'💪 Quadri',
+          exercises:[
+            {id:'a1',name:'Fentes bulgares',series:'5',reps:'15 / jambe',rest:'60–90s',tempo:'3-1-3',focus:'Gérer l\'équilibre, genou aligné, ne plonge pas vers l\'intérieur.',regression:'Fentes normales / 8 reps si trop dur.',progression:'Haltères ou sac à dos lesté.',video:'FKViwVfUsQk',evaTarget:'≤ 4/10'},
+            {id:'a2',name:'Pistol squat',series:'4',reps:'6–8 reps',rest:'60–90s',tempo:'3-1-3',focus:'Objectif +++ : contrôler le genou, ne pas le laisser rentrer vers l\'intérieur.',regression:'Élastique devant soi accroché à un poteau. Sinon : squat normal (max 15 reps).',progression:'Amplitude complète ou poids contre la poitrine.',video:'2qSwsTYEWuM',evaTarget:'≤ 4/10'},
+            {id:'a3',name:'Corde à sauter / Mini-sauts en fente',series:'4',reps:'45s',rest:'60s',focus:'Dynamisme, rebond sur l\'avant-pied. PAS de tempo lent.',warn:'⚠️ Si douleur au genou → ARRÊT IMMÉDIAT !',regression:'Petits sauts pieds joints sans impact violent.',video:'FKwalKrhxTE',evaTarget:'≤ 3/10'},
+          ]
+        },
+        {
+          id:'fessiers', label:'🍑 Fessiers',
+          exercises:[
+            {id:'b1',name:'Planche latérale + Abduction',series:'4',reps:'15 / côté',rest:'60–90s',tempo:'3-1-3',focus:'Maintenir le bassin haut, écarter la jambe du haut de manière contrôlée.',regression:'Sans élastique.',progression:'Élastique plus résistant.',video:'7KqHGQ9U-dw',evaTarget:'≤ 4/10'},
+            {id:'b2',name:'Pont fessier unilatéral surélevé',series:'4',reps:'15 / jambe',rest:'60–90s',tempo:'3-1-3',focus:'Pousser dans le talon, aligner les hanches, serrer le fessier.',note:'Si tu ne sens que les ischio-jambiers : place les mollets sur le support, pas que le pied.',regression:'Au sol sur 2 jambes, sans surélévation.',progression:'Charge sur le bassin.',video:'QFKrtEmJCWs',evaTarget:'≤ 4/10'},
+            {id:'b3',name:'Single Leg Romanian Deadlift',series:'5',reps:'8 / jambe',rest:'60–90s',tempo:'3-1-3',focus:'Charnière de hanche, dos droit, genou d\'appui légèrement déverrouillé mais fixe.',regression:'Pied arrière contre un mur ou sur 2 jambes.',progression:'Charge dans la main opposée.',video:'lI8-igvsnVQ',evaTarget:'≤ 4/10'},
+          ]
+        },
+        {
+          id:'mixte', label:'⚡ Quadri+Fessiers',
+          exercises:[
+            {id:'m1',name:'Captain Morgan',series:'4',reps:'6–8 reps',rest:'60–90s',focus:'Pousser le genou contre le mur pour activer le moyen fessier de la jambe d\'appui.',video:'1kN4bZKI7ns',evaTarget:'≤ 4/10'},
+            {id:'m2',name:'Pistol squat',series:'4',reps:'6–8 reps',rest:'60–90s',tempo:'3-1-3',focus:'Contrôler le genou, il ne doit pas rentrer vers l\'intérieur.',regression:'Élastique de soutien ou squat normal avec charge (max 15 reps).',progression:'Amplitude complète ou poids contre la poitrine.',video:'2qSwsTYEWuM',evaTarget:'≤ 4/10'},
+            {id:'m3',name:'Marche en crabe avec élastique (Monster Walk)',series:'4',reps:'20 pas / côté',rest:'60s',focus:'Élastique DUR +++ entre les jambes. Genoux écartés, fesses légèrement en arrière.',note:'Pas d\'élastique ? Remplace par le Single Leg Romanian Deadlift (5×8 par jambe).',regression:'Élastique plus souple ou placé au-dessus des genoux.',video:'-Af_bdemgT4',evaTarget:'≤ 4/10'},
+          ]
+        }
+      ],
+      cardio:{title:'🏃 Reprise course à pied',text:'5 à 10 fois : 1 min course (footing) / 1 min marche — jusqu\'à courir 30 min en continu.'}
+    }
+  ],
+  messages:[
+    {from:'kine', text:'Bonjour Marie ! Voici votre programme. N\'hésitez pas à me contacter si vous avez des questions. Bon courage ! 💪', date: new Date(Date.now()-86400000*2).toISOString()},
+    {from:'kine', text:'Rappel : pensez à bien respecter le tempo 3-1-3 sur les exercices de renforcement, c\'est essentiel pour l\'efficacité du programme.', date: new Date(Date.now()-86400000).toISOString()},
+  ]
+};
+
+// ===== STATE =====
+let currentPhase = 0;
+let currentSS = 0;
+let checkedExercises = new Set();
+let allExerciseIds = [];
+let selectedBorg = null;
+let selectedSymptoms = new Set();
+let patMessages = [...DEMO_PROGRAM.messages];
+let hasUnread = true;
+
+const SYMPTOMS = ['Douleur latérale','Gonflement','Raideur matinale','Brûlure','Douleur nocturne','Fatigue musculaire','Instabilité','Claquement','Engourdissement','Picotements'];
+const BORG_LABELS = {6:'Très très léger',7:'Très léger',8:'',9:'Léger',10:'',11:'Assez léger',12:'',13:'Assez dur',14:'',15:'Dur',16:'',17:'Très dur',18:'',19:'Très très dur',20:'Maximum'};
+const EVA_DESCS = ['Pas de douleur','Quasi nulle','Très légère','Légère','Modérée-légère','Modérée','Modérée-forte','Forte','Très forte','Insupportable','Maximale'];
+const EVA_COLORS = ['#10b981','#10b981','#34d399','#84cc16','#eab308','#f59e0b','#f97316','#ef4444','#dc2626','#b91c1c','#7f1d1d'];
+
+// ===== INIT =====
+function init(){
+  const p = DEMO_PROGRAM.patient;
+  document.getElementById('patName').textContent = p.firstName + ' ' + p.lastName;
+  document.getElementById('patPathology').textContent = p.pathology;
+  const h = new Date().getHours();
+  const greeting = h<12?'Bonjour 👋':h<18?'Bon après-midi 👋':'Bonsoir 👋';
+  document.getElementById('patWelcome').textContent = greeting;
+  document.getElementById('spDate').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+  buildPhases();
+  renderPhase(0);
+  buildBorgGrid();
+  buildSymptomsGrid();
+  updateProgress();
+  if(hasUnread) document.getElementById('msgDot').style.display='block';
+}
+
+// ===== PHASES =====
+function buildPhases(){
+  const tabs = document.getElementById('phaseTabs');
+  tabs.innerHTML = DEMO_PROGRAM.phases.map((ph,i)=>`
+    <button class="phase-tab ${i===0?ph.tabClass:''}" onclick="switchPhase(${i})" id="ptab${i}">
+      <span class="t-icon">${ph.icon}</span>
+      <strong>${ph.label}</strong>
+      <span class="t-lbl">${i===0?'Douleur active':'Reprise progressive'}</span>
+    </button>`).join('');
+}
+
+function switchPhase(i){
+  currentPhase=i; currentSS=0;
+  document.querySelectorAll('.phase-tab').forEach((t,idx)=>{
+    t.className='phase-tab'+(idx===i?' '+DEMO_PROGRAM.phases[i].tabClass:'');
+  });
+  renderPhase(i);
+}
+
+function renderPhase(i){
+  const ph = DEMO_PROGRAM.phases[i];
+  const c = document.getElementById('patContent');
+  allExerciseIds = [];
+
+  let html = '';
+  // global info
+  if(ph.globalInfo){
+    html += `<div class="global-info"><div class="gi-title"><i class="fa-solid fa-circle-info"></i>Consignes globales</div><div class="gi-badges">${ph.globalInfo.badges.map(b=>`<span class="gi-badge"><i class="fa-solid fa-check"></i>${b}</span>`).join('')}</div></div>`;
+  }
+  // cardio
+  if(ph.cardio){
+    html += `<div class="cardio-box"><div class="cardio-box-title"><i class="fa-solid fa-shoe-prints"></i>${ph.cardio.title}</div><p>${ph.cardio.text}</p></div>`;
+  }
+  // subsessions or flat exercises
+  if(ph.subsessions){
+    html += `<div class="ss-tabs" id="ssTabs">${ph.subsessions.map((ss,j)=>`<button class="ss-tab${j===0?' active':''}" onclick="switchSS(${j})" id="sstab${j}">${ss.label}</button>`).join('')}</div>`;
+    ph.subsessions.forEach((ss,j)=>{
+      html += `<div id="ss-content${j}" style="display:${j===0?'block':'none'}">`;
+      html += `<div class="sec-title"><i class="fa-solid fa-dumbbell"></i>${ss.label.replace(/[🍑💪⚡]\s*/,'')}</div>`;
+      ss.exercises.forEach((ex,k)=>{
+        allExerciseIds.push(ex.id);
+        html += buildExCard(ex, k+1);
+      });
+      html += `</div>`;
+    });
+  } else {
+    html += `<div class="sec-title"><i class="fa-solid fa-dumbbell"></i>${ph.exercises.length} exercices</div>`;
+    ph.exercises.forEach((ex,k)=>{
+      allExerciseIds.push(ex.id);
+      html += buildExCard(ex, k+1);
+    });
+  }
+
+  c.innerHTML = html;
+  updateProgress();
+}
+
+function switchSS(j){
+  currentSS=j;
+  const ph = DEMO_PROGRAM.phases[currentPhase];
+  if(!ph.subsessions)return;
+  ph.subsessions.forEach((_,i)=>{
+    document.getElementById('ss-content'+i).style.display=i===j?'block':'none';
+    document.getElementById('sstab'+i).className='ss-tab'+(i===j?' active':'');
+  });
+}
+
+function buildExCard(ex, num){
+  const done = checkedExercises.has(ex.id);
+  const tempoHTML = ex.tempo ? `<div class="tempo-row"><span class="tempo-lbl">TEMPO :</span><div class="tempo-blocks"><div class="tempo-block">${ex.tempo.split('-')[0]||'?'}s</div><span class="tempo-sep">—</span><div class="tempo-block">${ex.tempo.split('-')[1]||'?'}s</div><span class="tempo-sep">—</span><div class="tempo-block">${ex.tempo.split('-')[2]||'?'}s</div></div><span style="font-size:10px;color:var(--text3);margin-left:6px">Mouvement très lent !</span></div>` : '';
+  const videoId = ex.video ? getYTId(ex.video) : null;
+  return `<div class="ex-card${done?' done':''}" id="excard-${ex.id}">
+    <div class="ex-card-hdr" onclick="toggleEx('${ex.id}')">
+      <div class="ex-num">${num}</div>
+      <div style="flex:1"><div class="ex-name">${ex.name}</div><div class="ex-quick">${ex.series} × ${ex.reps} · ${ex.rest}</div></div>
+      <button class="chk-btn${done?' checked':''}" id="chk-${ex.id}" onclick="toggleCheck(event,'${ex.id}')"><i class="fa-solid fa-check"></i></button>
+      <i class="fa-solid fa-chevron-down ex-chevron"></i>
+    </div>
+    <div class="ex-body">
+      <div class="dosage-grid">
+        <div class="d-item"><div class="d-label"><i class="fa-solid fa-layer-group"></i>Séries</div><div class="d-value">${ex.series}</div></div>
+        <div class="d-item"><div class="d-label"><i class="fa-solid fa-repeat"></i>Reps / Durée</div><div class="d-value">${ex.reps}</div></div>
+        <div class="d-item"><div class="d-label"><i class="fa-solid fa-rotate-left"></i>Récupération</div><div class="d-value">${ex.rest}</div></div>
+        ${ex.evaTarget?`<div class="d-item"><div class="d-label"><i class="fa-solid fa-heart-pulse"></i>EVA cible</div><div class="d-value">${ex.evaTarget}</div></div>`:''}
+      </div>
+      ${tempoHTML}
+      ${ex.focus?`<div class="focus-box"><i class="fa-solid fa-eye"></i><p>${ex.focus}</p></div>`:''}
+      ${ex.note?`<div class="note-box"><i class="fa-solid fa-circle-info"></i><p>${ex.note}</p></div>`:''}
+      ${ex.warn?`<div class="warn-box"><i class="fa-solid fa-triangle-exclamation"></i><p>${ex.warn}</p></div>`:''}
+      ${ex.regression?`<div class="adapt-row"><span class="adapt-badge adapt-regress">▼ Régression</span><p class="adapt-text">${ex.regression}</p></div>`:''}
+      ${ex.progression?`<div class="adapt-row"><span class="adapt-badge adapt-progress">▲ Progression</span><p class="adapt-text">${ex.progression}</p></div>`:''}
+      <div class="action-row">
+        ${videoId?`<button class="btn-video" onclick="openVideo('${videoId}','${ex.name}')"><i class="fa-brands fa-youtube"></i>VOIR LA VIDÉO</button>`:''}
+        <button class="btn-mat" onclick="openModal('matModal')"><i class="fa-solid fa-toolbox"></i>Matériel ?</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleEx(id){
+  const card = document.getElementById('excard-'+id);
+  card.classList.toggle('open');
+}
+
+function toggleCheck(e, id){
+  e.stopPropagation();
+  const btn = document.getElementById('chk-'+id);
+  const card = document.getElementById('excard-'+id);
+  if(checkedExercises.has(id)){
+    checkedExercises.delete(id);
+    btn.classList.remove('checked');
+    card.classList.remove('done');
+  } else {
+    checkedExercises.add(id);
+    btn.classList.add('checked');
+    card.classList.add('done');
+    showToast('✓ Exercice validé !');
+  }
+  updateProgress();
+}
+
+function updateProgress(){
+  const total = allExerciseIds.length;
+  const done = allExerciseIds.filter(id=>checkedExercises.has(id)).length;
+  const pct = total ? Math.round(done/total*100) : 0;
+  document.getElementById('spBar').style.width = pct+'%';
+  document.getElementById('spPct').textContent = pct+'%';
+  document.getElementById('spDone').textContent = done;
+  document.getElementById('spTotal').textContent = total;
+}
+
+// ===== VIDEO =====
+function getYTId(url){
+  if(!url)return null;
+  // already an ID (11 chars no slash)
+  if(/^[a-zA-Z0-9_-]{11}$/.test(url))return url;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m?m[1]:null;
+}
+function openVideo(id, title){
+  document.getElementById('videoTitle').textContent = title;
+  document.getElementById('videoIframe').src = `https://www.youtube.com/embed/${id}?autoplay=1`;
+  openModal('videoModal');
+}
+
+// ===== SESSION MODAL =====
+function buildBorgGrid(){
+  const g = document.getElementById('borgGrid');
+  const vals = [6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  g.innerHTML = vals.map(v=>`<button class="borg-btn" id="borg-${v}" onclick="selectBorg(${v})">${v}</button>`).join('');
+}
+function selectBorg(v){
+  selectedBorg=v;
+  document.querySelectorAll('.borg-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('borg-'+v).classList.add('selected');
+  document.getElementById('borgDesc').textContent = BORG_LABELS[v]||'';
+}
+
+function buildSymptomsGrid(){
+  const g = document.getElementById('symptomsGrid');
+  g.innerHTML = SYMPTOMS.map(s=>`<button class="symptom-btn" onclick="toggleSymptom('${s}',this)"><i class="fa-solid fa-circle" style="font-size:8px"></i>${s}</button>`).join('');
+}
+function toggleSymptom(s, btn){
+  if(selectedSymptoms.has(s)){selectedSymptoms.delete(s);btn.classList.remove('selected');}
+  else{selectedSymptoms.add(s);btn.classList.add('selected');}
+}
+
+function updateEVA(v){
+  document.getElementById('evaVal').innerHTML = v+'<span style="font-size:14px">/10</span>';
+  document.getElementById('evaDesc').textContent = EVA_DESCS[v];
+  document.getElementById('evaDesc').style.color = EVA_COLORS[v];
+}
+
+function openSessionModal(){
+  // reset
+  document.getElementById('evaSlider').value=0;
+  updateEVA(0);
+  selectedBorg=null;
+  selectedSymptoms.clear();
+  document.querySelectorAll('.borg-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('.symptom-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('sessionNote').value='';
+  // exercises summary
+  const summaryEl = document.getElementById('sessionExSummary');
+  const ph = DEMO_PROGRAM.phases[currentPhase];
+  let exList = ph.subsessions ? ph.subsessions.flatMap(ss=>ss.exercises) : ph.exercises;
+  summaryEl.innerHTML = exList.map(ex=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:12px">
+      <i class="fa-solid ${checkedExercises.has(ex.id)?'fa-circle-check':'fa-circle'}" style="color:${checkedExercises.has(ex.id)?'var(--green)':'var(--text3)'}"></i>
+      <span style="color:var(--text);font-weight:${checkedExercises.has(ex.id)?'700':'400'}">${ex.name}</span>
+      ${checkedExercises.has(ex.id)?'<span class="adapt-badge adapt-progress" style="margin-left:auto;font-size:10px">✓ Fait</span>':''}
+    </div>`).join('');
+  openModal('sessionModal');
+}
+
+function submitSession(){
+  const eva = parseInt(document.getElementById('evaSlider').value);
+  const note = document.getElementById('sessionNote').value;
+  // store in localStorage (will be Supabase in production)
+  const session = {
+    type:'session',
+    date:new Date().toISOString(),
+    eva, borg:selectedBorg,
+    symptoms:[...selectedSymptoms],
+    note,
+    exercisesDone:[...checkedExercises],
+    phase:currentPhase
+  };
+  const key = 'kineSessions_demo';
+  const sessions = JSON.parse(localStorage.getItem(key)||'[]');
+  sessions.push(session);
+  localStorage.setItem(key,JSON.stringify(sessions));
+  closeModal('sessionModal');
+  showSuccess();
+}
+
+// ===== MESSAGES =====
+function openMessages(){
+  hasUnread=false;
+  document.getElementById('msgDot').style.display='none';
+  renderMessages();
+  openModal('messagesModal');
+}
+function renderMessages(){
+  const list = document.getElementById('messagesList');
+  list.innerHTML = patMessages.map(m=>`
+    <div class="msg-bubble ${m.from}">
+      <div class="msg-text">${m.text}</div>
+      <div class="msg-meta">${m.from==='kine'?'Votre kiné · ':'Vous · '}${new Date(m.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`).join('');
+  list.scrollTop = list.scrollHeight;
+}
+function sendPatientMessage(){
+  const input = document.getElementById('patMsgInput');
+  const text = input.value.trim();
+  if(!text)return;
+  patMessages.push({from:'patient',text,date:new Date().toISOString()});
+  input.value='';
+  renderMessages();
+  showToast('Message envoyé ✓','green');
+}
+
+// ===== SUCCESS =====
+function showSuccess(){
+  document.getElementById('successOverlay').classList.add('show');
+  checkedExercises.clear();
+  renderPhase(currentPhase);
+}
+function closeSuccess(){document.getElementById('successOverlay').classList.remove('show')}
+
+// ===== THEME =====
+function toggleTheme(){
+  const d=document.documentElement;
+  const dark=d.getAttribute('data-theme')==='dark';
+  d.setAttribute('data-theme',dark?'light':'dark');
+  document.getElementById('themeBtn').innerHTML=dark?'<i class="fa-solid fa-moon"></i>':'<i class="fa-solid fa-sun"></i>';
+}
+
+// ===== MODAL =====
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){
+  if(id==='videoModal')document.getElementById('videoIframe').src='';
+  document.getElementById(id).classList.remove('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{if(e.target===o){closeModal(o.id);}});
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(o=>closeModal(o.id))});
+
+// ===== TOAST =====
+let toastTimer;
+function showToast(msg){
+  const ex=document.querySelector('.toast');if(ex)ex.remove();
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),2500);
+}
+
+// ===== START =====
+init();
+</script>
+</body>
+</html>
