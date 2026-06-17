@@ -433,7 +433,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
     <button class="success-close" onclick="closeSuccess()" id="btnSuccessClose">Retour au programme</button>
   </div>
 </div>
-
+html
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xxxxx.supabase.co';
+const SUPABASE_KEY = 'ta-clé-anon-ici';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 <script>
 // ===== DEMO DATA =====
 // In production this comes from Supabase via the patient token in the URL
