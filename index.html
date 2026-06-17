@@ -741,7 +741,12 @@ tr:hover td{background:var(--bg)}
     </div>
   </div>
 </div>
-
+html
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://xxxxx.supabase.co';
+const SUPABASE_KEY = 'ta-clé-anon-ici';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 <script>
 // ===== STATE =====
 let lang = 'fr';
