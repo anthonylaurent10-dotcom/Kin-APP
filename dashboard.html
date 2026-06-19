@@ -240,7 +240,7 @@ async function doLogin(){
   const pwd=document.getElementById('loginPwd').value;
   if(!email||pwd.length<4)return;
   const {data} = await db.from('practitioners').select('*').eq('email',email).maybeSingle();
-  if(!data){ alert('Aucun compte trouvé avec cet email. Connectez-vous d\\'abord sur le back-office.'); return; }
+  if(!data){ alert('Aucun compte trouvé avec cet email. Connectez-vous d\'abord sur le back-office.'); return; }
   currentPractitioner=data;
   localStorage.setItem('kine_practitioner_id',data.id);
   document.getElementById('loginScreen').classList.add('app-hidden');
