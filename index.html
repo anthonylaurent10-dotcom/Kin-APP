@@ -501,70 +501,108 @@ async function doLogin(){
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pwd = document.getElementById('loginPwd').value;
   const errEl = document.getElementById('loginError');
-  errEl.style.display='none';
-  if(!email || pwd.length<4){ errEl.textContent='Email valide et mot de passe (4+ caractères) requis'; errEl.style.display='block'; return; }
-  const btn=document.getElementById('loginBtnEl');
-  btn.disabled=true; btn.innerHTML='<span class="loading-spinner"></span> Connexion...';
+  errEl.style.display = 'none';
 
-  try{
-    // Cherche un praticien existant avec cet email
-    let {data: existing, error} = await supabase.from('practitioners').select('*').eq('email',email).maybeSingle();
-    if(error) throw error;
+  if(!email || pwd.length < 4){
+    errEl.textContent = 'Email valide et mot de passe (4+ caractères) requis';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('loginBtnEl');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span> Connexion...';
+
+  try {
+    // 1. Tentative de connexion
+    let authResult = await supabase.auth.signInWithPassword({ email, password: pwd });
+
+    // 2. Si compte inexistant, on le crée (première connexion)
+    if(authResult.error && authResult.error.message.includes('Invalid login credentials')){
+      const signUpResult = await supabase.auth.signUp({ email, password: pwd });
+      if(signUpResult.error) throw signUpResult.error;
+      authResult = await supabase.auth.signInWithPassword({ email, password: pwd });
+    }
+
+    if(authResult.error) throw authResult.error;
+
+    const userId = authResult.data.user.id;
+
+    // 3. Cherche ou crée le profil praticien
+    let { data: existing, error: fetchErr } = await supabase
+      .from('practitioners')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if(fetchErr) throw fetchErr;
 
     if(!existing){
-      // Crée automatiquement le profil praticien (première connexion)
-      const {data: created, error: createErr} = await supabase.from('practitioners').insert({
-        email, first_name:'', last_name:'', speciality:'', cabinet:''
-      }).select().single();
+      const { data: created, error: createErr } = await supabase
+        .from('practitioners')
+        .insert({ id: userId, email, first_name: '', last_name: '', speciality: '', cabinet: '' })
+        .select()
+        .single();
       if(createErr) throw createErr;
       existing = created;
     }
+
     currentPractitioner = existing;
     localStorage.setItem('kine_practitioner_id', existing.id);
-    localStorage.setItem('kine_practitioner_email', email);
 
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('appScreen').style.display='block';
-    document.getElementById('sidebarName').textContent = (existing.first_name||existing.email);
-    document.getElementById('sidebarInitials').textContent = (existing.first_name?.[0]||existing.email[0]).toUpperCase();
-    document.getElementById('settFirstName').value=existing.first_name||'';
-    document.getElementById('settLastName').value=existing.last_name||'';
-    document.getElementById('settSpeciality').value=existing.speciality||'';
-    document.getElementById('settCabinet').value=existing.cabinet||'';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('sidebarName').textContent = existing.first_name || email;
+    document.getElementById('sidebarInitials').textContent = (existing.first_name?.[0] || email[0]).toUpperCase();
+    document.getElementById('settFirstName').value = existing.first_name || '';
+    document.getElementById('settLastName').value = existing.last_name || '';
+    document.getElementById('settSpeciality').value = existing.speciality || '';
+    document.getElementById('settCabinet').value = existing.cabinet || '';
 
     await loadAllData();
     setupRealtimeSubscriptions();
+
   } catch(e){
-    errEl.textContent='Erreur de connexion : '+e.message;
-    errEl.style.display='block';
+    errEl.textContent = 'Erreur : ' + e.message;
+    errEl.style.display = 'block';
   } finally {
-    btn.disabled=false; btn.innerHTML='Se connecter';
+    btn.disabled = false;
+    btn.innerHTML = 'Se connecter';
   }
 }
+
 document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
-function doLogout(){
-  realtimeChannels.forEach(ch=>supabase.removeChannel(ch));
-  realtimeChannels=[];
+async function doLogout(){
+  realtimeChannels.forEach(ch => supabase.removeChannel(ch));
+  realtimeChannels = [];
+  await supabase.auth.signOut();
   localStorage.removeItem('kine_practitioner_id');
   location.reload();
 }
 
 // Auto-login si déjà connecté
 async function tryAutoLogin(){
-  const savedId = localStorage.getItem('kine_practitioner_id');
-  if(!savedId) return;
-  const {data} = await supabase.from('practitioners').select('*').eq('id',savedId).maybeSingle();
+  const { data: { session } } = await supabase.auth.getSession();
+  if(!session) return;
+
+  const userId = session.user.id;
+  const { data } = await supabase
+    .from('practitioners')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
   if(data){
-    currentPractitioner=data;
-    document.getElementById('loginScreen').style.display='none';
-    document.getElementById('appScreen').style.display='block';
-    document.getElementById('sidebarName').textContent=(data.first_name||data.email);
-    document.getElementById('sidebarInitials').textContent=(data.first_name?.[0]||data.email[0]).toUpperCase();
-    document.getElementById('settFirstName').value=data.first_name||'';
-    document.getElementById('settLastName').value=data.last_name||'';
-    document.getElementById('settSpeciality').value=data.speciality||'';
-    document.getElementById('settCabinet').value=data.cabinet||'';
+    currentPractitioner = data;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    document.getElementById('sidebarName').textContent = data.first_name || data.email;
+    document.getElementById('sidebarInitials').textContent = (data.first_name?.[0] || data.email[0]).toUpperCase();
+    document.getElementById('settFirstName').value = data.first_name || '';
+    document.getElementById('settLastName').value = data.last_name || '';
+    document.getElementById('settSpeciality').value = data.speciality || '';
+    document.getElementById('settCabinet').value = data.cabinet || '';
     await loadAllData();
     setupRealtimeSubscriptions();
   }
