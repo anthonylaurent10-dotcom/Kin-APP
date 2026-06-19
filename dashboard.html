@@ -225,37 +225,734 @@ const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentPractitioner=null;
-let allPatients=[];
-let currentFilter='all';
-let currentPeriod=30;
-let selectedPatientId=null;
-let realtimeChannels=[];
-const avatarColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
-function getColor(id){return avatarColors[parseInt((id||'0').replace(/-/g,'').slice(-2),16)%avatarColors.length]||avatarColors[0]}
+let currentPractitioner = null;
+let allPatients = [];
+let allSessions = [];
+let currentFilter = 'all';
+let currentPeriod = 30;
+let selectedPatientId = null;
+let realtimeChannels = [];
 
-// ===== AUTH =====
+const avatarColors = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+
+function getColor(id){
+  return avatarColors[parseInt((id || '0').replace(/-/g,'').slice(-2),16) % avatarColors.length] || avatarColors[0];
+}
+
+function getInitials(p){
+  return ((p.first_name || '?')[0] + (p.last_name || '?')[0]).toUpperCase();
+}
+
+// ============================================================
+// AUTH
+// ============================================================
 async function doLogin(){
-  const email=document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pwd=document.getElementById('loginPwd').value;
-  if(!email||pwd.length<4)return;
-  const {data} = await db.from('practitioners').select('*').eq('email',email).maybeSingle();
-  if(!data){ alert('Aucun compte trouvé avec cet email. Connectez-vous d\'abord sur le back-office.'); return; }
-  currentPractitioner=data;
-  localStorage.setItem('kine_practitioner_id',data.id);
-  document.getElementById('loginScreen').classList.add('app-hidden');
-  document.getElementById('appRoot').classList.remove('app-hidden');
-  await loadAndRender();
-  setupRealtime();
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pwd = document.getElementById('loginPwd').value;
+
+  if(!email || pwd.length < 4){
+    alert('Email et mot de passe requis');
+    return;
+  }
+
+  try {
+    const { data: authData, error: authError } = await db.auth.signInWithPassword({
+      email,
+      password: pwd
+    });
+
+    if(authError) throw authError;
+
+    const userId = authData.user.id;
+
+    const { data: practitioner, error: pError } = await db
+      .from('practitioners')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if(pError) throw pError;
+
+    if(!practitioner){
+      alert("Profil praticien introuvable. Connectez-vous d'abord au back-office.");
+      return;
+    }
+
+    currentPractitioner = practitioner;
+    localStorage.setItem('kine_practitioner_id', practitioner.id);
+
+    document.getElementById('loginScreen').classList.add('app-hidden');
+    document.getElementById('appRoot').classList.remove('app-hidden');
+
+    await loadAndRender();
+    setupRealtime();
+
+  } catch(e) {
+    console.error(e);
+    alert('Erreur de connexion : ' + e.message);
+  }
 }
-function doLogout(){
-  realtimeChannels.forEach(ch=>db.removeChannel(ch));
+
+async function doLogout(){
+  realtimeChannels.forEach(ch => db.removeChannel(ch));
+  realtimeChannels = [];
+  await db.auth.signOut();
   localStorage.removeItem('kine_practitioner_id');
-  location.reload();
+  location.href = '/';
 }
+
 async function tryAutoLogin(){
-  const savedId=localStorage.getItem('kine_practitioner_id');
+  try {
+    document.getElementById('loadingScreen').classList.remove('app-hidden');
+
+    const { data: { session } } = await db.auth.getSession();
+
+    if(!session){
+      document.getElementById('loadingScreen').classList.add('app-hidden');
+      document.getElementById('loginScreen').classList.remove('app-hidden');
+      return;
+    }
+
+    const userId = session.user.id;
+
+    const { data: practitioner, error } = await db
+      .from('practitioners')
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if(error) throw error;
+
+    if(!practitioner){
+      document.getElementById('loadingScreen').classList.add('app-hidden');
+      document.getElementById('loginScreen').classList.remove('app-hidden');
+      return;
+    }
+
+    currentPractitioner = practitioner;
+    localStorage.setItem('kine_practitioner_id', practitioner.id);
+
+    document.getElementById('loadingScreen').classList.add('app-hidden');
+    document.getElementById('loginScreen').classList.add('app-hidden');
+    document.getElementById('appRoot').classList.remove('app-hidden');
+
+    await loadAndRender();
+    setupRealtime();
+
+  } catch(e) {
+    console.error('Erreur auto-login dashboard:', e);
+    document.getElementById('loadingScreen').classList.add('app-hidden');
+    document.getElementById('loginScreen').classList.remove('app-hidden');
+  }
+}
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+function getDateBefore(days){
+  if(days >= 9999) return '2000-01-01T00:00:00.000Z';
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
+async function loadAndRender(){
+  if(!currentPractitioner){
+    console.warn('Pas de praticien connecté');
+    return;
+  }
+
+  const practitionerId = currentPractitioner.id;
+
+  const { data: patients, error: patientsError } = await db
+    .from('patients')
+    .select('*')
+    .eq('practitioner_id', practitionerId)
+    .order('created_at', { ascending: false });
+
+  if(patientsError){
+    console.error(patientsError);
+    alert('Erreur chargement patients : ' + patientsError.message);
+    return;
+  }
+
+  allPatients = patients || [];
+
+  const patientIds = allPatients.map(p => p.id);
+
+  if(!patientIds.length){
+    allSessions = [];
+    renderPatientFilter();
+    renderStats();
+    renderChart();
+    renderAlerts();
+    renderCompTable();
+    return;
+  }
+
+  let sessionsQuery = db
+    .from('sessions')
+    .select('*')
+    .in('patient_id', patientIds)
+    .order('created_at', { ascending: true });
+
+  if(currentPeriod < 9999){
+    sessionsQuery = sessionsQuery.gte('created_at', getDateBefore(currentPeriod));
+  }
+
+  if(currentFilter !== 'all'){
+    sessionsQuery = sessionsQuery.eq('patient_id', currentFilter);
+  }
+
+  const { data: sessions, error: sessionsError } = await sessionsQuery;
+
+  if(sessionsError){
+    console.error(sessionsError);
+    alert('Erreur chargement séances : ' + sessionsError.message);
+    return;
+  }
+
+  allSessions = sessions || [];
+
+  renderPatientFilter();
+  renderStats();
+  renderChart();
+  renderAlerts();
+  renderCompTable();
+
+  if(selectedPatientId){
+    renderDeepDive(selectedPatientId);
+  }
+}
+
+function renderPatientFilter(){
+  const sel = document.getElementById('patientFilter');
+  const previousValue = sel.value || currentFilter;
+
+  sel.innerHTML = '<option value="all">📊 Tous les patients</option>' +
+    allPatients.map(p => `<option value="${p.id}">${p.first_name} ${p.last_name}</option>`).join('');
+
+  sel.value = previousValue;
+}
+
+// ============================================================
+// RENDER STATS
+// ============================================================
+function renderStats(){
+  const activePatients = allPatients.filter(p => p.status === 'active').length;
+
+  const avgEVA = allSessions.length
+    ? (allSessions.reduce((a,s) => a + Number(s.eva || 0), 0) / allSessions.length).toFixed(1)
+    : '—';
+
+  const borgSessions = allSessions.filter(s => s.borg !== null && s.borg !== undefined);
+
+  const avgBorg = borgSessions.length
+    ? (borgSessions.reduce((a,s) => a + Number(s.borg || 0), 0) / borgSessions.length).toFixed(1)
+    : '—';
+
+  const patientsWithSessions = new Set(allSessions.map(s => s.patient_id)).size;
+
+  const adherence = allPatients.length
+    ? Math.round((patientsWithSessions / allPatients.length) * 100)
+    : 0;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${activePatients}</div>
+          <div class="stat-label">Patients actifs</div>
+        </div>
+        <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${allSessions.length}</div>
+          <div class="stat-label">Séances période</div>
+        </div>
+        <div class="stat-icon green"><i class="fa-solid fa-calendar-check"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${avgEVA}</div>
+          <div class="stat-label">EVA moyenne</div>
+        </div>
+        <div class="stat-icon red"><i class="fa-solid fa-heart-pulse"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${avgBorg}</div>
+          <div class="stat-label">Borg moyen</div>
+        </div>
+        <div class="stat-icon orange"><i class="fa-solid fa-fire"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${adherence}%</div>
+          <div class="stat-label">Patients actifs sur période</div>
+        </div>
+        <div class="stat-icon purple"><i class="fa-solid fa-chart-pie"></i></div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// CHART SIMPLE SVG
+// ============================================================
+function renderChart(){
+  const wrap = document.getElementById('chartWrap');
+
+  if(!allSessions.length){
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-chart-line"></i>
+        Aucune donnée sur cette période
+      </div>
+    `;
+    return;
+  }
+
+  const byDate = {};
+
+  allSessions.forEach(s => {
+    const d = new Date(s.created_at).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit'
+    });
+
+    if(!byDate[d]) byDate[d] = { eva: [], borg: [] };
+
+    if(s.eva !== null && s.eva !== undefined) byDate[d].eva.push(Number(s.eva));
+    if(s.borg !== null && s.borg !== undefined) byDate[d].borg.push(Number(s.borg));
+  });
+
+  const points = Object.keys(byDate).map(date => {
+    const evaAvg = byDate[date].eva.length
+      ? byDate[date].eva.reduce((a,b) => a+b, 0) / byDate[date].eva.length
+      : 0;
+
+    const borgAvgRaw = byDate[date].borg.length
+      ? byDate[date].borg.reduce((a,b) => a+b, 0) / byDate[date].borg.length
+      : 0;
+
+    // Borg 6-20 ramené sur 0-10 pour affichage commun
+    const borgScaled = borgAvgRaw ? ((borgAvgRaw - 6) / 14) * 10 : 0;
+
+    return {
+      date,
+      eva: evaAvg,
+      borgScaled,
+      borgRaw: borgAvgRaw
+    };
+  });
+
+  const width = wrap.clientWidth || 600;
+  const height = 240;
+  const pad = 35;
+
+  const x = idx => {
+    if(points.length === 1) return width / 2;
+    return pad + idx * ((width - pad * 2) / (points.length - 1));
+  };
+
+  const y = val => height - pad - (val / 10) * (height - pad * 2);
+
+  const lineEva = points.map((p,i) => `${x(i)},${y(p.eva)}`).join(' ');
+  const lineBorg = points.map((p,i) => `${x(i)},${y(p.borgScaled)}`).join(' ');
+
+  wrap.innerHTML = `
+    <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}">
+      <line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" stroke="var(--border)" />
+      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height-pad}" stroke="var(--border)" />
+
+      <text x="5" y="${pad+5}" fill="var(--text3)" font-size="10">10</text>
+      <text x="10" y="${height-pad}" fill="var(--text3)" font-size="10">0</text>
+
+      <polyline points="${lineEva}" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="${lineBorg}" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+      ${points.map((p,i) => `
+        <circle cx="${x(i)}" cy="${y(p.eva)}" r="4" fill="#ef4444"/>
+        <circle cx="${x(i)}" cy="${y(p.borgScaled)}" r="4" fill="#f59e0b"/>
+        <text x="${x(i)}" y="${height-10}" text-anchor="middle" fill="var(--text3)" font-size="10">${p.date}</text>
+      `).join('')}
+    </svg>
+  `;
+}
+
+// ============================================================
+// ALERTS
+// ============================================================
+function renderAlerts(){
+  const panel = document.getElementById('alertsPanel');
+  const alerts = [];
+
+  allPatients
+    .filter(p => p.status === 'active')
+    .forEach(p => {
+      const sessions = allSessions
+        .filter(s => s.patient_id === p.id)
+        .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+      const last = sessions[0];
+
+      if(!last){
+        alerts.push({
+          type: 'warn',
+          text: `${p.first_name} ${p.last_name} : aucune séance sur la période`,
+          time: 'À surveiller'
+        });
+        return;
+      }
+
+      const days = Math.floor((Date.now() - new Date(last.created_at).getTime()) / 86400000);
+
+      if(days > 5){
+        alerts.push({
+          type: 'warn',
+          text: `${p.first_name} ${p.last_name} : ${days} jours sans séance`,
+          time: 'Adhérence faible'
+        });
+      }
+
+      if(Number(last.eva) >= 7){
+        alerts.push({
+          type: 'danger',
+          text: `${p.first_name} ${p.last_name} : EVA élevée (${last.eva}/10)`,
+          time: new Date(last.created_at).toLocaleDateString('fr-FR')
+        });
+      }
+    });
+
+  if(!alerts.length){
+    panel.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-circle-check"></i>
+        Aucune alerte active
+      </div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = alerts.map(a => `
+    <div class="alert-item ${a.type}">
+      <div class="alert-icon ${a.type}">
+        <i class="fa-solid ${a.type === 'danger' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>
+      </div>
+      <div>
+        <div class="alert-text">${a.text}</div>
+        <div class="alert-time">${a.time}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// COMPARATIVE TABLE
+// ============================================================
+function renderCompTable(){
+  const body = document.getElementById('compTableBody');
+
+  if(!allPatients.length){
+    body.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">
+          Aucun patient
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = allPatients.map(p => {
+    const sessions = allSessions.filter(s => s.patient_id === p.id);
+
+    const avgEva = sessions.length
+      ? (sessions.reduce((a,s) => a + Number(s.eva || 0), 0) / sessions.length).toFixed(1)
+      : '—';
+
+    const borgSessions = sessions.filter(s => s.borg !== null && s.borg !== undefined);
+
+    const avgBorg = borgSessions.length
+      ? (borgSessions.reduce((a,s) => a + Number(s.borg || 0), 0) / borgSessions.length).toFixed(1)
+      : '—';
+
+    const adherence = currentPeriod >= 9999
+      ? Math.min(100, sessions.length * 10)
+      : Math.min(100, Math.round((sessions.length / Math.max(1, currentPeriod / 7 * 2)) * 100));
+
+    const sorted = [...sessions].sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+    let trend = '—';
+    let trendClass = 'flat';
+
+    if(sorted.length >= 2){
+      const first = Number(sorted[0].eva || 0);
+      const last = Number(sorted[sorted.length - 1].eva || 0);
+
+      if(last > first) {
+        trend = '↗ hausse';
+        trendClass = 'up-bad';
+      } else if(last < first) {
+        trend = '↘ baisse';
+        trendClass = 'down-good';
+      } else {
+        trend = '→ stable';
+      }
+    }
+
+    const lastSession = sorted.length
+      ? new Date(sorted[sorted.length - 1].created_at).toLocaleDateString('fr-FR')
+      : '—';
+
+    const statusLabel = {
+      active: 'Actif',
+      pause: 'Pause',
+      done: 'Terminé'
+    }[p.status] || p.status || '—';
+
+    const statusClass = {
+      active: 'badge-green',
+      pause: 'badge-orange',
+      done: 'badge-red'
+    }[p.status] || 'badge-orange';
+
+    return `
+      <tr onclick="selectPatientDeepDive('${p.id}')">
+        <td>
+          <div class="pt-cell">
+            <div class="pt-avatar" style="background:${getColor(p.id)}">${getInitials(p)}</div>
+            <div>
+              <div class="pt-name">${p.first_name} ${p.last_name}</div>
+              <div style="font-size:10.5px;color:var(--text3)">${p.pathology || ''}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+        <td>
+          <span class="mini-bar-bg">
+            <span class="mini-bar-fill" style="display:block;width:${adherence}%;background:${adherence >= 70 ? '#10b981' : adherence >= 40 ? '#f59e0b' : '#ef4444'}"></span>
+          </span>
+          ${adherence}%
+        </td>
+        <td>${avgEva}</td>
+        <td>${avgBorg}</td>
+        <td><span class="trend-arrow ${trendClass}">${trend}</span></td>
+        <td>${lastSession}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// DEEP DIVE
+// ============================================================
+function selectPatientDeepDive(patientId){
+  selectedPatientId = patientId;
+  document.getElementById('patientFilter').value = patientId;
+  currentFilter = patientId;
+  document.getElementById('deepDivePanel').style.display = 'block';
+  loadAndRender();
+}
+
+function renderDeepDive(patientId){
+  const patient = allPatients.find(p => p.id === patientId);
+  if(!patient) return;
+
+  const sessions = allSessions
+    .filter(s => s.patient_id === patientId)
+    .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  document.getElementById('deepDiveTitle').textContent = `Détail patient — ${patient.first_name} ${patient.last_name}`;
+
+  const symptomsCount = {};
+
+  sessions.forEach(s => {
+    let symptoms = s.symptoms || [];
+
+    if(typeof symptoms === 'string'){
+      try {
+        symptoms = JSON.parse(symptoms);
+      } catch(e) {
+        symptoms = [];
+      }
+    }
+
+    if(Array.isArray(symptoms)){
+      symptoms.forEach(sym => {
+        symptomsCount[sym] = (symptomsCount[sym] || 0) + 1;
+      });
+    }
+  });
+
+  const maxCount = Math.max(1, ...Object.values(symptomsCount));
+
+  const symptomsHTML = Object.entries(symptomsCount).length
+    ? Object.entries(symptomsCount).map(([sym,count]) => `
+        <div class="symptom-bar-row">
+          <div class="symptom-bar-label">${sym}</div>
+          <div class="symptom-bar-track">
+            <div class="symptom-bar-fill" style="width:${Math.round(count / maxCount * 100)}%"></div>
+          </div>
+          <div class="symptom-bar-count">${count}</div>
+        </div>
+      `).join('')
+    : `<div class="empty-state">Aucun symptôme déclaré</div>`;
+
+  document.getElementById('symptomBars').innerHTML = symptomsHTML;
+
+  document.getElementById('sessionTimeline').innerHTML = sessions.length
+    ? sessions.map(s => `
+        <div style="padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">
+            ${new Date(s.created_at).toLocaleString('fr-FR')}
+          </div>
+          <div style="font-size:11.5px;color:var(--text2);margin-top:4px">
+            EVA ${s.eva ?? '—'}/10 · Borg ${s.borg ?? '—'}/20
+          </div>
+          ${s.note ? `<div style="font-size:11.5px;color:var(--text3);margin-top:4px;font-style:italic">${s.note}</div>` : ''}
+        </div>
+      `).join('')
+    : `<div class="empty-state">Aucune séance pour ce patient</div>`;
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+function onPatientFilterChange(){
+  const val = document.getElementById('patientFilter').value;
+  currentFilter = val;
+  selectedPatientId = val === 'all' ? null : val;
+
+  if(selectedPatientId){
+    document.getElementById('deepDivePanel').style.display = 'block';
+  } else {
+    document.getElementById('deepDivePanel').style.display = 'none';
+  }
+
+  loadAndRender();
+}
+
+function setPeriod(days, el){
+  currentPeriod = days;
+  document.querySelectorAll('.period-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  loadAndRender();
+}
+
+// ============================================================
+// REALTIME
+// ============================================================
+function setupRealtime(){
+  realtimeChannels.forEach(ch => db.removeChannel(ch));
+  realtimeChannels = [];
+
+  const sessionsChannel = db.channel('dashboard-sessions')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
+      loadAndRender();
+    })
+    .subscribe(status => {
+      console.log('Realtime sessions dashboard:', status);
+    });
+
+  const patientsChannel = db.channel('dashboard-patients')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
+      loadAndRender();
+    })
+    .subscribe(status => {
+      console.log('Realtime patients dashboard:', status);
+    });
+
+  realtimeChannels = [sessionsChannel, patientsChannel];
+}
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+function exportData(){
+  const rows = [
+    ['Patient','Pathologie','Statut','Date séance','EVA','Borg','Symptômes','Note']
+  ];
+
+  allSessions.forEach(s => {
+    const p = allPatients.find(x => x.id === s.patient_id);
+
+    let symptoms = s.symptoms || [];
+
+    if(typeof symptoms === 'string'){
+      try {
+        symptoms = JSON.parse(symptoms);
+      } catch(e) {
+        symptoms = [];
+      }
+    }
+
+    rows.push([
+      p ? `${p.first_name} ${p.last_name}` : '',
+      p ? p.pathology || '' : '',
+      p ? p.status || '' : '',
+      new Date(s.created_at).toLocaleString('fr-FR'),
+      s.eva ?? '',
+      s.borg ?? '',
+      Array.isArray(symptoms) ? symptoms.join(', ') : '',
+      s.note || ''
+    ]);
+  });
+
+  const csv = rows
+    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+
+  a.href = url;
+  a.download = 'kineapp-dashboard-export.csv';
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// UI
+// ============================================================
+function toggleTheme(){
+  const d = document.documentElement;
+  const dark = d.getAttribute('data-theme') === 'dark';
+
+  d.setAttribute('data-theme', dark ? 'light' : 'dark');
+
+  document.getElementById('themeBtn').innerHTML = dark
+    ? '<i class="fa-solid fa-moon"></i>'
+    : '<i class="fa-solid fa-sun"></i>';
+}
+
+document.getElementById('loginPwd').addEventListener('keydown', e => {
+  if(e.key === 'Enter') doLogin();
+});
+
+window.addEventListener('unhandledrejection', e => {
+  console.error('Unhandled promise rejection:', e.reason);
   document.getElementById('loadingScreen').classList.add('app-hidden');
-  if(!savedId){ document.getElementById('loginScreen').classList.remove('app-hidden'); return; }
-  const {data} = await db.from('practitioners').select('*').eq('id',savedId).maybeSingle();
-  if(!data){ document.getElementById('loginScreen').classList.remove('app
+
+  if(!currentPractitioner){
+    document.getElementById('loginScreen').classList.remove('app-hidden');
+  }
+});
+
+tryAutoLogin();
+</script>
