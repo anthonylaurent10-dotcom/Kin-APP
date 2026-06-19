@@ -141,9 +141,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div class="login-card">
     <div class="login-logo"><div class="login-logo-icon"><i class="fa-solid fa-chart-line"></i></div><div class="login-logo-text">KinéApp</div></div>
     <div class="login-title">Connexion au Dashboard</div>
+
+    <div id="loginError" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fca5a5;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:14px;line-height:1.4"></div>
+
     <input class="login-input" type="email" id="loginEmail" placeholder="Votre email professionnel"/>
     <input class="login-input" type="password" id="loginPwd" placeholder="Mot de passe"/>
     <button class="login-btn" onclick="doLogin()" id="loginBtn">Accéder au dashboard</button>
+
     <div class="login-hint">Utilisez le même email que sur votre back-office</div>
   </div>
 </div>
@@ -264,11 +268,12 @@ function getInitials(p){
 // ============================================================
 async function doLogin(){
   if(loginInProgress){
-    console.log('Connexion déjà en cours, clic ignoré.');
+    console.log('Connexion déjà en cours');
     return;
   }
 
   loginInProgress = true;
+  clearLoginError();
 
   const btn = document.getElementById('loginBtn');
   if(btn){
@@ -279,8 +284,10 @@ async function doLogin(){
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pwd = document.getElementById('loginPwd').value;
 
+  console.log('Tentative login dashboard avec email:', email);
+
   if(!email || pwd.length < 4){
-    alert('Email et mot de passe requis');
+    showLoginError('Email et mot de passe requis.');
     loginInProgress = false;
     if(btn){
       btn.disabled = false;
@@ -290,14 +297,30 @@ async function doLogin(){
   }
 
   try {
+    document.getElementById('loadingScreen').classList.remove('app-hidden');
+    document.getElementById('loginScreen').classList.add('app-hidden');
+    document.getElementById('appRoot').classList.add('app-hidden');
+
+    console.log('1. Connexion Supabase Auth...');
+
     const { data: authData, error: authError } = await db.auth.signInWithPassword({
       email,
       password: pwd
     });
 
-    if(authError) throw authError;
+    if(authError) {
+      console.error('Erreur Auth:', authError);
+      throw new Error('Connexion impossible : ' + authError.message);
+    }
+
+    if(!authData || !authData.user){
+      throw new Error('Connexion impossible : aucun utilisateur retourné.');
+    }
 
     const userId = authData.user.id;
+    console.log('2. Auth OK, userId:', userId);
+
+    console.log('3. Recherche du profil practitioners...');
 
     const { data: practitioner, error: pError } = await db
       .from('practitioners')
@@ -305,26 +328,40 @@ async function doLogin(){
       .eq('id', userId)
       .maybeSingle();
 
-    if(pError) throw pError;
+    if(pError) {
+      console.error('Erreur practitioners:', pError);
+      throw new Error('Erreur lecture profil praticien : ' + pError.message);
+    }
+
+    console.log('4. Profil practitioner trouvé:', practitioner);
 
     if(!practitioner){
-      alert("Profil praticien introuvable. Connectez-vous d'abord au back-office.");
-      return;
+      throw new Error("Profil praticien introuvable. Va d'abord sur le backoffice, connecte-toi, puis reviens ici.");
     }
 
     currentPractitioner = practitioner;
     localStorage.setItem('kine_practitioner_id', practitioner.id);
 
-    document.getElementById('loginScreen').classList.add('app-hidden');
+    console.log('5. Chargement des données dashboard...');
+    await loadAndRender();
+    console.log('6. Données dashboard chargées');
+
     document.getElementById('loadingScreen').classList.add('app-hidden');
+    document.getElementById('loginScreen').classList.add('app-hidden');
     document.getElementById('appRoot').classList.remove('app-hidden');
 
-    await loadAndRender();
+    console.log('7. Dashboard affiché');
+
     setupRealtime();
 
   } catch(e) {
-    console.error(e);
-    alert('Erreur de connexion : ' + e.message);
+    console.error('Erreur doLogin dashboard:', e);
+
+    document.getElementById('loadingScreen').classList.add('app-hidden');
+    document.getElementById('loginScreen').classList.remove('app-hidden');
+    document.getElementById('appRoot').classList.add('app-hidden');
+
+    showLoginError(e.message || 'Erreur inconnue pendant la connexion.');
 
   } finally {
     loginInProgress = false;
