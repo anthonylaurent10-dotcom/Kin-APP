@@ -413,7 +413,16 @@ tr:hover td{background:var(--bg)}
         <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="pEmail" type="email"/></div>
         <div class="form-group"><label class="form-label">Date de début</label><input class="form-input" id="pStartDate" type="date"/></div>
         <div class="form-group"><label class="form-label">Statut</label><select class="form-select" id="pStatus"><option value="active">Actif</option><option value="pause">En pause</option><option value="done">Terminé</option></select></div>
-        <div class="form-group full"><label class="form-label">Notes initiales</label><textarea class="form-textarea" id="pNotes"></textarea></div>
+        <div class="form-group full"><label class="form-label">Notes initiales</label><textarea class="form-textarea" id="pNotes"></textarea><div class="form-group full">
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text2);line-height:1.4;text-transform:none;letter-spacing:0">
+    <input type="checkbox" id="pConsent" style="margin-top:2px"/>
+    <span>
+      Le patient a donné son consentement éclairé pour le suivi numérique,
+      le traitement de ses données de santé, l'accès à son programme en ligne
+      et l'utilisation de la messagerie thérapeutique.
+    </span>
+  </label>
+</div>
       </div>
       <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Ces données sont traitées conformément au RGPD.</div>
     </div>
@@ -577,7 +586,9 @@ async function isEmailAuthorized(email){
 
   } else {
     throw loginResult.error;
-  }
+  } else {
+  authData = loginResult.data;
+}
 }
 
     const user = authData.user;
@@ -777,6 +788,7 @@ function openNewPatient(){
   ['pFirstName','pLastName','pAge','pPhone','pEmail','pNotes','pPathology'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pStatus').value='active';
   document.getElementById('pStartDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('pConsent').checked = false;
   openModal('modalPatient');
 }
 function editCurrentPatient(){
@@ -798,16 +810,32 @@ async function savePatient(){
   const fn=document.getElementById('pFirstName').value.trim();
   const ln=document.getElementById('pLastName').value.trim();
   const path=document.getElementById('pPathology').value.trim();
+  const consentChecked = document.getElementById('pConsent').checked;
   if(!fn||!ln){showToast('Prénom et nom requis','red');return;}
+  if(!editingPatientId && !consentChecked){
+  showToast('Consentement patient requis', 'red');
+  return;
+}
   const btn=document.getElementById('btnSavePat');
   btn.disabled=true; const origHtml=btn.innerHTML; btn.innerHTML='<span class="loading-spinner" style="border-top-color:#fff"></span> Enregistrement...';
 
   const payload={
-    first_name:fn, last_name:ln, age:document.getElementById('pAge').value||null,
-    pathology:path, phone:document.getElementById('pPhone').value,
-    email:document.getElementById('pEmail').value, status:document.getElementById('pStatus').value,
-    start_date:document.getElementById('pStartDate').value||null, notes:document.getElementById('pNotes').value
-  };
+    const payload={
+  first_name: fn,
+  last_name: ln,
+  age: document.getElementById('pAge').value ? parseInt(document.getElementById('pAge').value, 10) : null,
+  pathology: path,
+  phone: document.getElementById('pPhone').value.trim(),
+  email: document.getElementById('pEmail').value.trim().toLowerCase(),
+  status: document.getElementById('pStatus').value,
+  start_date: document.getElementById('pStartDate').value || null,
+  notes: document.getElementById('pNotes').value,
+  consent_given: consentChecked,
+  consent_given_at: consentChecked ? new Date().toISOString() : null,
+  consent_text_version: consentChecked ? 'v1-2026-06' : null,
+  updated_at: new Date().toISOString()
+};
+
   try{
     if(editingPatientId){
       const {error} = await db.from('patients').update(payload)
@@ -1094,8 +1122,8 @@ async function renderMessages(patId){
   const c=document.getElementById('messagesContainer');
   if(!messages.length){c.innerHTML=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Aucun message échangé.</div>`;return;}
   c.innerHTML=messages.map(m=>`
-    <div style="display:flex;flex-direction:column;align-items:${m.sender==='kine'?'flex-end':'flex-start'}">
-      <div style="max-width:75%;background:${m.sender==='kine'?'var(--accent)':'var(--bg)'};color:${m.sender==='kine'?'#fff':'var(--text)'};border-radius:${m.sender==='kine'?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 14px;font-size:13px;border:1px solid var(--border)">${m.text}</div>
+    <div style="display:flex;flex-direction:column;align-items:${escapeHTML(m.sender==='kine'?'flex-end':'flex-start')}">
+      <div style="max-width:75%;background:${escapeHTML(m.sender==='kine'?'var(--accent)':'var(--bg)')};color:${escapeHTML(m.sender==='kine'?'#fff':'var(--text)')};border-radius:${escapeHTML(m.sender==='kine'?'14px 14px 4px 14px':'14px 14px 14px 4px')};padding:10px 14px;font-size:13px;border:1px solid var(--border)">${escapeHTML(m.text)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:3px">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
     </div>`).join('');
   c.scrollTop=c.scrollHeight;
@@ -1211,6 +1239,14 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(o=>o.classList.remove('open'))});
 let toastTimer;
+function escapeHTML(value){
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
 function showToast(msg,type='green'){
   const existing=document.querySelector('.toast');if(existing)existing.remove();
   const icons={green:'fa-circle-check',red:'fa-circle-xmark',blue:'fa-circle-info'};
@@ -1218,9 +1254,6 @@ function showToast(msg,type='green'){
   t.innerHTML=`<i class="fa-solid ${icons[type]||icons.green}" style="color:${type==='green'?'#34d399':type==='red'?'#f87171':'#60a5fa'}"></i>${msg}`;
   document.body.appendChild(t);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),3500);
 }
-function showBackoffice(){
-  document.getElementById('loginScreen').style.display = 'none';
-  document.getElementById('appScreen').style.display = 'block';
 
   document.getElementById('sidebarName').textContent =
     currentPractitioner.first_name ||
@@ -1240,10 +1273,6 @@ function showBackoffice(){
   document.getElementById('settCabinet').value = currentPractitioner.cabinet || '';
 }
 
-function showLogin(){
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('appScreen').style.display = 'none';
-}
 
 tryAutoLogin();
 </script>
