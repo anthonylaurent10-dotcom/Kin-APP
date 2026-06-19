@@ -515,114 +515,176 @@ let realtimeChannels = [];
 // ===== AUTH (simplifié : email = identifiant, table practitioners) =====
 async function doLogin(){
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pwd = document.getElementById('loginPwd').value;
+  const password = document.getElementById('loginPwd').value;
   const errEl = document.getElementById('loginError');
-  errEl.style.display = 'none';
+  const btn = document.getElementById('loginBtnEl');
 
-  if(!email || pwd.length < 4){
-    errEl.textContent = 'Email valide et mot de passe (4+ caractères) requis';
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+
+  if(!email || password.length < 8){
+    errEl.textContent = 'Email valide et mot de passe de 8 caractères minimum requis.';
     errEl.style.display = 'block';
     return;
   }
 
-  const btn = document.getElementById('loginBtnEl');
   btn.disabled = true;
+  const oldHtml = btn.innerHTML;
   btn.innerHTML = '<span class="loading-spinner"></span> Connexion...';
 
   try {
-    // 1. Tentative de connexion
-    let authResult = await db.auth.signInWithPassword({ email, password: pwd });
+    let authData = null;
 
-    // 2. Si compte inexistant, on le crée (première connexion)
-    if(authResult.error && authResult.error.message.includes('Invalid login credentials')){
-      const signUpResult = await db.auth.signUp({ email, password: pwd });
-      if(signUpResult.error) throw signUpResult.error;
-      authResult = await db.auth.signInWithPassword({ email, password: pwd });
+    const loginResult = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(loginResult.error){
+      const msg = loginResult.error.message || '';
+
+      if(
+        msg.includes('Invalid login credentials') ||
+        msg.includes('Email not confirmed')
+      ){
+        const signupResult = await db.auth.signUp({
+          email,
+          password
+        });
+
+        if(signupResult.error){
+          throw signupResult.error;
+        }
+
+        if(!signupResult.data.user){
+          throw new Error('Compte créé. Vérifiez vos emails si la confirmation est activée.');
+        }
+
+        authData = signupResult.data;
+      } else {
+        throw loginResult.error;
+      }
+    } else {
+      authData = loginResult.data;
     }
 
-    if(authResult.error) throw authResult.error;
+    const user = authData.user;
 
-    const userId = authResult.data.user.id;
+    if(!user){
+      throw new Error('Utilisateur Supabase introuvable après authentification.');
+    }
 
-    // 3. Cherche ou crée le profil praticien
-    let { data: existing, error: fetchErr } = await db
+    let { data: practitioner, error: profileError } = await db
       .from('practitioners')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
 
-    if(fetchErr) throw fetchErr;
-
-    if(!existing){
-      const { data: created, error: createErr } = await db
-        .from('practitioners')
-        .insert({ id: userId, email, first_name: '', last_name: '', speciality: '', cabinet: '' })
-        .select()
-        .single();
-      if(createErr) throw createErr;
-      existing = created;
+    if(profileError){
+      throw profileError;
     }
 
-    currentPractitioner = existing;
-    localStorage.setItem('kine_practitioner_id', existing.id);
+    if(!practitioner){
+      const { data: created, error: createError } = await db
+        .from('practitioners')
+        .insert({
+          id: user.id,
+          email: user.email,
+          first_name: '',
+          last_name: '',
+          speciality: '',
+          cabinet: ''
+        })
+        .select()
+        .single();
 
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('sidebarName').textContent = existing.first_name || email;
-    document.getElementById('sidebarInitials').textContent = (existing.first_name?.[0] || email[0]).toUpperCase();
-    document.getElementById('settFirstName').value = existing.first_name || '';
-    document.getElementById('settLastName').value = existing.last_name || '';
-    document.getElementById('settSpeciality').value = existing.speciality || '';
-    document.getElementById('settCabinet').value = existing.cabinet || '';
+      if(createError){
+        throw createError;
+      }
+
+      practitioner = created;
+    }
+
+    currentPractitioner = practitioner;
+
+    showBackoffice();
 
     await loadAllData();
     setupRealtimeSubscriptions();
 
-  } catch(e){
+  } catch(e) {
+    console.error('Erreur login:', e);
     errEl.textContent = 'Erreur : ' + e.message;
     errEl.style.display = 'block';
+
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Se connecter';
+    btn.innerHTML = oldHtml;
   }
 }
+
 
 document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
 async function doLogout(){
   realtimeChannels.forEach(ch => db.removeChannel(ch));
   realtimeChannels = [];
+
   await db.auth.signOut();
-  localStorage.removeItem('kine_practitioner_id');
-  location.reload();
+
+  currentPractitioner = null;
+  patients = [];
+  programs = [];
+  library = [];
+
+  showLogin();
 }
+
 
 // Auto-login si déjà connecté
 async function tryAutoLogin(){
-  const { data: { session } } = await db.auth.getSession();
-  if(!session) return;
+  try {
+    const { data: { session }, error } = await db.auth.getSession();
 
-  const userId = session.user.id;
-  const { data } = await db
-    .from('practitioners')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+    if(error){
+      throw error;
+    }
 
-  if(data){
-    currentPractitioner = data;
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('sidebarName').textContent = data.first_name || data.email;
-    document.getElementById('sidebarInitials').textContent = (data.first_name?.[0] || data.email[0]).toUpperCase();
-    document.getElementById('settFirstName').value = data.first_name || '';
-    document.getElementById('settLastName').value = data.last_name || '';
-    document.getElementById('settSpeciality').value = data.speciality || '';
-    document.getElementById('settCabinet').value = data.cabinet || '';
+    if(!session || !session.user){
+      showLogin();
+      return;
+    }
+
+    const user = session.user;
+
+    const { data: practitioner, error: profileError } = await db
+      .from('practitioners')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if(profileError){
+      throw profileError;
+    }
+
+    if(!practitioner){
+      showLogin();
+      return;
+    }
+
+    currentPractitioner = practitioner;
+
+    showBackoffice();
+
     await loadAllData();
     setupRealtimeSubscriptions();
+
+  } catch(e) {
+    console.error('Erreur auto-login:', e);
+    showLogin();
   }
 }
+
 
 // ===== LOAD DATA =====
 async function loadAllData(){
@@ -692,7 +754,7 @@ function addActivityRow(patient, action, date){
 }
 
 // ===== PATIENTS CRUD =====
-function genToken(){return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10)}
+function genToken(){return crypto.randomUUID();}
 const avatarColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
 function getColor(id){return avatarColors[parseInt((id||'0').replace(/-/g,'').slice(-2),16)%avatarColors.length]||avatarColors[0]}
 function getInitials(p){return((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase()}
@@ -740,7 +802,8 @@ async function savePatient(){
       if(error) throw error;
     } else {
       payload.practitioner_id = currentPractitioner.id;
-      payload.token = genToken();
+      payload.token = crypto.randomUUID();
+
       const {error} = await db.from('patients').insert(payload);
       if(error) throw error;
     }
@@ -1106,6 +1169,32 @@ function showToast(msg,type='green'){
   const t=document.createElement('div');t.className='toast';
   t.innerHTML=`<i class="fa-solid ${icons[type]||icons.green}" style="color:${type==='green'?'#34d399':type==='red'?'#f87171':'#60a5fa'}"></i>${msg}`;
   document.body.appendChild(t);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),3500);
+}
+function showBackoffice(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+
+  document.getElementById('sidebarName').textContent =
+    currentPractitioner.first_name ||
+    currentPractitioner.email ||
+    'Kinésithérapeute';
+
+  document.getElementById('sidebarInitials').textContent =
+    (
+      currentPractitioner.first_name?.[0] ||
+      currentPractitioner.email?.[0] ||
+      'K'
+    ).toUpperCase();
+
+  document.getElementById('settFirstName').value = currentPractitioner.first_name || '';
+  document.getElementById('settLastName').value = currentPractitioner.last_name || '';
+  document.getElementById('settSpeciality').value = currentPractitioner.speciality || '';
+  document.getElementById('settCabinet').value = currentPractitioner.cabinet || '';
+}
+
+function showLogin(){
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
 }
 
 tryAutoLogin();
