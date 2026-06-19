@@ -1,0 +1,34 @@
+# ================================
+# KinéApp - Configuration Netlify
+# ================================
+
+[build]
+  publish = "."
+  command = ""
+
+# Route propre pour l'application patient
+[[redirects]]
+  from = "/patient"
+  to = "/patient.html"
+  status = 200
+
+# Route propre pour le dashboard analytique
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+# Route optionnelle pour l'espace professionnel
+[[redirects]]
+  from = "/pro"
+  to = "/index.html"
+  status = 200
+
+# Headers de sécurité globaux
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
