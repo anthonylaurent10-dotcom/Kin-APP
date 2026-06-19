@@ -553,7 +553,7 @@ async function doLogin(){
     if(fetchErr) throw fetchErr;
 
     if(!existing){
-      const { data: created, error: createErr } = await supabase
+      const { data: created, error: createErr } = await db
         .from('practitioners')
         .insert({ id: userId, email, first_name: '', last_name: '', speciality: '', cabinet: '' })
         .select()
@@ -602,7 +602,7 @@ async function tryAutoLogin(){
   if(!session) return;
 
   const userId = session.user.id;
-  const { data } = await supabase
+  const { data } = await db
     .from('practitioners')
     .select('*')
     .eq('id', userId)
