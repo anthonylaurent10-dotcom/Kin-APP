@@ -585,7 +585,7 @@ async function submitSession(){
     closeModal('sessionModal');
     showSuccess();
   } catch(e){
-    showToast('Erreur lors de l\\'envoi. Réessayez.');
+    showToast("Erreur lors de l'envoi. Réessayez.");
     console.error(e);
   } finally {
     btn.disabled=false; btn.innerHTML=orig;
