@@ -223,7 +223,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 // ============================================================
 const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentPractitioner=null;
 let allPatients=[];
@@ -239,7 +239,7 @@ async function doLogin(){
   const email=document.getElementById('loginEmail').value.trim().toLowerCase();
   const pwd=document.getElementById('loginPwd').value;
   if(!email||pwd.length<4)return;
-  const {data} = await supabase.from('practitioners').select('*').eq('email',email).maybeSingle();
+  const {data} = await db.from('practitioners').select('*').eq('email',email).maybeSingle();
   if(!data){ alert('Aucun compte trouvé avec cet email. Connectez-vous d\\'abord sur le back-office.'); return; }
   currentPractitioner=data;
   localStorage.setItem('kine_practitioner_id',data.id);
@@ -249,7 +249,7 @@ async function doLogin(){
   setupRealtime();
 }
 function doLogout(){
-  realtimeChannels.forEach(ch=>supabase.removeChannel(ch));
+  realtimeChannels.forEach(ch=>db.removeChannel(ch));
   localStorage.removeItem('kine_practitioner_id');
   location.reload();
 }
@@ -257,5 +257,5 @@ async function tryAutoLogin(){
   const savedId=localStorage.getItem('kine_practitioner_id');
   document.getElementById('loadingScreen').classList.add('app-hidden');
   if(!savedId){ document.getElementById('loginScreen').classList.remove('app-hidden'); return; }
-  const {data} = await supabase.from('practitioners').select('*').eq('id',savedId).maybeSingle();
+  const {data} = await db.from('practitioners').select('*').eq('id',savedId).maybeSingle();
   if(!data){ document.getElementById('loginScreen').classList.remove('app
