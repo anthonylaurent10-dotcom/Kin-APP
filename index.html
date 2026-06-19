@@ -513,7 +513,21 @@ let exercisesInBuilder = [];
 let realtimeChannels = [];
 
 // ===== AUTH (simplifié : email = identifiant, table practitioners) =====
-async function doLogin(){
+async function isEmailAuthorized(email){
+  const { data, error } = await db
+    .from('authorized_practitioners')
+    .select('email, used')
+    .eq('email', email)
+    .maybeSingle();
+
+  if(error){
+    throw error;
+  }
+
+  return !!data;
+}
+
+  async function doLogin(){
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPwd').value;
   const errEl = document.getElementById('loginError');
@@ -541,32 +555,30 @@ async function doLogin(){
     });
 
     if(loginResult.error){
-      const msg = loginResult.error.message || '';
+  const msg = loginResult.error.message || '';
 
-      if(
-        msg.includes('Invalid login credentials') ||
-        msg.includes('Email not confirmed')
-      ){
-        const signupResult = await db.auth.signUp({
-          email,
-          password
-        });
+  if(msg.includes('Invalid login credentials')){
+    const authorized = await isEmailAuthorized(email);
 
-        if(signupResult.error){
-          throw signupResult.error;
-        }
-
-        if(!signupResult.data.user){
-          throw new Error('Compte créé. Vérifiez vos emails si la confirmation est activée.');
-        }
-
-        authData = signupResult.data;
-      } else {
-        throw loginResult.error;
-      }
-    } else {
-      authData = loginResult.data;
+    if(!authorized){
+      throw new Error("Cet email n'est pas autorisé à créer un compte kiné.");
     }
+
+    const signupResult = await db.auth.signUp({
+      email,
+      password
+    });
+
+    if(signupResult.error){
+      throw signupResult.error;
+    }
+
+    authData = signupResult.data;
+
+  } else {
+    throw loginResult.error;
+  }
+}
 
     const user = authData.user;
 
@@ -798,7 +810,9 @@ async function savePatient(){
   };
   try{
     if(editingPatientId){
-      const {error} = await db.from('patients').update(payload).eq('id',editingPatientId);
+      const {error} = await db.from('patients').update(payload)
+.eq('id', editingPatientId)
+.eq('practitioner_id', currentPractitioner.id);
       if(error) throw error;
     } else {
       payload.practitioner_id = currentPractitioner.id;
@@ -815,7 +829,9 @@ async function savePatient(){
 }
 async function deleteCurrentPatient(){
   if(!confirm('Supprimer ce patient et toutes ses données ? Action irréversible (RGPD).'))return;
-  const {error} = await db.from('patients').delete().eq('id',currentPatientId);
+  const {error} = await db.from('patients').delete()
+  .eq('id', currentPatientId)
+  .eq('practitioner_id', currentPractitioner.id);
   if(error){ showToast('Erreur : '+error.message,'red'); return; }
   showToast('Supprimé.'); await loadAllData(); showView('patients');
 }
@@ -874,7 +890,12 @@ async function showPatientDetail(id){
 }
 async function saveNotes(){
   const val=document.getElementById('privateNotes').value;
-  await db.from('patients').update({private_notes:val}).eq('id',currentPatientId);
+  await db.from('patients').update({
+    private_notes: val,
+    updated_at: new Date().toISOString()
+  })
+  .eq('id', currentPatientId)
+  .eq('practitioner_id', currentPractitioner.id);
   const p=patients.find(x=>x.id===currentPatientId); if(p)p.private_notes=val;
 }
 function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast('Lien copié !','green'))}
