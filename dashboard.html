@@ -24,7 +24,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .spinner-lg{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .fs-title{font-size:18px;font-weight:700;color:var(--text)}
-.app-hidden{display:none}
+.app-hidden{display:none !important}
 
 /* LOGIN (réutilise le même compte que index.html) */
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0f172a 100%);padding:20px}
@@ -251,6 +251,62 @@ let selectedPatientId = null;
 let realtimeChannels = [];
 let realtimeStarted = false;
 let loginInProgress = false;
+function showLoading(){
+  document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'none';
+
+  document.getElementById('loadingScreen').classList.remove('app-hidden');
+  document.getElementById('loginScreen').classList.add('app-hidden');
+  document.getElementById('appRoot').classList.add('app-hidden');
+}
+
+function showDashboardLogin(){
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('loginScreen').classList.remove('app-hidden');
+  document.getElementById('appRoot').classList.add('app-hidden');
+
+  window.scrollTo(0, 0);
+}
+
+function forceShowDashboard(){
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('loginScreen').classList.add('app-hidden');
+  document.getElementById('appRoot').classList.remove('app-hidden');
+
+  window.scrollTo(0, 0);
+}
+
+function showLoginError(message){
+  const el = document.getElementById('loginError');
+
+  if(!el){
+    alert(message);
+    return;
+  }
+
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function clearLoginError(){
+  const el = document.getElementById('loginError');
+
+  if(!el){
+    return;
+  }
+
+  el.textContent = '';
+  el.style.display = 'none';
+}
 
 
 const avatarColors = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
@@ -268,7 +324,6 @@ function getInitials(p){
 // ============================================================
 async function doLogin(){
   if(loginInProgress){
-    console.log('Connexion déjà en cours');
     return;
   }
 
@@ -276,91 +331,69 @@ async function doLogin(){
   clearLoginError();
 
   const btn = document.getElementById('loginBtn');
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPwd').value;
+
   if(btn){
     btn.disabled = true;
     btn.textContent = 'Connexion...';
   }
 
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pwd = document.getElementById('loginPwd').value;
-
-  console.log('Tentative login dashboard avec email:', email);
-
-  if(!email || pwd.length < 4){
-    showLoginError('Email et mot de passe requis.');
+  if(!email || password.length < 8){
+    showLoginError('Email valide et mot de passe de 8 caractères minimum requis.');
     loginInProgress = false;
+
     if(btn){
       btn.disabled = false;
       btn.textContent = 'Accéder au dashboard';
     }
+
     return;
   }
 
   try {
-    document.getElementById('loadingScreen').classList.remove('app-hidden');
-    document.getElementById('loginScreen').classList.add('app-hidden');
-    document.getElementById('appRoot').classList.add('app-hidden');
-
-    console.log('1. Connexion Supabase Auth...');
+    showLoading();
 
     const { data: authData, error: authError } = await db.auth.signInWithPassword({
       email,
-      password: pwd
+      password
     });
 
-    if(authError) {
-      console.error('Erreur Auth:', authError);
+    if(authError){
       throw new Error('Connexion impossible : ' + authError.message);
     }
 
     if(!authData || !authData.user){
-      throw new Error('Connexion impossible : aucun utilisateur retourné.');
+      throw new Error('Connexion impossible : utilisateur Supabase introuvable.');
     }
 
-    const userId = authData.user.id;
-    console.log('2. Auth OK, userId:', userId);
+    const user = authData.user;
 
-    console.log('3. Recherche du profil practitioners...');
-
-    const { data: practitioner, error: pError } = await db
+    const { data: practitioner, error: practitionerError } = await db
       .from('practitioners')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
 
-    if(pError) {
-      console.error('Erreur practitioners:', pError);
-      throw new Error('Erreur lecture profil praticien : ' + pError.message);
+    if(practitionerError){
+      throw new Error('Erreur lecture profil praticien : ' + practitionerError.message);
     }
 
-    console.log('4. Profil practitioner trouvé:', practitioner);
-
     if(!practitioner){
-      throw new Error("Profil praticien introuvable. Va d'abord sur le backoffice, connecte-toi, puis reviens ici.");
+      throw new Error("Profil praticien introuvable. Connectez-vous d'abord au backoffice pour créer votre profil.");
     }
 
     currentPractitioner = practitioner;
-    localStorage.setItem('kine_practitioner_id', practitioner.id);
 
-    console.log('5. Chargement des données dashboard...');
     await loadAndRender();
-    console.log('6. Données dashboard chargées');
 
-    document.getElementById('loadingScreen').classList.add('app-hidden');
-    document.getElementById('loginScreen').classList.add('app-hidden');
-    document.getElementById('appRoot').classList.remove('app-hidden');
-
-    console.log('7. Dashboard affiché');
+    forceShowDashboard();
 
     setupRealtime();
 
   } catch(e) {
     console.error('Erreur doLogin dashboard:', e);
-
-    document.getElementById('loadingScreen').classList.add('app-hidden');
-    document.getElementById('loginScreen').classList.remove('app-hidden');
-    document.getElementById('appRoot').classList.add('app-hidden');
-
+    showDashboardLogin();
     showLoginError(e.message || 'Erreur inconnue pendant la connexion.');
 
   } finally {
@@ -380,55 +413,62 @@ async function doLogout(){
 
   await db.auth.signOut();
 
-  localStorage.removeItem('kine_practitioner_id');
+  currentPractitioner = null;
+  allPatients = [];
+  allSessions = [];
+  selectedPatientId = null;
+  currentFilter = 'all';
 
   location.href = '/';
 }
 
 async function tryAutoLogin(){
   try {
-    document.getElementById('loadingScreen').classList.remove('app-hidden');
+    showLoading();
 
-    const { data: { session } } = await db.auth.getSession();
+    const { data: { session }, error } = await db.auth.getSession();
 
-    if(!session){
-      document.getElementById('loadingScreen').classList.add('app-hidden');
-      document.getElementById('loginScreen').classList.remove('app-hidden');
+    if(error){
+      throw error;
+    }
+
+    if(!session || !session.user){
+      showDashboardLogin();
       return;
     }
 
-    const userId = session.user.id;
+    const user = session.user;
 
-    const { data: practitioner, error } = await db
+    const { data: practitioner, error: practitionerError } = await db
       .from('practitioners')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
 
-    if(error) throw error;
+    if(practitionerError){
+      throw practitionerError;
+    }
 
     if(!practitioner){
-      document.getElementById('loadingScreen').classList.add('app-hidden');
-      document.getElementById('loginScreen').classList.remove('app-hidden');
+      showDashboardLogin();
       return;
     }
 
     currentPractitioner = practitioner;
-    localStorage.setItem('kine_practitioner_id', practitioner.id);
-
-    document.getElementById('loadingScreen').classList.add('app-hidden');
-    document.getElementById('loginScreen').classList.add('app-hidden');
-    document.getElementById('appRoot').classList.remove('app-hidden');
 
     await loadAndRender();
+
+    forceShowDashboard();
+
     setupRealtime();
 
   } catch(e) {
     console.error('Erreur auto-login dashboard:', e);
-    document.getElementById('loadingScreen').classList.add('app-hidden');
-    document.getElementById('loginScreen').classList.remove('app-hidden');
+    showDashboardLogin();
+    showLoginError('Session expirée ou invalide. Reconnectez-vous.');
   }
 }
+
 
 // ============================================================
 // DATA LOADING
@@ -455,10 +495,10 @@ async function loadAndRender(){
     .order('created_at', { ascending: false });
 
   if(patientsError){
-    console.error(patientsError);
-    alert('Erreur chargement patients : ' + patientsError.message);
-    return;
-  }
+  console.error(patientsError);
+  throw new Error('Erreur chargement patients : ' + patientsError.message);
+}
+
 
   allPatients = patients || [];
 
@@ -491,10 +531,10 @@ async function loadAndRender(){
   const { data: sessions, error: sessionsError } = await sessionsQuery;
 
   if(sessionsError){
-    console.error(sessionsError);
-    alert('Erreur chargement séances : ' + sessionsError.message);
-    return;
-  }
+  console.error(sessionsError);
+  throw new Error('Erreur chargement séances : ' + sessionsError.message);
+}
+
 
   allSessions = sessions || [];
 
@@ -1065,12 +1105,12 @@ document.getElementById('loginPwd').addEventListener('keydown', e => {
 
 window.addEventListener('unhandledrejection', e => {
   console.error('Unhandled promise rejection:', e.reason);
-  document.getElementById('loadingScreen').classList.add('app-hidden');
 
   if(!currentPractitioner){
-    document.getElementById('loginScreen').classList.remove('app-hidden');
+    showDashboardLogin();
   }
 });
+
 
 tryAutoLogin();
 </script>
