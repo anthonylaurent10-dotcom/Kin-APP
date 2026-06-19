@@ -482,6 +482,20 @@ tr:hover td{background:var(--bg)}
 const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ====== DEBUG TEMPORAIRE ======
+console.log('Supabase initialisé :', SUPABASE_URL);
+
+supabase.auth.onAuthStateChange((event, session) => {
+  console.log('=== AUTH EVENT ===', event);
+  console.log('Session complète :', session);
+  if(session) console.log('User ID :', session.user.id);
+});
+
+// Intercepte les erreurs globales
+window.addEventListener('unhandledrejection', e => {
+  console.error('Erreur non gérée :', e.reason);
+});
+// ====== FIN DEBUG ======
 
 // ===== STATE =====
 let currentPractitioner = null;
