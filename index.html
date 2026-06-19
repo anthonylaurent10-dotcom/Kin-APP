@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>KinéApp — Espace Professionnel</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f0f4f8;--card:#fff;--sidebar:#1e293b;--sidebar-text:#94a3b8;--sidebar-active:#3b82f6;
@@ -19,8 +20,6 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
-
-/* LOGIN */
 #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0f172a 100%);padding:20px}
 .login-card{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 32px 64px rgba(0,0,0,.4)}
 .login-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:32px}
@@ -36,16 +35,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .login-input::placeholder{color:#475569}
 .login-btn{width:100%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:opacity .2s}
 .login-btn:hover{opacity:.9}
+.login-btn:disabled{opacity:.5;cursor:not-allowed}
 .login-hint{text-align:center;font-size:12px;color:#475569;margin-top:16px}
-.login-lang{display:flex;justify-content:center;gap:8px;margin-top:20px}
-.lang-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);color:#94a3b8;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;transition:all .2s}
-.lang-btn.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
-
-/* APP LAYOUT */
+.login-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:14px;display:none}
 #appScreen{display:none;min-height:100vh}
 .app-layout{display:flex;min-height:100vh}
-
-/* SIDEBAR */
 .sidebar{width:240px;background:var(--sidebar);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50;transition:transform .3s}
 .sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
 .sidebar-logo-icon{width:36px;height:36px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0}
@@ -64,8 +58,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .nav-item i{width:18px;text-align:center;font-size:14px;flex-shrink:0}
 .nav-badge{margin-left:auto;background:#ef4444;color:#fff;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700}
 .sidebar-bottom{padding:12px 10px;border-top:1px solid rgba(255,255,255,.06)}
-
-/* MAIN */
+.live-dot{display:inline-block;width:7px;height:7px;background:#10b981;border-radius:50%;margin-right:5px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 .main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
 .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;box-shadow:var(--shadow)}
 .topbar-left{display:flex;align-items:center;gap:12px}
@@ -75,12 +69,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .tb-btn{background:var(--bg);border:1px solid var(--border);color:var(--text2);width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s}
 .tb-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .page-content{padding:24px;flex:1}
-
-/* VIEWS */
 .view{display:none}
 .view.active{display:block}
-
-/* STATS CARDS */
 .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
 .stat-card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow);display:flex;align-items:center;gap:16px}
 .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
@@ -97,22 +87,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .stat-trend{font-size:11px;font-weight:600;margin-top:4px}
 .stat-trend.up{color:var(--green)}
 .stat-trend.warn{color:var(--orange)}
-
-/* SECTION HEADERS */
 .section-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .section-title{font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
 .section-title i{color:var(--accent);font-size:15px}
 .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;border:none}
 .btn-primary{background:linear-gradient(135deg,var(--accent),#6366f1);color:#fff}
 .btn-primary:hover{opacity:.9}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 .btn-secondary{background:var(--bg);border:1.5px solid var(--border);color:var(--text2)}
 .btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
 .btn-danger{background:#fef2f2;border:1.5px solid #fca5a5;color:#dc2626}
 .btn-danger:hover{background:#dc2626;color:#fff}
 .btn-sm{padding:6px 12px;font-size:12px}
 .btn-icon-only{width:32px;height:32px;padding:0;justify-content:center}
-
-/* TABLES */
 .table-wrap{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
 .table-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .search-wrap{position:relative;flex:1;max-width:300px}
@@ -128,8 +115,6 @@ tr:hover td{background:var(--bg)}
 .patient-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
 .patient-name{font-weight:600;color:var(--text);font-size:13px}
 .patient-patho{font-size:11px;color:var(--text3);margin-top:1px}
-
-/* BADGES */
 .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
 .badge-green{background:#d1fae5;color:#065f46}
 .badge-red{background:#fee2e2;color:#991b1b}
@@ -140,8 +125,6 @@ tr:hover td{background:var(--bg)}
 [data-theme="dark"] .badge-red{background:rgba(239,68,68,.2);color:#fca5a5}
 [data-theme="dark"] .badge-orange{background:rgba(245,158,11,.2);color:#fbbf24}
 [data-theme="dark"] .badge-blue{background:rgba(59,130,246,.2);color:#93c5fd}
-
-/* CARDS GRID */
 .cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
 .prog-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;transition:box-shadow .2s}
 .prog-card:hover{box-shadow:var(--shadow2)}
@@ -151,9 +134,6 @@ tr:hover td{background:var(--bg)}
 .prog-card-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
 .prog-title{font-size:14px;font-weight:700;color:var(--text);line-height:1.3}
 .prog-sub{font-size:12px;color:var(--text3);margin-top:3px}
-.prog-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-
-/* MODAL */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
 .modal-overlay.open{display:flex}
 .modal{background:var(--card);border-radius:20px;width:100%;max-width:600px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow2)}
@@ -164,10 +144,7 @@ tr:hover td{background:var(--bg)}
 .modal-close:hover{background:var(--red);color:#fff;border-color:var(--red)}
 .modal-body{padding:22px;overflow-y:auto;flex:1}
 .modal-footer{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0}
-
-/* FORMS */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.form-grid.cols1{grid-template-columns:1fr}
 .form-group{display:flex;flex-direction:column;gap:6px}
 .form-group.full{grid-column:1/-1}
 .form-label{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;display:flex;align-items:center;gap:5px}
@@ -175,16 +152,13 @@ tr:hover td{background:var(--bg)}
 .form-input,.form-select,.form-textarea{background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);outline:none;transition:border-color .2s;font-family:inherit;width:100%}
 .form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
 .form-textarea{min-height:80px;resize:vertical}
-.form-hint{font-size:11px;color:var(--text3);margin-top:2px}
-
-/* EXERCISE BUILDER */
 .ex-builder{border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:8px}
 .ex-builder-hdr{background:var(--bg);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
 .ex-builder-hdr-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:7px}
-.ex-item{background:var(--card);border-bottom:1px solid var(--border);transition:background .15s}
+.ex-item{background:var(--card);border-bottom:1px solid var(--border)}
 .ex-item:last-child{border-bottom:none}
 .ex-item-hdr{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
-.ex-drag{color:var(--text3);cursor:grab;font-size:14px;flex-shrink:0}
+.ex-drag{color:var(--text3);font-size:14px;flex-shrink:0}
 .ex-num{width:24px;height:24px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .ex-item-name{flex:1;font-size:13px;font-weight:600;color:var(--text)}
 .ex-item-quick{font-size:11px;color:var(--text3);margin-top:1px}
@@ -195,8 +169,6 @@ tr:hover td{background:var(--bg)}
 .dosage-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .dosage-mini{display:flex;flex-direction:column;gap:4px}
 .dosage-mini label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3)}
-
-/* PATIENT DETAIL */
 .detail-grid{display:grid;grid-template-columns:300px 1fr;gap:20px}
 .detail-sidebar{display:flex;flex-direction:column;gap:16px}
 .patient-profile-card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:20px;text-align:center;box-shadow:var(--shadow)}
@@ -210,56 +182,33 @@ tr:hover td{background:var(--bg)}
 .info-row:last-child{border-bottom:none;padding-bottom:0}
 .info-row-label{color:var(--text3);flex-shrink:0}
 .info-row-val{color:var(--text);font-weight:500;text-align:right}
-
-/* SHARE BOX */
 .share-box{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1.5px solid #93c5fd;border-radius:var(--radius-sm);padding:14px;margin-top:12px}
 [data-theme="dark"] .share-box{background:linear-gradient(135deg,#1e3a5f,#1e3a8a22);border-color:#3b82f6}
 .share-link-row{display:flex;gap:8px;align-items:center;margin-top:8px}
-.share-link{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--text2);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.qr-placeholder{width:80px;height:80px;background:var(--card);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;flex-shrink:0}
-
-/* TABS */
+.share-link{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:11px;color:var(--text2);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tabs{display:flex;gap:4px;background:var(--bg);border-radius:10px;padding:4px;margin-bottom:20px;border:1px solid var(--border)}
 .tab{flex:1;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;text-align:center;cursor:pointer;color:var(--text3);transition:all .2s;user-select:none}
 .tab.active{background:var(--card);color:var(--accent);box-shadow:var(--shadow)}
-
-/* ALERT */
 .alert{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:var(--radius-sm);margin-bottom:16px;font-size:13px}
 .alert-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
 [data-theme="dark"] .alert-warn{background:rgba(245,158,11,.1);border-color:#92400e;color:#fbbf24}
 .alert i{flex-shrink:0;margin-top:1px}
-
-/* LIBRARY */
 .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .lib-card{background:var(--card);border-radius:var(--radius-sm);border:1px solid var(--border);padding:14px;cursor:pointer;transition:all .2s;box-shadow:var(--shadow)}
 .lib-card:hover{border-color:var(--accent);box-shadow:var(--shadow2)}
 .lib-card-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
 .lib-card-meta{font-size:11px;color:var(--text3);display:flex;gap:8px;flex-wrap:wrap}
-
-/* RGPD / NOTICE */
 .rgpd-notice{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--text3);margin-top:12px}
 .rgpd-notice i{flex-shrink:0;margin-top:1px;color:var(--accent)}
-
-/* RESPONSIVE */
-@media(max-width:900px){
-  .stats-grid{grid-template-columns:1fr 1fr}
-  .detail-grid{grid-template-columns:1fr}
-  .form-grid{grid-template-columns:1fr}
-}
-@media(max-width:640px){
-  .sidebar{transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  .main{margin-left:0}
-  .stats-grid{grid-template-columns:1fr 1fr}
-  .page-content{padding:16px}
-}
-
-/* SCROLLBAR */
+.new-badge{display:inline-flex;align-items:center;gap:4px;background:#ef4444;color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;animation:pulse 1.5s infinite;margin-left:6px}
+.loading-spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.full-loader{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text3);font-size:13px;gap:10px}
+@media(max-width:900px){.stats-grid{grid-template-columns:1fr 1fr}.detail-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.stats-grid{grid-template-columns:1fr 1fr}.page-content{padding:16px}}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-
-/* ANIMATIONS */
 .fade-in{animation:fadeIn .25s ease}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#fff;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;z-index:999;box-shadow:var(--shadow2);animation:slideUp .3s ease}
@@ -273,164 +222,93 @@ tr:hover td{background:var(--bg)}
   <div class="login-card">
     <div class="login-logo">
       <div class="login-logo-icon"><i class="fa-solid fa-person-running"></i></div>
-      <div>
-        <div class="login-logo-text">KinéApp</div>
-        <div class="login-logo-sub">Professional Platform / Plateforme Professionnelle</div>
-      </div>
+      <div><div class="login-logo-text">KinéApp</div><div class="login-logo-sub">Professional Platform</div></div>
     </div>
-    <div class="login-title" id="loginTitle">Connexion Professionnelle</div>
-    <div class="login-sub" id="loginSub">Accédez à votre espace kiné sécurisé</div>
+    <div class="login-title">Connexion Professionnelle</div>
+    <div class="login-sub">Accédez à votre espace kiné sécurisé</div>
+    <div class="login-error" id="loginError"></div>
     <div class="login-field">
-      <label class="login-label" id="lblEmail">Email</label>
+      <label class="login-label">Email</label>
       <input class="login-input" type="email" id="loginEmail" placeholder="kine@cabinet.fr"/>
     </div>
     <div class="login-field">
-      <label class="login-label" id="lblPwd">Mot de passe</label>
+      <label class="login-label">Mot de passe</label>
       <input class="login-input" type="password" id="loginPwd" placeholder="••••••••"/>
     </div>
     <button class="login-btn" onclick="doLogin()" id="loginBtnEl">Se connecter</button>
-    <div class="login-hint" id="loginHint">Démo : email quelconque + mot de passe : <strong>demo1234</strong></div>
-    <div class="login-lang">
-      <button class="lang-btn active" onclick="setLang('fr',this)">🇫🇷 Français</button>
-      <button class="lang-btn" onclick="setLang('en',this)">🇬🇧 English</button>
-    </div>
+    <div class="login-hint">Première connexion ? Entrez votre email et un mot de passe (8+ caractères) — votre profil sera créé automatiquement.</div>
   </div>
 </div>
 
 <!-- ===== APP ===== -->
 <div id="appScreen">
   <div class="app-layout">
-
-    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">
         <div class="sidebar-logo-icon"><i class="fa-solid fa-person-running"></i></div>
-        <div>
-          <div class="sidebar-logo-text">KinéApp</div>
-          <div class="sidebar-logo-sub">Pro Platform</div>
-        </div>
+        <div><div class="sidebar-logo-text">KinéApp</div><div class="sidebar-logo-sub"><span class="live-dot"></span>Connecté</div></div>
       </div>
       <div class="sidebar-user">
         <div class="sidebar-avatar" id="sidebarInitials">K</div>
-        <div class="sidebar-user-info">
-          <div class="sidebar-user-name" id="sidebarName">Dr. Kiné</div>
-          <div class="sidebar-user-role" id="sidebarRole">Kinésithérapeute</div>
-        </div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarName">—</div><div class="sidebar-user-role">Kinésithérapeute</div></div>
       </div>
       <nav class="sidebar-nav">
-        <div class="nav-section" id="navSec1">PRINCIPAL</div>
-        <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard">
-          <i class="fa-solid fa-gauge"></i><span id="navDashboard">Tableau de bord</span>
-        </div>
-        <div class="nav-item" onclick="showView('patients')" id="nav-patients">
-          <i class="fa-solid fa-users"></i><span id="navPatients">Patients</span>
-          <span class="nav-badge" id="patientsBadge">0</span>
-        </div>
-        <div class="nav-item" onclick="showView('programs')" id="nav-programs">
-          <i class="fa-solid fa-clipboard-list"></i><span id="navPrograms">Programmes</span>
-        </div>
-        <div class="nav-section" id="navSec2">OUTILS</div>
-        <div class="nav-item" onclick="showView('library')" id="nav-library">
-          <i class="fa-solid fa-book-medical"></i><span id="navLibrary">Bibliothèque</span>
-        </div>
-        <div class="nav-item" onclick="showView('messages')" id="nav-messages">
-          <i class="fa-solid fa-comment-medical"></i><span id="navMessages">Messagerie</span>
-          <span class="nav-badge" id="msgBadge" style="display:none">2</span>
-        </div>
-        <div class="nav-item" onclick="showView('settings')" id="nav-settings">
-          <i class="fa-solid fa-gear"></i><span id="navSettings">Paramètres</span>
-        </div>
-        <div class="nav-section" id="navSec3">LÉGAL</div>
-        <div class="nav-item" onclick="showView('rgpd')" id="nav-rgpd">
-          <i class="fa-solid fa-shield-halved"></i><span>RGPD & Données</span>
-        </div>
+        <div class="nav-section">PRINCIPAL</div>
+        <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard"><i class="fa-solid fa-gauge"></i><span>Tableau de bord</span></div>
+        <div class="nav-item" onclick="showView('patients')" id="nav-patients"><i class="fa-solid fa-users"></i><span>Patients</span><span class="nav-badge" id="patientsBadge">0</span></div>
+        <div class="nav-item" onclick="showView('programs')" id="nav-programs"><i class="fa-solid fa-clipboard-list"></i><span>Programmes</span></div>
+        <div class="nav-section">OUTILS</div>
+        <div class="nav-item" onclick="showView('library')" id="nav-library"><i class="fa-solid fa-book-medical"></i><span>Bibliothèque</span></div>
+        <div class="nav-item" onclick="showView('settings')" id="nav-settings"><i class="fa-solid fa-gear"></i><span>Paramètres</span></div>
       </nav>
-      <div class="sidebar-bottom">
-        <div class="nav-item" onclick="doLogout()">
-          <i class="fa-solid fa-right-from-bracket"></i><span id="navLogout">Déconnexion</span>
-        </div>
-      </div>
+      <div class="sidebar-bottom"><div class="nav-item" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket"></i><span>Déconnexion</span></div></div>
     </aside>
 
-    <!-- MAIN -->
     <main class="main">
       <div class="topbar">
-        <div class="topbar-left">
-          <div>
-            <div class="topbar-title" id="topbarTitle">Tableau de bord</div>
-            <div class="topbar-sub" id="topbarSub">Bienvenue sur KinéApp</div>
-          </div>
-        </div>
+        <div class="topbar-left"><div><div class="topbar-title" id="topbarTitle">Tableau de bord</div><div class="topbar-sub" id="topbarSub">Données en temps réel</div></div></div>
         <div class="topbar-right">
-          <button class="tb-btn" onclick="toggleTheme()" id="themeBtn" title="Thème"><i class="fa-solid fa-moon"></i></button>
-          <button class="tb-btn" onclick="toggleLang()" id="langBtn" title="Langue">🇫🇷</button>
+          <button class="tb-btn" onclick="toggleTheme()" id="themeBtn"><i class="fa-solid fa-moon"></i></button>
         </div>
       </div>
 
       <div class="page-content">
 
-        <!-- ===== DASHBOARD ===== -->
+        <!-- DASHBOARD -->
         <div class="view active fade-in" id="view-dashboard">
           <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
-              <div><div class="stat-value" id="statPatients">0</div><div class="stat-label" id="lblStatPat">Patients actifs</div><div class="stat-trend up" id="statPatTrend">↑ 0 ce mois</div></div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon green"><i class="fa-solid fa-clipboard-check"></i></div>
-              <div><div class="stat-value" id="statProgs">0</div><div class="stat-label" id="lblStatProg">Programmes actifs</div><div class="stat-trend up">↑ En cours</div></div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div>
-              <div><div class="stat-value" id="statInactive">0</div><div class="stat-label" id="lblStatInact">Patients inactifs</div><div class="stat-trend warn" id="statInactTrend">→ Voir alertes</div></div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon purple"><i class="fa-solid fa-dumbbell"></i></div>
-              <div><div class="stat-value" id="statExos">0</div><div class="stat-label" id="lblStatExo">Exercices en biblio</div><div class="stat-trend up">↑ Bibliothèque</div></div>
-            </div>
+            <div class="stat-card"><div class="stat-icon blue"><i class="fa-solid fa-users"></i></div><div><div class="stat-value" id="statPatients">0</div><div class="stat-label">Patients actifs</div></div></div>
+            <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-clipboard-check"></i></div><div><div class="stat-value" id="statProgs">0</div><div class="stat-label">Programmes actifs</div></div></div>
+            <div class="stat-card"><div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div class="stat-value" id="statInactive">0</div><div class="stat-label">Patients inactifs</div></div></div>
+            <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-dumbbell"></i></div><div><div class="stat-value" id="statExos">0</div><div class="stat-label">Exercices en biblio</div></div></div>
           </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-            <!-- RECENT PATIENTS -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
             <div class="table-wrap">
-              <div class="table-header">
-                <div class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> <span id="lblRecent">Patients récents</span></div>
-                <button class="btn btn-secondary btn-sm" onclick="showView('patients')" id="btnSeeAll">Voir tous</button>
-              </div>
-              <table>
-                <thead><tr><th id="thName">Nom</th><th id="thStatus">Statut</th><th id="thAdh">Adhérence</th></tr></thead>
-                <tbody id="recentPatientsBody"><tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text3)" id="noPatients">Aucun patient pour l'instant</td></tr></tbody>
-              </table>
+              <div class="table-header"><div class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>Activité récente <span class="live-dot"></span></div></div>
+              <table><thead><tr><th>Patient</th><th>Action</th><th>Quand</th></tr></thead><tbody id="activityBody"><tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text3)">Aucune activité récente</td></tr></tbody></table>
             </div>
-            <!-- ALERTS -->
             <div class="table-wrap">
-              <div class="table-header"><div class="section-title"><i class="fa-solid fa-bell"></i> <span id="lblAlerts">Alertes</span></div></div>
-              <div style="padding:16px" id="alertsContainer">
-                <div class="alert alert-warn"><i class="fa-solid fa-circle-info"></i><div id="noAlerts">Aucune alerte active. Tout va bien ! 🎉</div></div>
-              </div>
+              <div class="table-header"><div class="section-title"><i class="fa-solid fa-bell"></i>Alertes</div></div>
+              <div style="padding:16px" id="alertsContainer"><div class="alert alert-warn"><i class="fa-solid fa-circle-info"></i><div>Aucune alerte active.</div></div></div>
             </div>
           </div>
         </div>
 
-        <!-- ===== PATIENTS ===== -->
+        <!-- PATIENTS -->
         <div class="view fade-in" id="view-patients">
           <div class="table-wrap">
             <div class="table-header">
               <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="patientSearch" placeholder="Rechercher un patient..." oninput="filterPatients()"/></div>
-              <button class="btn btn-primary" onclick="openNewPatient()"><i class="fa-solid fa-plus"></i><span id="btnNewPat">Nouveau patient</span></button>
+              <button class="btn btn-primary" onclick="openNewPatient()"><i class="fa-solid fa-plus"></i>Nouveau patient</button>
             </div>
-            <table>
-              <thead><tr><th id="thPat">Patient</th><th id="thAge">Âge</th><th id="thProg">Programme</th><th id="thSt">Statut</th><th id="thAdh2">Adhérence</th><th id="thActions">Actions</th></tr></thead>
-              <tbody id="patientsBody"><tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)" id="noPat2">Aucun patient. Cliquez sur "Nouveau patient" pour commencer.</td></tr></tbody>
-            </table>
+            <table><thead><tr><th>Patient</th><th>Âge</th><th>Programme</th><th>Statut</th><th>Dernière activité</th><th>Actions</th></tr></thead>
+            <tbody id="patientsBody"><tr><td colspan="6" class="full-loader"><span class="loading-spinner" style="border-top-color:var(--accent);border-color:var(--border)"></span>Chargement...</td></tr></tbody></table>
           </div>
         </div>
 
-        <!-- ===== PATIENT DETAIL ===== -->
+        <!-- PATIENT DETAIL -->
         <div class="view fade-in" id="view-patient-detail">
-          <div style="margin-bottom:16px">
-            <button class="btn btn-secondary btn-sm" onclick="showView('patients')"><i class="fa-solid fa-arrow-left"></i><span id="btnBack">Retour</span></button>
-          </div>
+          <div style="margin-bottom:16px"><button class="btn btn-secondary btn-sm" onclick="showView('patients')"><i class="fa-solid fa-arrow-left"></i>Retour</button></div>
           <div class="detail-grid">
             <div class="detail-sidebar">
               <div class="patient-profile-card">
@@ -439,61 +317,45 @@ tr:hover td{background:var(--bg)}
                 <div class="profile-patho" id="detailPatho">—</div>
                 <div class="profile-meta" id="detailMeta"></div>
                 <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">
-                  <button class="btn btn-primary btn-sm" onclick="editCurrentPatient()"><i class="fa-solid fa-pen"></i><span id="btnEdit">Modifier</span></button>
-                  <button class="btn btn-danger btn-sm" onclick="deleteCurrentPatient()"><i class="fa-solid fa-trash"></i><span id="btnDel">Supprimer</span></button>
+                  <button class="btn btn-primary btn-sm" onclick="editCurrentPatient()"><i class="fa-solid fa-pen"></i>Modifier</button>
+                  <button class="btn btn-danger btn-sm" onclick="deleteCurrentPatient()"><i class="fa-solid fa-trash"></i>Supprimer</button>
                 </div>
               </div>
+              <div class="info-card"><div class="info-card-title"><i class="fa-solid fa-circle-info"></i>Informations</div><div id="detailInfoRows"></div></div>
+              <div class="info-card"><div class="info-card-title"><i class="fa-solid fa-share-nodes"></i>Partage</div><div id="shareBox"></div></div>
               <div class="info-card">
-                <div class="info-card-title"><i class="fa-solid fa-circle-info"></i><span id="lblInfo">Informations</span></div>
-                <div id="detailInfoRows"></div>
-              </div>
-              <!-- SHARE -->
-              <div class="info-card">
-                <div class="info-card-title"><i class="fa-solid fa-share-nodes"></i><span id="lblShare">Partage</span></div>
-                <div id="shareBox"></div>
-              </div>
-              <!-- NOTES PRIVÉES -->
-              <div class="info-card">
-                <div class="info-card-title"><i class="fa-solid fa-lock"></i><span id="lblNotes">Notes cliniques privées</span></div>
-                <textarea class="form-textarea" id="privateNotes" style="font-size:13px" placeholder="Notes visibles uniquement par vous..." oninput="saveNotes()"></textarea>
-                <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Notes chiffrées et non accessibles au patient (RGPD)</div>
+                <div class="info-card-title"><i class="fa-solid fa-lock"></i>Notes cliniques privées</div>
+                <textarea class="form-textarea" id="privateNotes" style="font-size:13px" placeholder="Notes visibles uniquement par vous..." onblur="saveNotes()"></textarea>
+                <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Non accessibles au patient (RGPD)</div>
               </div>
             </div>
             <div>
               <div class="tabs">
-                <div class="tab active" onclick="switchTab(0,this)" id="tabProg">Programme</div>
-                <div class="tab" onclick="switchTab(1,this)" id="tabSuivi">Suivi</div>
-                <div class="tab" onclick="switchTab(2,this)" id="tabMsg">Messages</div>
+                <div class="tab active" onclick="switchTab(0,this)">Programme</div>
+                <div class="tab" onclick="switchTab(1,this)">Suivi <span class="live-dot"></span></div>
+                <div class="tab" onclick="switchTab(2,this)">Messages</div>
               </div>
-              <!-- TAB 0: Programme -->
               <div id="tabContent0">
-                <div class="section-hdr">
-                  <div class="section-title"><i class="fa-solid fa-clipboard-list"></i><span id="lblProgTitle">Programme actif</span></div>
-                  <button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i><span id="btnAddProg">Créer programme</span></button>
-                </div>
-                <div id="patientProgramContainer"><div style="text-align:center;padding:32px;color:var(--text3)" id="noProgMsg">Aucun programme assigné.</div></div>
+                <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Programme actif</div><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer programme</button></div>
+                <div id="patientProgramContainer"><div style="text-align:center;padding:32px;color:var(--text3)">Aucun programme assigné.</div></div>
               </div>
-              <!-- TAB 1: Suivi -->
               <div id="tabContent1" style="display:none">
-                <div class="section-title" style="margin-bottom:16px"><i class="fa-solid fa-chart-line"></i><span id="lblSuivi">Suivi & Ressentis</span></div>
-                <div id="suiviContainer">
-                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
-                    <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-heart-pulse"></i></div><div><div class="stat-value" id="avgEVA">—</div><div class="stat-label">EVA moy.</div></div></div>
-                    <div class="stat-card"><div class="stat-icon orange"><i class="fa-solid fa-fire"></i></div><div><div class="stat-value" id="avgBorg">—</div><div class="stat-label">Borg moy.</div></div></div>
-                    <div class="stat-card"><div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div><div><div class="stat-value" id="nbSessions">0</div><div class="stat-label" id="lblSessions">Séances</div></div></div>
-                  </div>
-                  <div class="table-wrap"><div class="table-header"><div class="section-title"><i class="fa-solid fa-list"></i><span id="lblHistory">Historique séances</span></div></div>
-                    <table><thead><tr><th id="thDate">Date</th><th>EVA</th><th>Borg</th><th id="thSympt">Symptômes</th><th id="thNote">Note patient</th></tr></thead>
-                    <tbody id="sessionHistoryBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)" id="noSessions">Aucune séance enregistrée</td></tr></tbody></table>
-                  </div>
+                <div class="section-title" style="margin-bottom:16px"><i class="fa-solid fa-chart-line"></i>Suivi & Ressentis (temps réel)</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+                  <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-heart-pulse"></i></div><div><div class="stat-value" id="avgEVA">—</div><div class="stat-label">EVA moy.</div></div></div>
+                  <div class="stat-card"><div class="stat-icon orange"><i class="fa-solid fa-fire"></i></div><div><div class="stat-value" id="avgBorg">—</div><div class="stat-label">Borg moy.</div></div></div>
+                  <div class="stat-card"><div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div><div><div class="stat-value" id="nbSessions">0</div><div class="stat-label">Séances</div></div></div>
+                </div>
+                <div class="table-wrap"><div class="table-header"><div class="section-title"><i class="fa-solid fa-list"></i>Historique séances</div></div>
+                  <table><thead><tr><th>Date</th><th>EVA</th><th>Borg</th><th>Symptômes</th><th>Note patient</th></tr></thead>
+                  <tbody id="sessionHistoryBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucune séance enregistrée</td></tr></tbody></table>
                 </div>
               </div>
-              <!-- TAB 2: Messages -->
               <div id="tabContent2" style="display:none">
-                <div class="section-title" style="margin-bottom:16px"><i class="fa-solid fa-comment-medical"></i><span id="lblMsgTitle">Messagerie</span></div>
+                <div class="section-title" style="margin-bottom:16px"><i class="fa-solid fa-comment-medical"></i>Messagerie</div>
                 <div id="messagesContainer" style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding:4px"></div>
                 <div style="display:flex;gap:8px">
-                  <input class="form-input" id="newMessage" placeholder="Écrire un message au patient..." style="flex:1"/>
+                  <input class="form-input" id="newMessage" placeholder="Écrire un message au patient..." style="flex:1" onkeydown="if(event.key==='Enter')sendMessage()"/>
                   <button class="btn btn-primary" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
               </div>
@@ -501,410 +363,290 @@ tr:hover td{background:var(--bg)}
           </div>
         </div>
 
-        <!-- ===== PROGRAMS ===== -->
+        <!-- PROGRAMS -->
         <div class="view fade-in" id="view-programs">
-          <div class="section-hdr">
-            <div class="section-title"><i class="fa-solid fa-clipboard-list"></i><span id="lblAllProgs">Tous les programmes</span></div>
-            <button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i><span id="btnCreateProg">Créer un programme</span></button>
-          </div>
-          <div class="cards-grid" id="programsGrid"><div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1" id="noProgs">Aucun programme créé.</div></div>
+          <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Tous les programmes</div><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer un programme</button></div>
+          <div class="cards-grid" id="programsGrid"></div>
         </div>
 
-        <!-- ===== LIBRARY ===== -->
+        <!-- LIBRARY -->
         <div class="view fade-in" id="view-library">
-          <div class="section-hdr">
-            <div class="section-title"><i class="fa-solid fa-book-medical"></i><span id="lblLibTitle">Bibliothèque d'exercices</span></div>
-            <button class="btn btn-primary" onclick="openNewExercise()"><i class="fa-solid fa-plus"></i><span id="btnAddExo">Ajouter exercice</span></button>
-          </div>
+          <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-book-medical"></i>Bibliothèque d'exercices</div><button class="btn btn-primary" onclick="openNewExercise()"><i class="fa-solid fa-plus"></i>Ajouter exercice</button></div>
           <div class="lib-grid" id="libraryGrid"></div>
         </div>
 
-        <!-- ===== MESSAGES ===== -->
-        <div class="view fade-in" id="view-messages">
-          <div class="section-title" style="margin-bottom:16px"><i class="fa-solid fa-comment-medical"></i><span id="lblMsgGlobal">Messagerie</span></div>
-          <div class="table-wrap">
-            <div class="table-header"><div class="section-title"><i class="fa-solid fa-inbox"></i><span id="lblInbox">Messages patients</span></div></div>
-            <div id="globalMessagesContainer" style="padding:16px;color:var(--text3);font-size:13px" id="noMsgGlobal">Sélectionnez un patient dans l'onglet "Patients" pour accéder à sa messagerie.</div>
-          </div>
-        </div>
-
-        <!-- ===== SETTINGS ===== -->
+        <!-- SETTINGS -->
         <div class="view fade-in" id="view-settings">
-          <div class="section-title" style="margin-bottom:20px"><i class="fa-solid fa-gear"></i><span id="lblSettingsTitle">Paramètres du compte</span></div>
-          <div style="max-width:560px;display:flex;flex-direction:column;gap:16px">
+          <div class="section-title" style="margin-bottom:20px"><i class="fa-solid fa-gear"></i>Paramètres du compte</div>
+          <div style="max-width:560px">
             <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-user"></i><span id="lblProfil">Profil professionnel</span></div>
+              <div class="info-card-title"><i class="fa-solid fa-user"></i>Profil professionnel</div>
               <div class="form-grid" style="margin-top:12px">
-                <div class="form-group"><label class="form-label" id="lblFirstName">Prénom</label><input class="form-input" id="settFirstName" placeholder="Jean"/></div>
-                <div class="form-group"><label class="form-label" id="lblLastName">Nom</label><input class="form-input" id="settLastName" placeholder="Dupont"/></div>
-                <div class="form-group full"><label class="form-label">Email</label><input class="form-input" id="settEmail" type="email"/></div>
-                <div class="form-group full"><label class="form-label" id="lblSpeciality">Spécialité</label><input class="form-input" id="settSpeciality" placeholder="Kinésithérapeute du sport"/></div>
-                <div class="form-group full"><label class="form-label" id="lblCabinet">Cabinet</label><input class="form-input" id="settCabinet" placeholder="Cabinet de kinésithérapie"/></div>
-                <div class="form-group full"><button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-floppy-disk"></i><span id="btnSaveSettings">Sauvegarder</span></button></div>
-              </div>
-            </div>
-            <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-palette"></i><span id="lblPrefs">Préférences</span></div>
-              <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
-                <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
-                  <span style="color:var(--text2)" id="lblDarkMode">Mode sombre</span>
-                  <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" id="darkModeBtn">Basculer</button>
-                </div>
-                <div style="display:flex;align-items:center;justify-content:space-between;font-size:13px">
-                  <span style="color:var(--text2)" id="lblLangPref">Langue</span>
-                  <button class="btn btn-secondary btn-sm" onclick="toggleLang()">FR / EN</button>
-                </div>
+                <div class="form-group"><label class="form-label">Prénom</label><input class="form-input" id="settFirstName"/></div>
+                <div class="form-group"><label class="form-label">Nom</label><input class="form-input" id="settLastName"/></div>
+                <div class="form-group full"><label class="form-label">Spécialité</label><input class="form-input" id="settSpeciality"/></div>
+                <div class="form-group full"><label class="form-label">Cabinet</label><input class="form-input" id="settCabinet"/></div>
+                <div class="form-group full"><button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-floppy-disk"></i>Sauvegarder</button></div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- ===== RGPD ===== -->
-        <div class="view fade-in" id="view-rgpd">
-          <div class="section-title" style="margin-bottom:20px"><i class="fa-solid fa-shield-halved"></i>RGPD & Données</div>
-          <div style="max-width:680px;display:flex;flex-direction:column;gap:16px">
-            <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-circle-info"></i>Politique de traitement des données</div>
-              <div style="font-size:13px;color:var(--text2);line-height:1.7">
-                <p style="margin-bottom:8px">Les données collectées dans KinéApp (nom, prénom, âge, pathologie, ressentis) sont des données de santé à caractère personnel au sens du RGPD (Règlement UE 2016/679).</p>
-                <p style="margin-bottom:8px"><strong>Base légale :</strong> Art. 9.2.h RGPD — traitement nécessaire aux fins de médecine préventive ou de médecine du travail, de diagnostic médical, ou de la prise en charge sanitaire.</p>
-                <p><strong>Durée de conservation :</strong> données patients conservées pendant la durée de prise en charge + 5 ans (minimum légal).</p>
-              </div>
-            </div>
-            <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-user-shield"></i>Droits des patients</div>
-              <div style="font-size:13px;color:var(--text2);line-height:1.7">
-                <p>Chaque patient dispose du droit d'accès, de rectification et d'effacement de ses données. La suppression complète d'un patient (bouton "Supprimer" dans sa fiche) entraîne l'effacement de toutes ses données.</p>
-              </div>
-            </div>
-            <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-lock"></i>Sécurité & Confidentialité</div>
-              <div style="font-size:13px;color:var(--text2);line-height:1.7">
-                <p style="margin-bottom:8px">• Les liens patients utilisent des tokens anonymes (aucun nom dans l'URL)</p>
-                <p style="margin-bottom:8px">• Les notes cliniques privées sont uniquement visibles par le praticien</p>
-                <p>• Chaque session patient est horodatée pour la traçabilité</p>
-              </div>
-            </div>
-            <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-file-medical"></i>Mention légale patient</div>
-              <div style="font-size:13px;color:var(--text2);line-height:1.7;background:var(--bg);padding:12px;border-radius:8px;border:1px solid var(--border)">
-                "Les exercices proposés dans cette application sont personnalisés par votre kinésithérapeute. Ils ne remplacent pas une consultation médicale. En cas de douleur inhabituelle, contactez votre praticien."
-              </div>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- end page-content -->
+      </div>
     </main>
   </div>
 </div>
 
-<!-- ===== MODALS ===== -->
-
-<!-- NEW PATIENT -->
+<!-- MODALS -->
 <div class="modal-overlay" id="modalPatient">
   <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-hdr-title"><i class="fa-solid fa-user-plus" style="color:var(--accent)"></i><span id="modalPatientTitle">Nouveau patient</span></div>
-      <button class="modal-close" onclick="closeModal('modalPatient')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-user-plus" style="color:var(--accent)"></i><span id="modalPatientTitle">Nouveau patient</span></div><button class="modal-close" onclick="closeModal('modalPatient')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group"><label class="form-label" id="lblPFName">Prénom <span>*</span></label><input class="form-input" id="pFirstName" placeholder="Marie"/></div>
-        <div class="form-group"><label class="form-label" id="lblPLName">Nom <span>*</span></label><input class="form-input" id="pLastName" placeholder="Dupont"/></div>
-        <div class="form-group"><label class="form-label" id="lblPAge">Âge</label><input class="form-input" id="pAge" type="number" placeholder="35"/></div>
-        <div class="form-group"><label class="form-label" id="lblPGender">Genre</label>
-          <select class="form-select" id="pGender">
-            <option value="H">Homme / Male</option>
-            <option value="F">Femme / Female</option>
-            <option value="N">Autre / Other</option>
-          </select>
-        </div>
-        <div class="form-group full"><label class="form-label" id="lblPPathology">Pathologie <span>*</span></label><input class="form-input" id="pPathology" placeholder="Ex: Syndrome bandelette ilio-tibiale"/></div>
-        <div class="form-group"><label class="form-label" id="lblPPhone">Téléphone</label><input class="form-input" id="pPhone" placeholder="+33 6 12 34 56 78"/></div>
-        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="pEmail" type="email" placeholder="patient@email.fr"/></div>
-        <div class="form-group"><label class="form-label" id="lblPStart">Date de début</label><input class="form-input" id="pStartDate" type="date"/></div>
-        <div class="form-group"><label class="form-label" id="lblPStatus">Statut</label>
-          <select class="form-select" id="pStatus">
-            <option value="active">Actif / Active</option>
-            <option value="pause">En pause / On hold</option>
-            <option value="done">Terminé / Done</option>
-          </select>
-        </div>
-        <div class="form-group full"><label class="form-label" id="lblPNotes">Notes initiales</label><textarea class="form-textarea" id="pNotes" placeholder="Antécédents, contexte clinique..."></textarea></div>
+        <div class="form-group"><label class="form-label">Prénom <span>*</span></label><input class="form-input" id="pFirstName"/></div>
+        <div class="form-group"><label class="form-label">Nom <span>*</span></label><input class="form-input" id="pLastName"/></div>
+        <div class="form-group"><label class="form-label">Âge</label><input class="form-input" id="pAge" type="number"/></div>
+        <div class="form-group"><label class="form-label">Genre</label><select class="form-select" id="pGender"><option value="H">Homme</option><option value="F">Femme</option><option value="N">Autre</option></select></div>
+        <div class="form-group full"><label class="form-label">Pathologie <span>*</span></label><input class="form-input" id="pPathology"/></div>
+        <div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" id="pPhone"/></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="pEmail" type="email"/></div>
+        <div class="form-group"><label class="form-label">Date de début</label><input class="form-input" id="pStartDate" type="date"/></div>
+        <div class="form-group"><label class="form-label">Statut</label><select class="form-select" id="pStatus"><option value="active">Actif</option><option value="pause">En pause</option><option value="done">Terminé</option></select></div>
+        <div class="form-group full"><label class="form-label">Notes initiales</label><textarea class="form-textarea" id="pNotes"></textarea></div>
       </div>
-      <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Ces données sont traitées conformément au RGPD. Le patient peut demander leur suppression à tout moment.</div>
+      <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Ces données sont traitées conformément au RGPD.</div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modalPatient')" id="btnCancel">Annuler</button>
-      <button class="btn btn-primary" onclick="savePatient()" id="btnSavePat"><i class="fa-solid fa-floppy-disk"></i><span id="btnSavePatLabel">Enregistrer</span></button>
-    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modalPatient')">Annuler</button><button class="btn btn-primary" onclick="savePatient()" id="btnSavePat"><i class="fa-solid fa-floppy-disk"></i>Enregistrer</button></div>
   </div>
 </div>
 
-<!-- PROGRAM BUILDER -->
 <div class="modal-overlay" id="modalProgram">
   <div class="modal modal-lg">
-    <div class="modal-hdr">
-      <div class="modal-hdr-title"><i class="fa-solid fa-clipboard-list" style="color:var(--accent)"></i><span id="modalProgTitle">Créer un programme</span></div>
-      <button class="modal-close" onclick="closeModal('modalProgram')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-clipboard-list" style="color:var(--accent)"></i><span id="modalProgTitle">Créer un programme</span></div><button class="modal-close" onclick="closeModal('modalProgram')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
       <div class="form-grid" style="margin-bottom:20px">
-        <div class="form-group"><label class="form-label" id="lblProgName">Nom du programme <span>*</span></label><input class="form-input" id="progName" placeholder="Ex: Protocole SBIT Phase 1"/></div>
-        <div class="form-group"><label class="form-label" id="lblProgPatient">Patient</label>
-          <select class="form-select" id="progPatient"><option value="">— Sélectionner un patient —</option></select>
-        </div>
-        <div class="form-group"><label class="form-label" id="lblProgPhase">Phase</label>
-          <select class="form-select" id="progPhase">
-            <option value="crise">Phase Crise / Crisis Phase</option>
-            <option value="renfo">Phase Renforcement / Strengthening</option>
-            <option value="reprise">Reprise sportive / Return to sport</option>
-            <option value="prevention">Prévention / Prevention</option>
-            <option value="custom">Personnalisée / Custom</option>
-          </select>
-        </div>
-        <div class="form-group"><label class="form-label" id="lblProgFreq">Fréquence</label><input class="form-input" id="progFreq" placeholder="Ex: 2-3 séances/semaine"/></div>
-        <div class="form-group full"><label class="form-label" id="lblProgDesc">Description / Consignes globales</label><textarea class="form-textarea" id="progDesc" placeholder="Consignes générales du programme..."></textarea></div>
+        <div class="form-group"><label class="form-label">Nom du programme <span>*</span></label><input class="form-input" id="progName"/></div>
+        <div class="form-group"><label class="form-label">Patient</label><select class="form-select" id="progPatient"><option value="">— Sélectionner —</option></select></div>
+        <div class="form-group"><label class="form-label">Phase</label><select class="form-select" id="progPhase"><option value="crise">Phase Crise</option><option value="renfo">Renforcement</option><option value="reprise">Reprise sportive</option><option value="prevention">Prévention</option><option value="custom">Personnalisée</option></select></div>
+        <div class="form-group"><label class="form-label">Fréquence</label><input class="form-input" id="progFreq" placeholder="Ex: 2-3 séances/semaine"/></div>
+        <div class="form-group full"><label class="form-label">Description / Consignes</label><textarea class="form-textarea" id="progDesc"></textarea></div>
       </div>
-      <!-- EXERCISES BUILDER -->
       <div class="ex-builder">
-        <div class="ex-builder-hdr">
-          <div class="ex-builder-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i><span id="lblExTitle">Exercices</span></div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-secondary btn-sm" onclick="addFromLibrary()" id="btnFromLib"><i class="fa-solid fa-book-medical"></i> Bibliothèque</button>
-            <button class="btn btn-primary btn-sm" onclick="addExercise()" id="btnAddEx"><i class="fa-solid fa-plus"></i> Ajouter</button>
-          </div>
+        <div class="ex-builder-hdr"><div class="ex-builder-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i>Exercices</div>
+          <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="addFromLibrary()"><i class="fa-solid fa-book-medical"></i> Bibliothèque</button><button class="btn btn-primary btn-sm" onclick="addExercise()"><i class="fa-solid fa-plus"></i> Ajouter</button></div>
         </div>
-        <div id="exercisesContainer">
-          <div style="text-align:center;padding:24px;color:var(--text3);font-size:13px" id="noExMsg">Ajoutez des exercices via les boutons ci-dessus.</div>
-        </div>
+        <div id="exercisesContainer"><div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Ajoutez des exercices via les boutons ci-dessus.</div></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modalProgram')" id="btnCancelProg">Annuler</button>
-      <button class="btn btn-primary" onclick="saveProgram()"><i class="fa-solid fa-floppy-disk"></i><span id="btnSaveProg">Enregistrer programme</span></button>
-    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modalProgram')">Annuler</button><button class="btn btn-primary" onclick="saveProgram()" id="btnSaveProgBtn"><i class="fa-solid fa-floppy-disk"></i>Enregistrer programme</button></div>
   </div>
 </div>
 
-<!-- NEW EXERCISE (library) -->
 <div class="modal-overlay" id="modalExercise">
   <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i><span id="modalExTitle">Nouvel exercice</span></div>
-      <button class="modal-close" onclick="closeModal('modalExercise')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i><span id="modalExTitle">Nouvel exercice</span></div><button class="modal-close" onclick="closeModal('modalExercise')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group full"><label class="form-label" id="lblExName">Nom de l'exercice <span>*</span></label><input class="form-input" id="exName" placeholder="Ex: Pistol squat"/></div>
-        <div class="form-group full"><label class="form-label" id="lblExFocus">Focus / Cue externe</label><textarea class="form-textarea" id="exFocus" style="min-height:60px" placeholder="Ex: Contrôler le genou, ne pas le laisser rentrer vers l'intérieur..."></textarea></div>
-        <div class="form-group"><label class="form-label" id="lblExSeries">Séries</label><input class="form-input" id="exSeries" type="number" placeholder="4"/></div>
-        <div class="form-group"><label class="form-label" id="lblExReps">Reps / Durée</label><input class="form-input" id="exReps" placeholder="15 reps ou 45s"/></div>
-        <div class="form-group"><label class="form-label" id="lblExRest">Récupération</label><input class="form-input" id="exRest" placeholder="60-90s"/></div>
+        <div class="form-group full"><label class="form-label">Nom <span>*</span></label><input class="form-input" id="exName"/></div>
+        <div class="form-group full"><label class="form-label">Focus / Cue</label><textarea class="form-textarea" id="exFocus" style="min-height:60px"></textarea></div>
+        <div class="form-group"><label class="form-label">Séries</label><input class="form-input" id="exSeries"/></div>
+        <div class="form-group"><label class="form-label">Reps / Durée</label><input class="form-input" id="exReps" placeholder="15 reps ou 45s"/></div>
+        <div class="form-group"><label class="form-label">Récupération</label><input class="form-input" id="exRest" placeholder="60-90s"/></div>
         <div class="form-group"><label class="form-label">Tempo</label><input class="form-input" id="exTempo" placeholder="3-1-3"/></div>
-        <div class="form-group"><label class="form-label">EVA cible</label><input class="form-input" id="exEVA" placeholder="≤ 3/10"/></div>
-        <div class="form-group"><label class="form-label" id="lblExCat">Catégorie</label>
-          <select class="form-select" id="exCategory">
-            <option value="quadri">Quadriceps</option>
-            <option value="fessiers">Fessiers / Hanche</option>
-            <option value="ischio">Ischio-jambiers</option>
-            <option value="gainage">Gainage</option>
-            <option value="cardio">Cardio / Fonctionnel</option>
-            <option value="iso">Isométrique</option>
-            <option value="autre">Autre</option>
-          </select>
-        </div>
-        <div class="form-group full"><label class="form-label" id="lblExVideo">Lien vidéo YouTube</label><input class="form-input" id="exVideo" placeholder="https://youtu.be/..."/></div>
-        <div class="form-group full"><label class="form-label" id="lblExRegress">Régression</label><input class="form-input" id="exRegress" placeholder="Version simplifiée..."/></div>
-        <div class="form-group full"><label class="form-label" id="lblExProgress">Progression</label><input class="form-input" id="exProgress" placeholder="Version avancée..."/></div>
-        <div class="form-group full"><label class="form-label" id="lblExAlt">Matériel alternatif</label><input class="form-input" id="exAlt" placeholder="Si pas d'élastique : ..."/></div>
+        <div class="form-group"><label class="form-label">EVA cible</label><input class="form-input" id="exEVA" placeholder="≤ 4/10"/></div>
+        <div class="form-group"><label class="form-label">Catégorie</label><select class="form-select" id="exCategory"><option value="quadri">Quadriceps</option><option value="fessiers">Fessiers</option><option value="ischio">Ischio</option><option value="gainage">Gainage</option><option value="cardio">Cardio</option><option value="iso">Isométrique</option><option value="autre">Autre</option></select></div>
+        <div class="form-group full"><label class="form-label">Lien vidéo YouTube</label><input class="form-input" id="exVideo"/></div>
+        <div class="form-group full"><label class="form-label">Régression</label><input class="form-input" id="exRegress"/></div>
+        <div class="form-group full"><label class="form-label">Progression</label><input class="form-input" id="exProgress"/></div>
+        <div class="form-group full"><label class="form-label">Matériel alternatif</label><input class="form-input" id="exAlt"/></div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modalExercise')" id="btnCancelEx">Annuler</button>
-      <button class="btn btn-primary" onclick="saveExercise()"><i class="fa-solid fa-floppy-disk"></i><span id="btnSaveEx">Sauvegarder</span></button>
-    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modalExercise')">Annuler</button><button class="btn btn-primary" onclick="saveExercise()"><i class="fa-solid fa-floppy-disk"></i>Sauvegarder</button></div>
   </div>
 </div>
 
-<!-- LIBRARY PICKER -->
 <div class="modal-overlay" id="modalLibPicker">
   <div class="modal">
-    <div class="modal-hdr">
-      <div class="modal-hdr-title"><i class="fa-solid fa-book-medical" style="color:var(--accent)"></i><span id="lblPickEx">Choisir un exercice</span></div>
-      <button class="modal-close" onclick="closeModal('modalLibPicker')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-book-medical" style="color:var(--accent)"></i>Choisir un exercice</div><button class="modal-close" onclick="closeModal('modalLibPicker')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
       <div class="search-wrap" style="max-width:100%;margin-bottom:14px"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="libPickerSearch" placeholder="Rechercher..." oninput="filterLibPicker()"/></div>
       <div class="lib-grid" id="libPickerGrid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
     </div>
   </div>
 </div>
-html
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-const SUPABASE_URL = 'https://xxxxx.supabase.co';
-const SUPABASE_KEY = 'ta-clé-anon-ici';
+// ============================================================
+// CONFIGURATION SUPABASE — REMPLACE PAR TES VRAIES VALEURS
+// ============================================================
+const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-<script>
+
 // ===== STATE =====
-let lang = 'fr';
-let currentUser = {name:'Dr. Dupont', role:'Kinésithérapeute', email:'kine@cabinet.fr', firstName:'Jean', lastName:'Dupont', speciality:'Kinésithérapeute du sport', cabinet:'Cabinet de kiné'};
-let patients = JSON.parse(localStorage.getItem('kinePatients')||'[]');
-let programs = JSON.parse(localStorage.getItem('kinePrograms')||'[]');
-let library = JSON.parse(localStorage.getItem('kineLibrary')||'[]');
-let messages = JSON.parse(localStorage.getItem('kineMessages')||'{}');
+let currentPractitioner = null;
+let patients = [];
+let programs = [];
+let library = [];
+let messages = [];
 let currentPatientId = null;
-let currentProgId = null;
 let editingPatientId = null;
 let editingProgId = null;
 let editingExId = null;
 let exercisesInBuilder = [];
-let currentTab = 0;
+let realtimeChannels = [];
 
-// ===== I18N =====
-const T = {
-  fr:{
-    login:'Connexion Professionnelle',loginSub:'Accédez à votre espace kiné sécurisé',loginBtn:'Se connecter',
-    dashboard:'Tableau de bord',patients:'Patients',programs:'Programmes',library:'Bibliothèque',
-    messages:'Messagerie',settings:'Paramètres',logout:'Déconnexion',
-    newPatient:'Nouveau patient',save:'Enregistrer',cancel:'Annuler',edit:'Modifier',delete:'Supprimer',
-    back:'← Retour',seeAll:'Voir tous',
-    activePatients:'Patients actifs',activeProgs:'Programmes actifs',inactivePatients:'Patients inactifs',libExos:'Exercices en biblio',
-    recentPatients:'Patients récents',alerts:'Alertes',noAlerts:'Aucune alerte active. Tout va bien ! 🎉',
-    share:'Partage',privateNotes:'Notes cliniques privées',info:'Informations',
-    program:'Programme',follow:'Suivi',msg:'Messages',
-    createProg:'Créer un programme',noProg:'Aucun programme assigné.',
-    addEx:'Ajouter exercice',fromLib:'Bibliothèque',
-    saveProg:'Enregistrer programme',
-    role:'Kinésithérapeute',
-    copyLink:'Copier le lien',copied:'Lien copié !',
-    savedOk:'Sauvegardé !',deletedOk:'Supprimé.',
-    sendMsg:'Envoyer',
-    tabProg:'Programme',tabSuivi:'Suivi',tabMsg:'Messages',
-    statusActive:'Actif',statusPause:'En pause',statusDone:'Terminé',
-    noSessions:'Aucune séance enregistrée',sessions:'Séances',history:'Historique séances',
-    symptoms:'Symptômes',note:'Note patient',date:'Date',
-    avgEVA:'EVA moy.',avgBorg:'Borg moy.',
-    libTitle:'Bibliothèque d\'exercices',
-    pickEx:'Choisir un exercice',
-    noPatients:'Aucun patient pour l\'instant.',
-    noPatsTable:'Aucun patient. Cliquez sur "Nouveau patient" pour commencer.',
-    noProgs:'Aucun programme créé.',
-  },
-  en:{
-    login:'Professional Login',loginSub:'Access your secure physio space',loginBtn:'Sign in',
-    dashboard:'Dashboard',patients:'Patients',programs:'Programs',library:'Library',
-    messages:'Messaging',settings:'Settings',logout:'Logout',
-    newPatient:'New patient',save:'Save',cancel:'Cancel',edit:'Edit',delete:'Delete',
-    back:'← Back',seeAll:'See all',
-    activePatients:'Active patients',activeProgs:'Active programs',inactivePatients:'Inactive patients',libExos:'Exercises in library',
-    recentPatients:'Recent patients',alerts:'Alerts',noAlerts:'No active alerts. All good! 🎉',
-    share:'Share',privateNotes:'Private clinical notes',info:'Information',
-    program:'Program',follow:'Follow-up',msg:'Messages',
-    createProg:'Create a program',noProg:'No program assigned.',
-    addEx:'Add exercise',fromLib:'Library',
-    saveProg:'Save program',
-    role:'Physiotherapist',
-    copyLink:'Copy link',copied:'Link copied!',
-    savedOk:'Saved!',deletedOk:'Deleted.',
-    sendMsg:'Send',
-    tabProg:'Program',tabSuivi:'Follow-up',tabMsg:'Messages',
-    statusActive:'Active',statusPause:'On hold',statusDone:'Done',
-    noSessions:'No sessions recorded',sessions:'Sessions',history:'Session history',
-    symptoms:'Symptoms',note:'Patient note',date:'Date',
-    avgEVA:'Avg EVA',avgBorg:'Avg Borg',
-    libTitle:'Exercise library',
-    pickEx:'Pick an exercise',
-    noPatients:'No patients yet.',
-    noPatsTable:'No patients. Click "New patient" to start.',
-    noProgs:'No programs created.',
-  }
-};
-function t(k){return T[lang][k]||k}
+// ===== AUTH (simplifié : email = identifiant, table practitioners) =====
+async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pwd = document.getElementById('loginPwd').value;
+  const errEl = document.getElementById('loginError');
+  errEl.style.display='none';
+  if(!email || pwd.length<4){ errEl.textContent='Email valide et mot de passe (4+ caractères) requis'; errEl.style.display='block'; return; }
+  const btn=document.getElementById('loginBtnEl');
+  btn.disabled=true; btn.innerHTML='<span class="loading-spinner"></span> Connexion...';
 
-// ===== AUTH =====
-function doLogin(){
-  const pwd=document.getElementById('loginPwd').value;
-  if(pwd==='demo1234'||pwd.length>=4){
+  try{
+    // Cherche un praticien existant avec cet email
+    let {data: existing, error} = await supabase.from('practitioners').select('*').eq('email',email).maybeSingle();
+    if(error) throw error;
+
+    if(!existing){
+      // Crée automatiquement le profil praticien (première connexion)
+      const {data: created, error: createErr} = await supabase.from('practitioners').insert({
+        email, first_name:'', last_name:'', speciality:'', cabinet:''
+      }).select().single();
+      if(createErr) throw createErr;
+      existing = created;
+    }
+    currentPractitioner = existing;
+    localStorage.setItem('kine_practitioner_id', existing.id);
+    localStorage.setItem('kine_practitioner_email', email);
+
     document.getElementById('loginScreen').style.display='none';
     document.getElementById('appScreen').style.display='block';
-    applyLang();
-    refreshAll();
-    document.getElementById('sidebarName').textContent=currentUser.name;
-    document.getElementById('sidebarRole').textContent=t('role');
-    document.getElementById('sidebarInitials').textContent=currentUser.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  } else showToast('Mot de passe incorrect / Wrong password','red');
+    document.getElementById('sidebarName').textContent = (existing.first_name||existing.email);
+    document.getElementById('sidebarInitials').textContent = (existing.first_name?.[0]||existing.email[0]).toUpperCase();
+    document.getElementById('settFirstName').value=existing.first_name||'';
+    document.getElementById('settLastName').value=existing.last_name||'';
+    document.getElementById('settSpeciality').value=existing.speciality||'';
+    document.getElementById('settCabinet').value=existing.cabinet||'';
+
+    await loadAllData();
+    setupRealtimeSubscriptions();
+  } catch(e){
+    errEl.textContent='Erreur de connexion : '+e.message;
+    errEl.style.display='block';
+  } finally {
+    btn.disabled=false; btn.innerHTML='Se connecter';
+  }
 }
 document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-function doLogout(){document.getElementById('loginScreen').style.display='flex';document.getElementById('appScreen').style.display='none';}
 
-// ===== LANG =====
-function setLang(l,btn){
-  lang=l;
-  document.querySelectorAll('.lang-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('loginTitle').textContent=t('login');
-  document.getElementById('loginSub').textContent=t('loginSub');
-  document.getElementById('loginBtnEl').textContent=t('loginBtn');
-  document.getElementById('langBtn').textContent=l==='fr'?'🇫🇷':'🇬🇧';
-  if(document.getElementById('appScreen').style.display!=='none')applyLang();
-}
-function toggleLang(){
-  lang=lang==='fr'?'en':'fr';
-  document.getElementById('langBtn').textContent=lang==='fr'?'🇫🇷':'🇬🇧';
-  applyLang();
-}
-function applyLang(){
-  document.getElementById('navDashboard').textContent=t('dashboard');
-  document.getElementById('navPatients').textContent=t('patients');
-  document.getElementById('navPrograms').textContent=t('programs');
-  document.getElementById('navLibrary').textContent=t('library');
-  document.getElementById('navMessages').textContent=t('messages');
-  document.getElementById('navSettings').textContent=t('settings');
-  document.getElementById('navLogout').textContent=t('logout');
-  document.getElementById('sidebarRole').textContent=t('role');
-  refreshAll();
+function doLogout(){
+  realtimeChannels.forEach(ch=>supabase.removeChannel(ch));
+  realtimeChannels=[];
+  localStorage.removeItem('kine_practitioner_id');
+  location.reload();
 }
 
-// ===== THEME =====
-function toggleTheme(){
-  const d=document.documentElement;
-  const isDark=d.getAttribute('data-theme')==='dark';
-  d.setAttribute('data-theme',isDark?'light':'dark');
-  document.getElementById('themeBtn').innerHTML=isDark?'<i class="fa-solid fa-moon"></i>':'<i class="fa-solid fa-sun"></i>';
+// Auto-login si déjà connecté
+async function tryAutoLogin(){
+  const savedId = localStorage.getItem('kine_practitioner_id');
+  if(!savedId) return;
+  const {data} = await supabase.from('practitioners').select('*').eq('id',savedId).maybeSingle();
+  if(data){
+    currentPractitioner=data;
+    document.getElementById('loginScreen').style.display='none';
+    document.getElementById('appScreen').style.display='block';
+    document.getElementById('sidebarName').textContent=(data.first_name||data.email);
+    document.getElementById('sidebarInitials').textContent=(data.first_name?.[0]||data.email[0]).toUpperCase();
+    document.getElementById('settFirstName').value=data.first_name||'';
+    document.getElementById('settLastName').value=data.last_name||'';
+    document.getElementById('settSpeciality').value=data.speciality||'';
+    document.getElementById('settCabinet').value=data.cabinet||'';
+    await loadAllData();
+    setupRealtimeSubscriptions();
+  }
 }
 
-// ===== VIEWS =====
-function showView(v){
-  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-  const viewEl=document.getElementById('view-'+v);
-  if(viewEl){viewEl.classList.add('active');viewEl.classList.remove('fade-in');void viewEl.offsetWidth;viewEl.classList.add('fade-in');}
-  const navEl=document.getElementById('nav-'+v);
-  if(navEl)navEl.classList.add('active');
-  const titles={dashboard:t('dashboard'),patients:t('patients'),programs:t('programs'),library:t('library'),messages:t('messages'),settings:t('settings'),rgpd:'RGPD','patient-detail':''};
-  document.getElementById('topbarTitle').textContent=titles[v]||'';
-  if(v==='library')renderLibrary();
-  if(v==='programs')renderPrograms();
-  if(v==='patients')renderPatients();
-  if(v==='dashboard')refreshDashboard();
+// ===== LOAD DATA =====
+async function loadAllData(){
+  const pid = currentPractitioner.id;
+  const [{data:pats},{data:progs},{data:lib}] = await Promise.all([
+    supabase.from('patients').select('*').eq('practitioner_id',pid).order('created_at',{ascending:false}),
+    supabase.from('programs').select('*, patients!inner(practitioner_id)').eq('patients.practitioner_id',pid),
+    supabase.from('exercises_library').select('*').eq('practitioner_id',pid).order('created_at',{ascending:false})
+  ]);
+  patients = pats||[];
+  programs = (progs||[]).map(p=>{ delete p.patients; return p; });
+  library = lib||[];
+  renderPatients();
+  renderPrograms();
+  renderLibrary();
+  refreshDashboard();
 }
 
-// ===== PATIENTS =====
-function genId(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
+// ===== REALTIME : la magie de l'interconnexion =====
+function setupRealtimeSubscriptions(){
+  // Écoute les nouvelles séances (patients qui valident leur séance)
+  const sessionsChannel = supabase.channel('sessions-changes')
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'sessions'}, payload=>{
+      handleNewSession(payload.new);
+    }).subscribe();
+
+  // Écoute les nouveaux messages patients
+  const messagesChannel = supabase.channel('messages-changes')
+    .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'}, payload=>{
+      handleNewMessage(payload.new);
+    }).subscribe();
+
+  // Écoute les mises à jour de patients (ex: dernière activité)
+  const patientsChannel = supabase.channel('patients-changes')
+    .on('postgres_changes', {event:'*', schema:'public', table:'patients'}, payload=>{
+      loadAllData(); // refresh simple et fiable
+    }).subscribe();
+
+  realtimeChannels = [sessionsChannel, messagesChannel, patientsChannel];
+}
+
+function handleNewSession(session){
+  const patient = patients.find(p=>p.id===session.patient_id);
+  if(!patient) return; // pas un de nos patients
+  showToast(`🔔 ${patient.first_name} ${patient.last_name} vient de valider une séance !`,'green');
+  addActivityRow(patient, 'Séance validée', session.created_at);
+  if(currentPatientId===session.patient_id) renderSuivi(currentPatientId);
+  refreshDashboard();
+}
+
+function handleNewMessage(msg){
+  if(msg.sender!=='patient') return;
+  const patient = patients.find(p=>p.id===msg.patient_id);
+  if(!patient) return;
+  showToast(`💬 Nouveau message de ${patient.first_name} ${patient.last_name}`,'blue');
+  addActivityRow(patient, 'Nouveau message', msg.created_at);
+  if(currentPatientId===msg.patient_id) renderMessages(currentPatientId);
+}
+
+function addActivityRow(patient, action, date){
+  const body=document.getElementById('activityBody');
+  if(body.children[0]?.children[0]?.colSpan===3 && body.children.length===1 && body.textContent.includes('Aucune')) body.innerHTML='';
+  const row=document.createElement('tr');
+  row.innerHTML=`<td><div class="patient-cell"><div class="patient-avatar" style="background:${getColor(patient.id)}">${getInitials(patient)}</div><span style="font-weight:600;font-size:13px">${patient.first_name} ${patient.last_name}</span></div></td><td><span class="badge badge-blue">${action}</span></td><td style="font-size:11px;color:var(--text3)">À l'instant</td>`;
+  body.prepend(row);
+  while(body.children.length>8) body.removeChild(body.lastChild);
+}
+
+// ===== PATIENTS CRUD =====
 function genToken(){return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10)}
 const avatarColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
-function getColor(id){return avatarColors[parseInt(id.slice(-2),36)%avatarColors.length]}
-function getInitials(p){return((p.firstName||'?')[0]+(p.lastName||'?')[0]).toUpperCase()}
+function getColor(id){return avatarColors[parseInt((id||'0').replace(/-/g,'').slice(-2),16)%avatarColors.length]||avatarColors[0]}
+function getInitials(p){return((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase()}
 
 function openNewPatient(){
   editingPatientId=null;
-  document.getElementById('modalPatientTitle').textContent=t('newPatient');
-  document.getElementById('btnSavePatLabel').textContent=t('save');
-  ['pFirstName','pLastName','pAge','pPhone','pEmail','pNotes'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('pPathology').value='';
+  document.getElementById('modalPatientTitle').textContent='Nouveau patient';
+  ['pFirstName','pLastName','pAge','pPhone','pEmail','pNotes','pPathology'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pStatus').value='active';
   document.getElementById('pStartDate').value=new Date().toISOString().slice(0,10);
   openModal('modalPatient');
@@ -912,133 +654,117 @@ function openNewPatient(){
 function editCurrentPatient(){
   const p=patients.find(x=>x.id===currentPatientId);if(!p)return;
   editingPatientId=p.id;
-  document.getElementById('modalPatientTitle').textContent=t('edit');
-  document.getElementById('pFirstName').value=p.firstName||'';
-  document.getElementById('pLastName').value=p.lastName||'';
+  document.getElementById('modalPatientTitle').textContent='Modifier';
+  document.getElementById('pFirstName').value=p.first_name||'';
+  document.getElementById('pLastName').value=p.last_name||'';
   document.getElementById('pAge').value=p.age||'';
   document.getElementById('pPathology').value=p.pathology||'';
   document.getElementById('pPhone').value=p.phone||'';
   document.getElementById('pEmail').value=p.email||'';
   document.getElementById('pStatus').value=p.status||'active';
-  document.getElementById('pStartDate').value=p.startDate||'';
+  document.getElementById('pStartDate').value=p.start_date||'';
   document.getElementById('pNotes').value=p.notes||'';
   openModal('modalPatient');
 }
-function savePatient(){
+async function savePatient(){
   const fn=document.getElementById('pFirstName').value.trim();
   const ln=document.getElementById('pLastName').value.trim();
   const path=document.getElementById('pPathology').value.trim();
   if(!fn||!ln){showToast('Prénom et nom requis','red');return;}
-  if(editingPatientId){
-    const idx=patients.findIndex(x=>x.id===editingPatientId);
-    patients[idx]={...patients[idx],firstName:fn,lastName:ln,age:document.getElementById('pAge').value,pathology:path,phone:document.getElementById('pPhone').value,email:document.getElementById('pEmail').value,status:document.getElementById('pStatus').value,startDate:document.getElementById('pStartDate').value,notes:document.getElementById('pNotes').value};
-  } else {
-    const np={id:genId(),token:genToken(),firstName:fn,lastName:ln,age:document.getElementById('pAge').value,pathology:path,phone:document.getElementById('pPhone').value,email:document.getElementById('pEmail').value,status:document.getElementById('pStatus').value||'active',startDate:document.getElementById('pStartDate').value||new Date().toISOString().slice(0,10),notes:document.getElementById('pNotes').value,createdAt:new Date().toISOString()};
-    patients.push(np);
-  }
-  persist();closeModal('modalPatient');showToast(t('savedOk'));
-  renderPatients();refreshDashboard();
-  if(editingPatientId)showPatientDetail(editingPatientId);
+  const btn=document.getElementById('btnSavePat');
+  btn.disabled=true; const origHtml=btn.innerHTML; btn.innerHTML='<span class="loading-spinner" style="border-top-color:#fff"></span> Enregistrement...';
+
+  const payload={
+    first_name:fn, last_name:ln, age:document.getElementById('pAge').value||null,
+    pathology:path, phone:document.getElementById('pPhone').value,
+    email:document.getElementById('pEmail').value, status:document.getElementById('pStatus').value,
+    start_date:document.getElementById('pStartDate').value||null, notes:document.getElementById('pNotes').value
+  };
+  try{
+    if(editingPatientId){
+      const {error} = await supabase.from('patients').update(payload).eq('id',editingPatientId);
+      if(error) throw error;
+    } else {
+      payload.practitioner_id = currentPractitioner.id;
+      payload.token = genToken();
+      const {error} = await supabase.from('patients').insert(payload);
+      if(error) throw error;
+    }
+    await loadAllData();
+    closeModal('modalPatient'); showToast('Sauvegardé !');
+    if(editingPatientId) showPatientDetail(editingPatientId);
+  } catch(e){ showToast('Erreur : '+e.message,'red'); }
+  finally{ btn.disabled=false; btn.innerHTML=origHtml; }
 }
-function deleteCurrentPatient(){
-  if(!confirm('Supprimer ce patient et toutes ses données ? Cette action est irréversible (droit à l\'oubli RGPD).'))return;
-  patients=patients.filter(x=>x.id!==currentPatientId);
-  programs=programs.filter(x=>x.patientId!==currentPatientId);
-  delete messages[currentPatientId];
-  persist();showToast(t('deletedOk'));showView('patients');
+async function deleteCurrentPatient(){
+  if(!confirm('Supprimer ce patient et toutes ses données ? Action irréversible (RGPD).'))return;
+  const {error} = await supabase.from('patients').delete().eq('id',currentPatientId);
+  if(error){ showToast('Erreur : '+error.message,'red'); return; }
+  showToast('Supprimé.'); await loadAllData(); showView('patients');
 }
-function filterPatients(){
-  const q=document.getElementById('patientSearch').value.toLowerCase();
-  renderPatients(q);
-}
+function filterPatients(){ renderPatients(document.getElementById('patientSearch').value.toLowerCase()); }
 function renderPatients(q=''){
   const body=document.getElementById('patientsBody');
-  const filtered=patients.filter(p=>(p.firstName+' '+p.lastName+' '+p.pathology).toLowerCase().includes(q));
+  const filtered=patients.filter(p=>((p.first_name||'')+' '+(p.last_name||'')+' '+(p.pathology||'')).toLowerCase().includes(q));
   document.getElementById('patientsBadge').textContent=patients.length;
-  if(!filtered.length){body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">${t('noPatsTable')}</td></tr>`;return;}
-  const statusLabel=(s)=>s==='active'?t('statusActive'):s==='pause'?t('statusPause'):t('statusDone');
-  const statusClass=(s)=>s==='active'?'badge-green':s==='pause'?'badge-orange':'badge-gray';
-  const patProgs=(id)=>programs.filter(p=>p.patientId===id);
+  if(!filtered.length){body.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text3)">Aucun patient. Cliquez sur "Nouveau patient".</td></tr>`;return;}
+  const statusLabel=s=>({active:'Actif',pause:'En pause',done:'Terminé'}[s]||s);
+  const statusClass=s=>({active:'badge-green',pause:'badge-orange',done:'badge-gray'}[s]||'badge-gray');
+  const patProgs=id=>programs.filter(p=>p.patient_id===id);
   body.innerHTML=filtered.map(p=>`
     <tr style="cursor:pointer" onclick="showPatientDetail('${p.id}')">
-      <td><div class="patient-cell"><div class="patient-avatar" style="background:${getColor(p.id)}">${getInitials(p)}</div><div><div class="patient-name">${p.firstName} ${p.lastName}</div><div class="patient-patho">${p.pathology||'—'}</div></div></div></td>
+      <td><div class="patient-cell"><div class="patient-avatar" style="background:${getColor(p.id)}">${getInitials(p)}</div><div><div class="patient-name">${p.first_name} ${p.last_name}</div><div class="patient-patho">${p.pathology||'—'}</div></div></div></td>
       <td>${p.age||'—'}</td>
       <td>${patProgs(p.id).length?patProgs(p.id).map(pr=>`<span class="badge badge-blue">${pr.name}</span>`).join(' '):'<span class="badge badge-gray">—</span>'}</td>
       <td><span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span></td>
-      <td><span style="font-weight:600;color:var(--accent)">${getAdherence(p.id)}%</span></td>
+      <td style="font-size:11px">${new Date(p.created_at).toLocaleDateString('fr-FR')}</td>
       <td><div style="display:flex;gap:6px">
-        <button class="btn btn-secondary btn-sm btn-icon-only" onclick="event.stopPropagation();editPatientById('${p.id}')"><i class="fa-solid fa-pen"></i></button>
-        <button class="btn btn-danger btn-sm btn-icon-only" onclick="event.stopPropagation();deletePatientById('${p.id}')"><i class="fa-solid fa-trash"></i></button>
+        <button class="btn btn-secondary btn-sm btn-icon-only" onclick="event.stopPropagation();currentPatientId='${p.id}';editCurrentPatient()"><i class="fa-solid fa-pen"></i></button>
+        <button class="btn btn-danger btn-sm btn-icon-only" onclick="event.stopPropagation();currentPatientId='${p.id}';deleteCurrentPatient()"><i class="fa-solid fa-trash"></i></button>
       </div></td>
     </tr>`).join('');
 }
-function editPatientById(id){currentPatientId=id;editCurrentPatient()}
-function deletePatientById(id){currentPatientId=id;deleteCurrentPatient()}
-function getAdherence(patId){
-  const msgs=messages[patId]||[];
-  const sessions=msgs.filter(m=>m.type==='session');
-  if(!sessions.length)return 0;
-  return Math.min(100,Math.round(sessions.length*20));
-}
-function showPatientDetail(id){
+async function showPatientDetail(id){
   currentPatientId=id;
   const p=patients.find(x=>x.id===id);if(!p)return;
   showView('patient-detail');
-  document.getElementById('topbarTitle').textContent=p.firstName+' '+p.lastName;
-  // avatar
+  document.getElementById('topbarTitle').textContent=p.first_name+' '+p.last_name;
   const av=document.getElementById('detailAvatar');
   av.textContent=getInitials(p);av.style.background=getColor(p.id);
-  document.getElementById('detailName').textContent=p.firstName+' '+p.lastName;
+  document.getElementById('detailName').textContent=p.first_name+' '+p.last_name;
   document.getElementById('detailPatho').textContent=p.pathology||'—';
-  // meta badges
-  const statusLabel=(s)=>s==='active'?t('statusActive'):s==='pause'?t('statusPause'):t('statusDone');
-  const statusClass=(s)=>s==='active'?'badge-green':s==='pause'?'badge-orange':'badge-gray';
+  const statusLabel=s=>({active:'Actif',pause:'En pause',done:'Terminé'}[s]||s);
+  const statusClass=s=>({active:'badge-green',pause:'badge-orange',done:'badge-gray'}[s]||'badge-gray');
   document.getElementById('detailMeta').innerHTML=`<span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span>`;
-  // info rows
   document.getElementById('detailInfoRows').innerHTML=`
     <div class="info-row"><span class="info-row-label">Âge</span><span class="info-row-val">${p.age||'—'}</span></div>
     <div class="info-row"><span class="info-row-label">Tel.</span><span class="info-row-val">${p.phone||'—'}</span></div>
     <div class="info-row"><span class="info-row-label">Email</span><span class="info-row-val">${p.email||'—'}</span></div>
-    <div class="info-row"><span class="info-row-label">Début</span><span class="info-row-val">${p.startDate||'—'}</span></div>
-    <div class="info-row"><span class="info-row-label">Créé</span><span class="info-row-val">${new Date(p.createdAt).toLocaleDateString(lang==='fr'?'fr-FR':'en-GB')}</span></div>`;
-  // share
-  const shareUrl=`${location.origin}/patient/${p.token}`;
+    <div class="info-row"><span class="info-row-label">Début</span><span class="info-row-val">${p.start_date||'—'}</span></div>`;
+  const shareUrl=`${location.origin}${location.pathname.replace('index.html','')}patient.html?token=${p.token}`;
   document.getElementById('shareBox').innerHTML=`
     <div class="share-box">
-      <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:6px" id="lblShareInfo">${lang==='fr'?'Lien unique patient':'Unique patient link'}</div>
-      <div class="share-link-row">
-        <div class="share-link">${shareUrl}</div>
-        <div class="qr-placeholder" title="QR Code"><i class="fa-solid fa-qrcode" style="font-size:28px;color:var(--text3)"></i></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="btn btn-primary btn-sm" onclick="copyLink('${shareUrl}')"><i class="fa-solid fa-copy"></i> ${t('copyLink')}</button>
-        <button class="btn btn-secondary btn-sm" onclick="generateQR('${shareUrl}')"><i class="fa-solid fa-qrcode"></i> QR Code</button>
-      </div>
-      <div class="rgpd-notice" style="margin-top:10px"><i class="fa-solid fa-shield-halved"></i>${lang==='fr'?'Le lien ne contient aucune donnée nominative (RGPD)':'The link contains no personal data (GDPR)'}</div>
+      <div style="font-size:12px;font-weight:700;color:#1e40af;margin-bottom:6px">Lien unique patient</div>
+      <div class="share-link-row"><div class="share-link" id="shareUrlText">${shareUrl}</div></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-primary btn-sm" onclick="copyLink('${shareUrl}')"><i class="fa-solid fa-copy"></i> Copier le lien</button></div>
+      <div class="rgpd-notice" style="margin-top:10px"><i class="fa-solid fa-shield-halved"></i>Le lien ne contient aucune donnée nominative</div>
     </div>`;
-  // private notes
-  document.getElementById('privateNotes').value=p.privateNotes||'';
-  // programs
+  document.getElementById('privateNotes').value=p.private_notes||'';
   renderPatientPrograms(id);
-  // messages
-  renderMessages(id);
-  // suivi
-  renderSuivi(id);
-  // reset tabs
+  await renderMessages(id);
+  await renderSuivi(id);
   switchTab(0,document.querySelectorAll('.tab')[0]);
 }
-function saveNotes(){
-  const p=patients.find(x=>x.id===currentPatientId);if(!p)return;
-  p.privateNotes=document.getElementById('privateNotes').value;
-  persist();
+async function saveNotes(){
+  const val=document.getElementById('privateNotes').value;
+  await supabase.from('patients').update({private_notes:val}).eq('id',currentPatientId);
+  const p=patients.find(x=>x.id===currentPatientId); if(p)p.private_notes=val;
 }
-function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast(t('copied'),'green'))}
-function generateQR(url){showToast('QR Code : fonctionnalité disponible après hébergement','blue')}
+function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast('Lien copié !','green'))}
 
 // ===== PROGRAMS =====
 function openProgramBuilder(progId=null){
-  editingProgId=progId;
-  exercisesInBuilder=[];
+  editingProgId=progId; exercisesInBuilder=[];
   if(progId){
     const prog=programs.find(x=>x.id===progId);
     if(prog){
@@ -1046,36 +772,32 @@ function openProgramBuilder(progId=null){
       document.getElementById('progPhase').value=prog.phase||'crise';
       document.getElementById('progFreq').value=prog.frequency||'';
       document.getElementById('progDesc').value=prog.description||'';
-      document.getElementById('progPatient').value=prog.patientId||'';
+      document.getElementById('progPatient').value=prog.patient_id||'';
       exercisesInBuilder=JSON.parse(JSON.stringify(prog.exercises||[]));
     }
   } else {
-    document.getElementById('progName').value='';
-    document.getElementById('progPhase').value='crise';
-    document.getElementById('progFreq').value='';
-    document.getElementById('progDesc').value='';
+    document.getElementById('progName').value='';document.getElementById('progPhase').value='crise';
+    document.getElementById('progFreq').value='';document.getElementById('progDesc').value='';
     document.getElementById('progPatient').value=currentPatientId||'';
   }
-  // populate patient select
   const sel=document.getElementById('progPatient');
-  sel.innerHTML='<option value="">— Sélectionner —</option>'+patients.map(p=>`<option value="${p.id}">${p.firstName} ${p.lastName}</option>`).join('');
+  sel.innerHTML='<option value="">— Sélectionner —</option>'+patients.map(p=>`<option value="${p.id}">${p.first_name} ${p.last_name}</option>`).join('');
   if(currentPatientId)sel.value=currentPatientId;
   renderExercisesBuilder();
   openModal('modalProgram');
 }
 function addExercise(){
-  exercisesInBuilder.push({id:genId(),name:'Nouvel exercice',series:'4',reps:'15',rest:'60-90s',tempo:'',focus:'',video:'',regression:'',progression:'',alt:'',evaTarget:'≤ 4/10'});
+  exercisesInBuilder.push({id:'tmp'+Date.now(),name:'Nouvel exercice',series:'4',reps:'15',rest:'60-90s',tempo:'',focus:'',video:'',regression:'',progression:'',alt:'',evaTarget:'≤ 4/10'});
   renderExercisesBuilder();
 }
 function removeExercise(idx){exercisesInBuilder.splice(idx,1);renderExercisesBuilder()}
 function renderExercisesBuilder(){
   const c=document.getElementById('exercisesContainer');
-  if(!exercisesInBuilder.length){c.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">${lang==='fr'?'Ajoutez des exercices via les boutons ci-dessus.':'Add exercises using the buttons above.'}</div>`;return;}
+  if(!exercisesInBuilder.length){c.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Ajoutez des exercices via les boutons ci-dessus.</div>`;return;}
   c.innerHTML=exercisesInBuilder.map((ex,i)=>`
-    <div class="ex-item${ex._open?' open':''}" id="exItem${i}">
+    <div class="ex-item${ex._open?' open':''}">
       <div class="ex-item-hdr" onclick="toggleExItem(${i})">
-        <i class="fa-solid fa-grip-vertical ex-drag"></i>
-        <div class="ex-num">${i+1}</div>
+        <i class="fa-solid fa-grip-vertical ex-drag"></i><div class="ex-num">${i+1}</div>
         <div style="flex:1"><div class="ex-item-name">${ex.name||'Exercice '+(i+1)}</div><div class="ex-item-quick">${ex.series||'?'}×${ex.reps||'?'} · ${ex.rest||'?'}</div></div>
         <button class="btn btn-danger btn-sm btn-icon-only" onclick="event.stopPropagation();removeExercise(${i})"><i class="fa-solid fa-trash"></i></button>
         <i class="fa-solid fa-chevron-down ex-chevron"></i>
@@ -1086,14 +808,14 @@ function renderExercisesBuilder(){
           <div class="form-group full"><label class="form-label">Focus / Cue</label><textarea class="form-textarea" style="min-height:50px" oninput="updateEx(${i},'focus',this.value)">${ex.focus||''}</textarea></div>
         </div>
         <div class="dosage-row">
-          <div class="dosage-mini"><label>Séries</label><input class="form-input" value="${ex.series||''}" oninput="updateEx(${i},'series',this.value)" placeholder="4"/></div>
-          <div class="dosage-mini"><label>Reps / Durée</label><input class="form-input" value="${ex.reps||''}" oninput="updateEx(${i},'reps',this.value)" placeholder="15 ou 45s"/></div>
-          <div class="dosage-mini"><label>Récup.</label><input class="form-input" value="${ex.rest||''}" oninput="updateEx(${i},'rest',this.value)" placeholder="60-90s"/></div>
+          <div class="dosage-mini"><label>Séries</label><input class="form-input" value="${ex.series||''}" oninput="updateEx(${i},'series',this.value)"/></div>
+          <div class="dosage-mini"><label>Reps / Durée</label><input class="form-input" value="${ex.reps||''}" oninput="updateEx(${i},'reps',this.value)"/></div>
+          <div class="dosage-mini"><label>Récup.</label><input class="form-input" value="${ex.rest||''}" oninput="updateEx(${i},'rest',this.value)"/></div>
         </div>
         <div class="dosage-row">
-          <div class="dosage-mini"><label>Tempo</label><input class="form-input" value="${ex.tempo||''}" oninput="updateEx(${i},'tempo',this.value)" placeholder="3-1-3"/></div>
-          <div class="dosage-mini"><label>EVA cible</label><input class="form-input" value="${ex.evaTarget||''}" oninput="updateEx(${i},'evaTarget',this.value)" placeholder="≤ 4/10"/></div>
-          <div class="dosage-mini"><label>Vidéo (URL)</label><input class="form-input" value="${ex.video||''}" oninput="updateEx(${i},'video',this.value)" placeholder="https://youtu.be/..."/></div>
+          <div class="dosage-mini"><label>Tempo</label><input class="form-input" value="${ex.tempo||''}" oninput="updateEx(${i},'tempo',this.value)"/></div>
+          <div class="dosage-mini"><label>EVA cible</label><input class="form-input" value="${ex.evaTarget||''}" oninput="updateEx(${i},'evaTarget',this.value)"/></div>
+          <div class="dosage-mini"><label>Vidéo (URL)</label><input class="form-input" value="${ex.video||''}" oninput="updateEx(${i},'video',this.value)"/></div>
         </div>
         <div class="form-grid" style="margin-top:8px">
           <div class="form-group"><label class="form-label">Régression</label><input class="form-input" value="${ex.regression||''}" oninput="updateEx(${i},'regression',this.value)"/></div>
@@ -1103,289 +825,237 @@ function renderExercisesBuilder(){
       </div>
     </div>`).join('');
 }
-function toggleExItem(i){
-  exercisesInBuilder[i]._open=!exercisesInBuilder[i]._open;
-  renderExercisesBuilder();
-}
+function toggleExItem(i){exercisesInBuilder[i]._open=!exercisesInBuilder[i]._open;renderExercisesBuilder()}
 function updateEx(i,key,val){exercisesInBuilder[i][key]=val;}
-function saveProgram(){
+async function saveProgram(){
   const name=document.getElementById('progName').value.trim();
+  const patId=document.getElementById('progPatient').value;
   if(!name){showToast('Nom requis','red');return;}
-  const prog={
-    id:editingProgId||genId(),
-    name,phase:document.getElementById('progPhase').value,
-    frequency:document.getElementById('progFreq').value,
-    description:document.getElementById('progDesc').value,
-    patientId:document.getElementById('progPatient').value,
-    exercises:JSON.parse(JSON.stringify(exercisesInBuilder)),
-    createdAt:new Date().toISOString(),
-    updatedAt:new Date().toISOString()
+  if(!patId){showToast('Sélectionnez un patient','red');return;}
+  const btn=document.getElementById('btnSaveProgBtn');
+  btn.disabled=true; const orig=btn.innerHTML; btn.innerHTML='<span class="loading-spinner" style="border-top-color:#fff"></span> ...';
+  const payload={
+    name, phase:document.getElementById('progPhase').value, frequency:document.getElementById('progFreq').value,
+    description:document.getElementById('progDesc').value, patient_id:patId,
+    exercises:exercisesInBuilder.map(e=>{const c={...e};delete c._open;return c;}),
+    updated_at:new Date().toISOString()
   };
-  if(editingProgId){const idx=programs.findIndex(x=>x.id===editingProgId);programs[idx]=prog;}
-  else programs.push(prog);
-  persist();closeModal('modalProgram');showToast(t('savedOk'));
-  renderPatientPrograms(prog.patientId||currentPatientId);
-  renderPrograms();refreshDashboard();
+  try{
+    if(editingProgId){ const {error}=await supabase.from('programs').update(payload).eq('id',editingProgId); if(error)throw error; }
+    else{ const {error}=await supabase.from('programs').insert(payload); if(error)throw error; }
+    await loadAllData();
+    closeModal('modalProgram'); showToast('Sauvegardé !');
+    if(currentPatientId) renderPatientPrograms(currentPatientId);
+  } catch(e){ showToast('Erreur : '+e.message,'red'); }
+  finally{ btn.disabled=false; btn.innerHTML=orig; }
 }
 function renderPatientPrograms(patId){
   const c=document.getElementById('patientProgramContainer');
-  const pp=programs.filter(x=>x.patientId===patId);
-  if(!pp.length){c.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3)">${t('noProg')}</div>`;return;}
+  const pp=programs.filter(x=>x.patient_id===patId);
+  if(!pp.length){c.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3)">Aucun programme assigné.</div>`;return;}
   c.innerHTML=pp.map(prog=>`
     <div class="prog-card" style="margin-bottom:12px">
       <div class="prog-card-header">
-        <div style="display:flex;align-items:flex-start;gap:10px;flex:1">
-          <div class="prog-card-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">🏋️</div>
-          <div style="flex:1"><div class="prog-title">${prog.name}</div><div class="prog-sub">${prog.frequency||''}</div></div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openProgramBuilder('${prog.id}')"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProgram('${prog.id}')"><i class="fa-solid fa-trash"></i></button>
-        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;flex:1"><div class="prog-card-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">🏋️</div><div style="flex:1"><div class="prog-title">${prog.name}</div><div class="prog-sub">${prog.frequency||''}</div></div></div>
+        <div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm btn-icon-only" onclick="openProgramBuilder('${prog.id}')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProgram('${prog.id}')"><i class="fa-solid fa-trash"></i></button></div>
       </div>
       <div class="prog-card-body">
         ${prog.description?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">${prog.description}</div>`:''}
-        <div style="font-size:12px;color:var(--text3)">${prog.exercises.length} exercice(s)</div>
-        ${prog.exercises.slice(0,3).map((ex,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--accent);font-weight:700">${i+1}.</span><span style="color:var(--text)">${ex.name}</span><span style="color:var(--text3);margin-left:auto">${ex.series||'?'}×${ex.reps||'?'}</span></div>`).join('')}
-        ${prog.exercises.length>3?`<div style="font-size:11px;color:var(--text3);padding:6px 0">... +${prog.exercises.length-3} autres</div>`:''}
+        <div style="font-size:12px;color:var(--text3)">${(prog.exercises||[]).length} exercice(s)</div>
+        ${(prog.exercises||[]).slice(0,3).map((ex,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--accent);font-weight:700">${i+1}.</span><span>${ex.name}</span><span style="color:var(--text3);margin-left:auto">${ex.series||'?'}×${ex.reps||'?'}</span></div>`).join('')}
       </div>
-      <div class="prog-card-footer">
-        <span class="badge badge-blue">${phaseLabel(prog.phase)}</span>
-        <span style="font-size:11px;color:var(--text3)">${new Date(prog.updatedAt||prog.createdAt).toLocaleDateString(lang==='fr'?'fr-FR':'en-GB')}</span>
-      </div>
+      <div class="prog-card-footer"><span class="badge badge-blue">${phaseLabel(prog.phase)}</span><span style="font-size:11px;color:var(--text3)">${new Date(prog.updated_at||prog.created_at).toLocaleDateString('fr-FR')}</span></div>
     </div>`).join('');
 }
-function phaseLabel(p){const m={crise:'Phase Crise',renfo:'Renforcement',reprise:'Reprise sport',prevention:'Prévention',custom:'Personnalisée'};return m[p]||p}
-function deleteProgram(id){
+function phaseLabel(p){return({crise:'Phase Crise',renfo:'Renforcement',reprise:'Reprise sport',prevention:'Prévention',custom:'Personnalisée'}[p]||p)}
+async function deleteProgram(id){
   if(!confirm('Supprimer ce programme ?'))return;
-  programs=programs.filter(x=>x.id!==id);
-  persist();showToast(t('deletedOk'));
-  renderPatientPrograms(currentPatientId);renderPrograms();refreshDashboard();
+  const {error}=await supabase.from('programs').delete().eq('id',id);
+  if(error){showToast('Erreur','red');return;}
+  await loadAllData(); showToast('Supprimé.');
+  if(currentPatientId) renderPatientPrograms(currentPatientId);
 }
 function renderPrograms(){
   const g=document.getElementById('programsGrid');
-  if(!programs.length){g.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1">${t('noProgs')}</div>`;return;}
+  if(!programs.length){g.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1">Aucun programme créé.</div>`;return;}
   g.innerHTML=programs.map(prog=>{
-    const pat=patients.find(x=>x.id===prog.patientId);
+    const pat=patients.find(x=>x.id===prog.patient_id);
     return`<div class="prog-card">
-      <div class="prog-card-header">
-        <div style="display:flex;align-items:flex-start;gap:10px;flex:1">
-          <div class="prog-card-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">🏋️</div>
-          <div><div class="prog-title">${prog.name}</div><div class="prog-sub">${pat?pat.firstName+' '+pat.lastName:lang==='fr'?'Non assigné':'Unassigned'}</div></div>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openProgramBuilder('${prog.id}')"><i class="fa-solid fa-pen"></i></button>
-          <button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProgram('${prog.id}')"><i class="fa-solid fa-trash"></i></button>
-        </div>
-      </div>
-      <div class="prog-card-body">
-        <div style="font-size:12px;color:var(--text3)">${prog.exercises.length} exercice(s) · ${prog.frequency||'—'}</div>
-      </div>
-      <div class="prog-card-footer">
-        <span class="badge badge-blue">${phaseLabel(prog.phase)}</span>
-        <span style="font-size:11px;color:var(--text3)">${new Date(prog.updatedAt||prog.createdAt).toLocaleDateString(lang==='fr'?'fr-FR':'en-GB')}</span>
-      </div>
+      <div class="prog-card-header"><div style="display:flex;align-items:flex-start;gap:10px;flex:1"><div class="prog-card-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">🏋️</div><div><div class="prog-title">${prog.name}</div><div class="prog-sub">${pat?pat.first_name+' '+pat.last_name:'Non assigné'}</div></div></div>
+      <div style="display:flex;gap:6px"><button class="btn btn-secondary btn-sm btn-icon-only" onclick="openProgramBuilder('${prog.id}')"><i class="fa-solid fa-pen"></i></button><button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProgram('${prog.id}')"><i class="fa-solid fa-trash"></i></button></div></div>
+      <div class="prog-card-body"><div style="font-size:12px;color:var(--text3)">${(prog.exercises||[]).length} exercice(s) · ${prog.frequency||'—'}</div></div>
+      <div class="prog-card-footer"><span class="badge badge-blue">${phaseLabel(prog.phase)}</span></div>
     </div>`;}).join('');
 }
 
 // ===== LIBRARY =====
 function openNewExercise(exData=null,idx=null){
-  editingExId=idx;
-  const ex=exData||{};
-  document.getElementById('exName').value=ex.name||'';
-  document.getElementById('exFocus').value=ex.focus||'';
-  document.getElementById('exSeries').value=ex.series||'';
-  document.getElementById('exReps').value=ex.reps||'';
-  document.getElementById('exRest').value=ex.rest||'';
-  document.getElementById('exTempo').value=ex.tempo||'';
-  document.getElementById('exEVA').value=ex.evaTarget||'';
-  document.getElementById('exCategory').value=ex.category||'autre';
-  document.getElementById('exVideo').value=ex.video||'';
-  document.getElementById('exRegress').value=ex.regression||'';
-  document.getElementById('exProgress').value=ex.progression||'';
-  document.getElementById('exAlt').value=ex.alt||'';
+  editingExId=idx; const ex=exData||{};
+  ['exName','exFocus','exSeries','exReps','exRest','exTempo','exEVA','exVideo','exRegress','exProgress','exAlt'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('exName').value=ex.name||'';document.getElementById('exFocus').value=ex.focus||'';
+  document.getElementById('exSeries').value=ex.series||'';document.getElementById('exReps').value=ex.reps||'';
+  document.getElementById('exRest').value=ex.rest||'';document.getElementById('exTempo').value=ex.tempo||'';
+  document.getElementById('exEVA').value=ex.eva_target||'';document.getElementById('exCategory').value=ex.category||'autre';
+  document.getElementById('exVideo').value=ex.video||'';document.getElementById('exRegress').value=ex.regression||'';
+  document.getElementById('exProgress').value=ex.progression||'';document.getElementById('exAlt').value=ex.alt_material||'';
   openModal('modalExercise');
 }
-function saveExercise(){
+async function saveExercise(){
   const name=document.getElementById('exName').value.trim();
   if(!name){showToast('Nom requis','red');return;}
-  const ex={id:genId(),name,focus:document.getElementById('exFocus').value,series:document.getElementById('exSeries').value,reps:document.getElementById('exReps').value,rest:document.getElementById('exRest').value,tempo:document.getElementById('exTempo').value,evaTarget:document.getElementById('exEVA').value,category:document.getElementById('exCategory').value,video:document.getElementById('exVideo').value,regression:document.getElementById('exRegress').value,progression:document.getElementById('exProgress').value,alt:document.getElementById('exAlt').value};
-  if(editingExId!==null)library[editingExId]=ex;
-  else library.push(ex);
-  persist();closeModal('modalExercise');showToast(t('savedOk'));renderLibrary();refreshDashboard();
+  const payload={
+    practitioner_id:currentPractitioner.id, name, focus:document.getElementById('exFocus').value,
+    series:document.getElementById('exSeries').value, reps:document.getElementById('exReps').value,
+    rest:document.getElementById('exRest').value, tempo:document.getElementById('exTempo').value,
+    eva_target:document.getElementById('exEVA').value, category:document.getElementById('exCategory').value,
+    video:document.getElementById('exVideo').value, regression:document.getElementById('exRegress').value,
+    progression:document.getElementById('exProgress').value, alt_material:document.getElementById('exAlt').value
+  };
+  try{
+    if(editingExId!==null){ const {error}=await supabase.from('exercises_library').update(payload).eq('id',library[editingExId].id); if(error)throw error; }
+    else{ const {error}=await supabase.from('exercises_library').insert(payload); if(error)throw error; }
+    await loadAllData(); closeModal('modalExercise'); showToast('Sauvegardé !');
+  } catch(e){ showToast('Erreur : '+e.message,'red'); }
 }
 function renderLibrary(){
   const g=document.getElementById('libraryGrid');
   const catLabels={quadri:'Quadriceps',fessiers:'Fessiers',ischio:'Ischio',gainage:'Gainage',cardio:'Cardio',iso:'Isométrique',autre:'Autre'};
-  if(!library.length){g.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1">${lang==='fr'?'Bibliothèque vide. Ajoutez votre premier exercice !':'Empty library. Add your first exercise!'}</div>`;return;}
+  document.getElementById('statExos').textContent=library.length;
+  if(!library.length){g.innerHTML=`<div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1">Bibliothèque vide. Ajoutez votre premier exercice !</div>`;return;}
   g.innerHTML=library.map((ex,i)=>`
     <div class="lib-card">
       <div class="lib-card-name">${ex.name}</div>
-      <div class="lib-card-meta">
-        <span class="badge badge-blue">${catLabels[ex.category]||ex.category}</span>
-        <span>${ex.series||'?'}×${ex.reps||'?'}</span>
-        ${ex.tempo?`<span>⏱ ${ex.tempo}</span>`:''}
-      </div>
-      ${ex.focus?`<div style="font-size:11px;color:var(--text3);margin-top:8px;font-style:italic">${ex.focus.slice(0,80)}${ex.focus.length>80?'...':''}</div>`:''}
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="btn btn-secondary btn-sm" onclick="openNewExercise(library[${i}],${i})"><i class="fa-solid fa-pen"></i></button>
-        <button class="btn btn-danger btn-sm" onclick="deleteExercise(${i})"><i class="fa-solid fa-trash"></i></button>
-      </div>
+      <div class="lib-card-meta"><span class="badge badge-blue">${catLabels[ex.category]||ex.category}</span><span>${ex.series||'?'}×${ex.reps||'?'}</span>${ex.tempo?`<span>⏱ ${ex.tempo}</span>`:''}</div>
+      ${ex.focus?`<div style="font-size:11px;color:var(--text3);margin-top:8px;font-style:italic">${ex.focus.slice(0,80)}</div>`:''}
+      <div style="display:flex;gap:6px;margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="openNewExercise(library[${i}],${i})"><i class="fa-solid fa-pen"></i></button><button class="btn btn-danger btn-sm" onclick="deleteExercise(${i})"><i class="fa-solid fa-trash"></i></button></div>
     </div>`).join('');
 }
-function deleteExercise(i){if(!confirm('Supprimer cet exercice ?'))return;library.splice(i,1);persist();renderLibrary();refreshDashboard()}
-
-// LIBRARY PICKER (in program builder)
-function addFromLibrary(){
-  renderLibPicker();openModal('modalLibPicker');
+async function deleteExercise(i){
+  if(!confirm('Supprimer cet exercice ?'))return;
+  const {error}=await supabase.from('exercises_library').delete().eq('id',library[i].id);
+  if(error){showToast('Erreur','red');return;}
+  await loadAllData(); showToast('Supprimé.');
 }
+function addFromLibrary(){ renderLibPicker(); openModal('modalLibPicker'); }
 function renderLibPicker(q=''){
   const g=document.getElementById('libPickerGrid');
   const filtered=library.filter(ex=>ex.name.toLowerCase().includes(q.toLowerCase()));
-  if(!filtered.length){g.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);grid-column:1/-1">${lang==='fr'?'Aucun exercice en bibliothèque.':'No exercises in library.'}</div>`;return;}
-  g.innerHTML=filtered.map((ex,i)=>`
-    <div class="lib-card" onclick="addExFromLib(${library.indexOf(ex)})">
-      <div class="lib-card-name">${ex.name}</div>
-      <div class="lib-card-meta"><span>${ex.series||'?'}×${ex.reps||'?'}</span></div>
-      <div style="font-size:11px;color:var(--accent);margin-top:6px;font-weight:600">+ Ajouter</div>
-    </div>`).join('');
+  if(!filtered.length){g.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);grid-column:1/-1">Aucun exercice en bibliothèque.</div>`;return;}
+  g.innerHTML=filtered.map((ex)=>`<div class="lib-card" onclick='addExFromLib(${JSON.stringify(ex).replace(/'/g,"&#39;")})'><div class="lib-card-name">${ex.name}</div><div class="lib-card-meta"><span>${ex.series||'?'}×${ex.reps||'?'}</span></div><div style="font-size:11px;color:var(--accent);margin-top:6px;font-weight:600">+ Ajouter</div></div>`).join('');
 }
 function filterLibPicker(){renderLibPicker(document.getElementById('libPickerSearch').value)}
-function addExFromLib(i){
-  const ex=JSON.parse(JSON.stringify(library[i]));
-  ex.id=genId();
-  exercisesInBuilder.push(ex);
-  closeModal('modalLibPicker');
-  renderExercisesBuilder();
-  showToast(ex.name+' ajouté','green');
+function addExFromLib(ex){
+  exercisesInBuilder.push({id:'tmp'+Date.now(),name:ex.name,series:ex.series,reps:ex.reps,rest:ex.rest,tempo:ex.tempo,focus:ex.focus,video:ex.video,regression:ex.regression,progression:ex.progression,alt:ex.alt_material,evaTarget:ex.eva_target});
+  closeModal('modalLibPicker'); renderExercisesBuilder(); showToast(ex.name+' ajouté','green');
 }
 
 // ===== MESSAGES =====
-function renderMessages(patId){
+async function renderMessages(patId){
+  const {data} = await supabase.from('messages').select('*').eq('patient_id',patId).order('created_at',{ascending:true});
+  messages = data||[];
   const c=document.getElementById('messagesContainer');
-  const msgs=(messages[patId]||[]).filter(m=>m.type==='message');
-  if(!msgs.length){c.innerHTML=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">${lang==='fr'?'Aucun message échangé.':'No messages yet.'}</div>`;return;}
-  c.innerHTML=msgs.map(m=>`
-    <div style="display:flex;flex-direction:column;align-items:${m.from==='kine'?'flex-end':'flex-start'}">
-      <div style="max-width:75%;background:${m.from==='kine'?'var(--accent)':'var(--bg)'};color:${m.from==='kine'?'#fff':'var(--text)'};border-radius:${m.from==='kine'?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 14px;font-size:13px;border:1px solid var(--border)">
-        ${m.text}
-      </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:3px">${new Date(m.date).toLocaleString(lang==='fr'?'fr-FR':'en-GB')}</div>
+  if(!messages.length){c.innerHTML=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Aucun message échangé.</div>`;return;}
+  c.innerHTML=messages.map(m=>`
+    <div style="display:flex;flex-direction:column;align-items:${m.sender==='kine'?'flex-end':'flex-start'}">
+      <div style="max-width:75%;background:${m.sender==='kine'?'var(--accent)':'var(--bg)'};color:${m.sender==='kine'?'#fff':'var(--text)'};border-radius:${m.sender==='kine'?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 14px;font-size:13px;border:1px solid var(--border)">${m.text}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
     </div>`).join('');
   c.scrollTop=c.scrollHeight;
 }
-function sendMessage(){
+async function sendMessage(){
   const input=document.getElementById('newMessage');
   const text=input.value.trim();if(!text||!currentPatientId)return;
-  if(!messages[currentPatientId])messages[currentPatientId]=[];
-  messages[currentPatientId].push({type:'message',from:'kine',text,date:new Date().toISOString()});
-  persist();input.value='';renderMessages(currentPatientId);showToast(t('savedOk'));
+  const {error}=await supabase.from('messages').insert({patient_id:currentPatientId,sender:'kine',text});
+  if(error){showToast('Erreur envoi','red');return;}
+  input.value=''; await renderMessages(currentPatientId);
 }
 
 // ===== SUIVI =====
-function renderSuivi(patId){
-  const sessions=(messages[patId]||[]).filter(m=>m.type==='session');
+async function renderSuivi(patId){
+  const {data} = await supabase.from('sessions').select('*').eq('patient_id',patId).order('created_at',{ascending:false});
+  const sessions=data||[];
   document.getElementById('nbSessions').textContent=sessions.length;
   if(sessions.length){
-    const avgEVA=(sessions.reduce((a,s)=>a+(s.eva||0),0)/sessions.length).toFixed(1);
-    const avgBorg=(sessions.reduce((a,s)=>a+(s.borg||0),0)/sessions.length).toFixed(1);
-    document.getElementById('avgEVA').textContent=avgEVA+'/10';
-    document.getElementById('avgBorg').textContent=avgBorg+'/20';
-    const tbody=document.getElementById('sessionHistoryBody');
-    tbody.innerHTML=sessions.slice().reverse().map(s=>`
-      <tr>
-        <td>${new Date(s.date).toLocaleDateString(lang==='fr'?'fr-FR':'en-GB')}</td>
-        <td><span class="badge ${s.eva<=3?'badge-green':s.eva<=6?'badge-orange':'badge-red'}">${s.eva||'—'}/10</span></td>
-        <td><span class="badge badge-blue">${s.borg||'—'}/20</span></td>
-        <td style="font-size:11px">${(s.symptoms||[]).join(', ')||'—'}</td>
-        <td style="font-size:12px;font-style:italic">${s.note||'—'}</td>
-      </tr>`).join('');
+    document.getElementById('avgEVA').textContent=(sessions.reduce((a,s)=>a+(s.eva||0),0)/sessions.length).toFixed(1)+'/10';
+    document.getElementById('avgBorg').textContent=(sessions.reduce((a,s)=>a+(s.borg||0),0)/sessions.length).toFixed(1)+'/20';
+    document.getElementById('sessionHistoryBody').innerHTML=sessions.map(s=>`
+      <tr><td>${new Date(s.created_at).toLocaleDateString('fr-FR')}</td>
+      <td><span class="badge ${s.eva<=3?'badge-green':s.eva<=6?'badge-orange':'badge-red'}">${s.eva ?? '—'}/10</span></td>
+      <td><span class="badge badge-blue">${s.borg ?? '—'}/20</span></td>
+      <td style="font-size:11px">${(typeof s.symptoms === 'string' ? JSON.parse(s.symptoms||'[]') : s.symptoms||[]).join(', ')||'—'}</td>
+      <td style="font-size:12px;font-style:italic">${s.note||'—'}</td></tr>`).join('');
   } else {
-    document.getElementById('avgEVA').textContent='—';
-    document.getElementById('avgBorg').textContent='—';
-    document.getElementById('sessionHistoryBody').innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">${t('noSessions')}</td></tr>`;
+    document.getElementById('avgEVA').textContent='—';document.getElementById('avgBorg').textContent='—';
+    document.getElementById('sessionHistoryBody').innerHTML=`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucune séance enregistrée</td></tr>`;
   }
 }
 
-// ===== TABS =====
 function switchTab(n,el){
-  [0,1,2].forEach(i=>{document.getElementById('tabContent'+i).style.display=i===n?'block':'none'});
+  [0,1,2].forEach(i=>document.getElementById('tabContent'+i).style.display=i===n?'block':'none');
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
-  currentTab=n;
   if(n===1&&currentPatientId)renderSuivi(currentPatientId);
   if(n===2&&currentPatientId)renderMessages(currentPatientId);
 }
 
 // ===== DASHBOARD =====
-function refreshDashboard(){
+async function refreshDashboard(){
   const active=patients.filter(p=>p.status==='active').length;
-  const inactive=patients.filter(p=>p.status==='pause').length;
   document.getElementById('statPatients').textContent=active;
   document.getElementById('statProgs').textContent=programs.length;
-  document.getElementById('statInactive').textContent=inactive;
-  document.getElementById('statExos').textContent=library.length;
-  document.getElementById('patientsBadge').textContent=patients.length;
-  // recent patients
-  const body=document.getElementById('recentPatientsBody');
-  const recent=patients.slice(-5).reverse();
-  if(!recent.length){body.innerHTML=`<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text3)">${t('noPatients')}</td></tr>`;return;}
-  const statusLabel=(s)=>s==='active'?t('statusActive'):s==='pause'?t('statusPause'):t('statusDone');
-  const statusClass=(s)=>s==='active'?'badge-green':s==='pause'?'badge-orange':'badge-gray';
-  body.innerHTML=recent.map(p=>`<tr style="cursor:pointer" onclick="showPatientDetail('${p.id}')">
-    <td><div class="patient-cell"><div class="patient-avatar" style="background:${getColor(p.id)};width:28px;height:28px;font-size:11px">${getInitials(p)}</div><span style="font-weight:600;font-size:13px">${p.firstName} ${p.lastName}</span></div></td>
-    <td><span class="badge ${statusClass(p.status)}">${statusLabel(p.status)}</span></td>
-    <td><span style="font-weight:600;color:var(--accent)">${getAdherence(p.id)}%</span></td>
-  </tr>`).join('');
-  // alerts
-  const alerts=patients.filter(p=>p.status==='active'&&getAdherence(p.id)===0);
+  document.getElementById('statInactive').textContent=patients.filter(p=>p.status==='pause').length;
+  // alerts: patients without session in 5+ days
+  let alerts=[];
+  for(const p of patients.filter(x=>x.status==='active')){
+    const {data} = await supabase.from('sessions').select('created_at').eq('patient_id',p.id).order('created_at',{ascending:false}).limit(1);
+    const last = data && data[0];
+    const days = last? Math.floor((Date.now()-new Date(last.created_at).getTime())/86400000) : null;
+    if(days===null || days>5) alerts.push({p,days});
+  }
   const ac=document.getElementById('alertsContainer');
-  if(!alerts.length){ac.innerHTML=`<div class="alert alert-warn"><i class="fa-solid fa-circle-info"></i><div>${t('noAlerts')}</div></div>`;return;}
-  ac.innerHTML=alerts.map(p=>`<div class="alert alert-warn"><i class="fa-solid fa-triangle-exclamation"></i><div>${p.firstName} ${p.lastName} — ${lang==='fr'?'Aucune séance enregistrée':'No session recorded'}</div></div>`).join('');
+  if(!alerts.length){ ac.innerHTML=`<div class="alert alert-warn"><i class="fa-solid fa-circle-check"></i><div>Aucune alerte active. Tout va bien ! 🎉</div></div>`; }
+  else{ ac.innerHTML=alerts.map(a=>`<div class="alert alert-warn"><i class="fa-solid fa-triangle-exclamation"></i><div><strong>${a.p.first_name} ${a.p.last_name}</strong> — ${a.days===null?'aucune séance jamais enregistrée':a.days+' jours sans séance'}</div></div>`).join(''); }
 }
-function refreshAll(){refreshDashboard();}
 
 // ===== SETTINGS =====
-function saveSettings(){
-  currentUser.firstName=document.getElementById('settFirstName').value;
-  currentUser.lastName=document.getElementById('settLastName').value;
-  currentUser.email=document.getElementById('settEmail').value;
-  currentUser.speciality=document.getElementById('settSpeciality').value;
-  currentUser.cabinet=document.getElementById('settCabinet').value;
-  currentUser.name='Dr. '+currentUser.lastName;
-  document.getElementById('sidebarName').textContent=currentUser.name;
-  document.getElementById('sidebarInitials').textContent=(currentUser.firstName[0]||'')+(currentUser.lastName[0]||'');
-  showToast(t('savedOk'));
+async function saveSettings(){
+  const payload={first_name:document.getElementById('settFirstName').value,last_name:document.getElementById('settLastName').value,speciality:document.getElementById('settSpeciality').value,cabinet:document.getElementById('settCabinet').value};
+  const {error}=await supabase.from('practitioners').update(payload).eq('id',currentPractitioner.id);
+  if(error){showToast('Erreur','red');return;}
+  currentPractitioner={...currentPractitioner,...payload};
+  document.getElementById('sidebarName').textContent=payload.first_name||currentPractitioner.email;
+  showToast('Sauvegardé !');
 }
 
-// ===== UTILS =====
+// ===== VIEWS / UTILS =====
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v)?.classList.add('active');
+  document.getElementById('nav-'+v)?.classList.add('active');
+  const titles={dashboard:'Tableau de bord',patients:'Patients',programs:'Programmes',library:'Bibliothèque',settings:'Paramètres'};
+  document.getElementById('topbarTitle').textContent=titles[v]||'';
+}
+function toggleTheme(){
+  const d=document.documentElement;const dark=d.getAttribute('data-theme')==='dark';
+  d.setAttribute('data-theme',dark?'light':'dark');
+  document.getElementById('themeBtn').innerHTML=dark?'<i class="fa-solid fa-moon"></i>':'<i class="fa-solid fa-sun"></i>';
+}
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(o=>o.classList.remove('open'))});
-
-function persist(){
-  localStorage.setItem('kinePatients',JSON.stringify(patients));
-  localStorage.setItem('kinePrograms',JSON.stringify(programs));
-  localStorage.setItem('kineLibrary',JSON.stringify(library));
-  localStorage.setItem('kineMessages',JSON.stringify(messages));
-}
-
 let toastTimer;
 function showToast(msg,type='green'){
   const existing=document.querySelector('.toast');if(existing)existing.remove();
   const icons={green:'fa-circle-check',red:'fa-circle-xmark',blue:'fa-circle-info'};
-  const t2=document.createElement('div');t2.className='toast';
-  t2.innerHTML=`<i class="fa-solid ${icons[type]||icons.green}" style="color:${type==='green'?'#34d399':type==='red'?'#f87171':'#60a5fa'}"></i>${msg}`;
-  document.body.appendChild(t2);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t2.remove(),3000);
+  const t=document.createElement('div');t.className='toast';
+  t.innerHTML=`<i class="fa-solid ${icons[type]||icons.green}" style="color:${type==='green'?'#34d399':type==='red'?'#f87171':'#60a5fa'}"></i>${msg}`;
+  document.body.appendChild(t);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),3500);
 }
 
-// Init settings fields
-document.getElementById('settFirstName').value=currentUser.firstName||'Jean';
-document.getElementById('settLastName').value=currentUser.lastName||'Dupont';
-document.getElementById('settEmail').value=currentUser.email||'';
-document.getElementById('settSpeciality').value=currentUser.speciality||'';
-document.getElementById('settCabinet').value=currentUser.cabinet||'';
+tryAutoLogin();
 </script>
 </body>
 </html>
+
