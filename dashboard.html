@@ -143,7 +143,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <div class="login-title">Connexion au Dashboard</div>
     <input class="login-input" type="email" id="loginEmail" placeholder="Votre email professionnel"/>
     <input class="login-input" type="password" id="loginPwd" placeholder="Mot de passe"/>
-    <button class="login-btn" onclick="doLogin()">Accéder au dashboard</button>
+    <button class="login-btn" onclick="doLogin()" id="loginBtn">Accéder au dashboard</button>
     <div class="login-hint">Utilisez le même email que sur votre back-office</div>
   </div>
 </div>
@@ -159,10 +159,23 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       </div>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="tb-btn" onclick="exportData()" title="Exporter"><i class="fa-solid fa-file-export"></i></button>
-      <button class="tb-btn" onclick="toggleTheme()" id="themeBtn"><i class="fa-solid fa-moon"></i></button>
-      <button class="tb-btn" onclick="doLogout()" title="Déconnexion"><i class="fa-solid fa-right-from-bracket"></i></button>
-    </div>
+  <button class="tb-btn" onclick="window.location.href='/'" title="Retour backoffice">
+    <i class="fa-solid fa-arrow-left"></i>
+  </button>
+
+  <button class="tb-btn" onclick="exportData()" title="Exporter">
+    <i class="fa-solid fa-file-export"></i>
+  </button>
+
+  <button class="tb-btn" onclick="toggleTheme()" id="themeBtn">
+    <i class="fa-solid fa-moon"></i>
+  </button>
+
+  <button class="tb-btn" onclick="doLogout()" title="Déconnexion">
+    <i class="fa-solid fa-right-from-bracket"></i>
+  </button>
+</div>
+
   </div>
 
   <div class="page">
@@ -232,6 +245,9 @@ let currentFilter = 'all';
 let currentPeriod = 30;
 let selectedPatientId = null;
 let realtimeChannels = [];
+let realtimeStarted = false;
+let loginInProgress = false;
+
 
 const avatarColors = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
 
@@ -247,11 +263,29 @@ function getInitials(p){
 // AUTH
 // ============================================================
 async function doLogin(){
+  if(loginInProgress){
+    console.log('Connexion déjà en cours, clic ignoré.');
+    return;
+  }
+
+  loginInProgress = true;
+
+  const btn = document.getElementById('loginBtn');
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'Connexion...';
+  }
+
   const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const pwd = document.getElementById('loginPwd').value;
 
   if(!email || pwd.length < 4){
     alert('Email et mot de passe requis');
+    loginInProgress = false;
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Accéder au dashboard';
+    }
     return;
   }
 
@@ -282,6 +316,7 @@ async function doLogin(){
     localStorage.setItem('kine_practitioner_id', practitioner.id);
 
     document.getElementById('loginScreen').classList.add('app-hidden');
+    document.getElementById('loadingScreen').classList.add('app-hidden');
     document.getElementById('appRoot').classList.remove('app-hidden');
 
     await loadAndRender();
@@ -290,14 +325,26 @@ async function doLogin(){
   } catch(e) {
     console.error(e);
     alert('Erreur de connexion : ' + e.message);
+
+  } finally {
+    loginInProgress = false;
+
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Accéder au dashboard';
+    }
   }
 }
 
 async function doLogout(){
   realtimeChannels.forEach(ch => db.removeChannel(ch));
   realtimeChannels = [];
+  realtimeStarted = false;
+
   await db.auth.signOut();
+
   localStorage.removeItem('kine_practitioner_id');
+
   location.href = '/';
 }
 
@@ -857,23 +904,57 @@ function setPeriod(days, el){
 // REALTIME
 // ============================================================
 function setupRealtime(){
-  realtimeChannels.forEach(ch => db.removeChannel(ch));
-  realtimeChannels = [];
+  if(realtimeStarted){
+    console.log('Realtime dashboard déjà lancé, on ignore.');
+    return;
+  }
+
+  realtimeStarted = true;
 
   const sessionsChannel = db.channel('dashboard-sessions')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
-      loadAndRender();
-    })
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'sessions' },
+      () => {
+        console.log('Changement détecté dans sessions');
+        loadAndRender();
+      }
+    )
     .subscribe(status => {
-      console.log('Realtime sessions dashboard:', status);
+      if(status === 'SUBSCRIBED') {
+        console.log('Realtime sessions dashboard actif');
+      }
+
+      if(status === 'CLOSED') {
+        console.log('Realtime sessions dashboard fermé');
+      }
+
+      if(status === 'CHANNEL_ERROR') {
+        console.log('Erreur canal realtime sessions');
+      }
     });
 
   const patientsChannel = db.channel('dashboard-patients')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
-      loadAndRender();
-    })
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'patients' },
+      () => {
+        console.log('Changement détecté dans patients');
+        loadAndRender();
+      }
+    )
     .subscribe(status => {
-      console.log('Realtime patients dashboard:', status);
+      if(status === 'SUBSCRIBED') {
+        console.log('Realtime patients dashboard actif');
+      }
+
+      if(status === 'CLOSED') {
+        console.log('Realtime patients dashboard fermé');
+      }
+
+      if(status === 'CHANNEL_ERROR') {
+        console.log('Erreur canal realtime patients');
+      }
     });
 
   realtimeChannels = [sessionsChannel, patientsChannel];
