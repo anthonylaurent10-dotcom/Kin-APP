@@ -481,11 +481,12 @@ tr:hover td{background:var(--bg)}
 // ============================================================
 const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-// ====== DEBUG TEMPORAIRE ======
+
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 console.log('Supabase initialisé :', SUPABASE_URL);
 
-supabase.auth.onAuthStateChange((event, session) => {
+db.auth.onAuthStateChange((event, session) => {
   console.log('=== AUTH EVENT ===', event);
   console.log('Session complète :', session);
   if(session) console.log('User ID :', session.user.id);
@@ -529,13 +530,13 @@ async function doLogin(){
 
   try {
     // 1. Tentative de connexion
-    let authResult = await supabase.auth.signInWithPassword({ email, password: pwd });
+    let authResult = await db.auth.signInWithPassword({ email, password: pwd });
 
     // 2. Si compte inexistant, on le crée (première connexion)
     if(authResult.error && authResult.error.message.includes('Invalid login credentials')){
-      const signUpResult = await supabase.auth.signUp({ email, password: pwd });
+      const signUpResult = await db.auth.signUp({ email, password: pwd });
       if(signUpResult.error) throw signUpResult.error;
-      authResult = await supabase.auth.signInWithPassword({ email, password: pwd });
+      authResult = await db.auth.signInWithPassword({ email, password: pwd });
     }
 
     if(authResult.error) throw authResult.error;
@@ -588,16 +589,16 @@ async function doLogin(){
 document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
 async function doLogout(){
-  realtimeChannels.forEach(ch => supabase.removeChannel(ch));
+  realtimeChannels.forEach(ch => db.removeChannel(ch));
   realtimeChannels = [];
-  await supabase.auth.signOut();
+  await db.auth.signOut();
   localStorage.removeItem('kine_practitioner_id');
   location.reload();
 }
 
 // Auto-login si déjà connecté
 async function tryAutoLogin(){
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await db.auth.getSession();
   if(!session) return;
 
   const userId = session.user.id;
@@ -626,9 +627,9 @@ async function tryAutoLogin(){
 async function loadAllData(){
   const pid = currentPractitioner.id;
   const [{data:pats},{data:progs},{data:lib}] = await Promise.all([
-    supabase.from('patients').select('*').eq('practitioner_id',pid).order('created_at',{ascending:false}),
-    supabase.from('programs').select('*, patients!inner(practitioner_id)').eq('patients.practitioner_id',pid),
-    supabase.from('exercises_library').select('*').eq('practitioner_id',pid).order('created_at',{ascending:false})
+    db.from('patients').select('*').eq('practitioner_id',pid).order('created_at',{ascending:false}),
+    db.from('programs').select('*, patients!inner(practitioner_id)').eq('patients.practitioner_id',pid),
+    db.from('exercises_library').select('*').eq('practitioner_id',pid).order('created_at',{ascending:false})
   ]);
   patients = pats||[];
   programs = (progs||[]).map(p=>{ delete p.patients; return p; });
@@ -642,19 +643,19 @@ async function loadAllData(){
 // ===== REALTIME : la magie de l'interconnexion =====
 function setupRealtimeSubscriptions(){
   // Écoute les nouvelles séances (patients qui valident leur séance)
-  const sessionsChannel = supabase.channel('sessions-changes')
+  const sessionsChannel = db.channel('sessions-changes')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'sessions'}, payload=>{
       handleNewSession(payload.new);
     }).subscribe();
 
   // Écoute les nouveaux messages patients
-  const messagesChannel = supabase.channel('messages-changes')
+  const messagesChannel = db.channel('messages-changes')
     .on('postgres_changes', {event:'INSERT', schema:'public', table:'messages'}, payload=>{
       handleNewMessage(payload.new);
     }).subscribe();
 
   // Écoute les mises à jour de patients (ex: dernière activité)
-  const patientsChannel = supabase.channel('patients-changes')
+  const patientsChannel = db.channel('patients-changes')
     .on('postgres_changes', {event:'*', schema:'public', table:'patients'}, payload=>{
       loadAllData(); // refresh simple et fiable
     }).subscribe();
@@ -734,12 +735,12 @@ async function savePatient(){
   };
   try{
     if(editingPatientId){
-      const {error} = await supabase.from('patients').update(payload).eq('id',editingPatientId);
+      const {error} = await db.from('patients').update(payload).eq('id',editingPatientId);
       if(error) throw error;
     } else {
       payload.practitioner_id = currentPractitioner.id;
       payload.token = genToken();
-      const {error} = await supabase.from('patients').insert(payload);
+      const {error} = await db.from('patients').insert(payload);
       if(error) throw error;
     }
     await loadAllData();
@@ -750,7 +751,7 @@ async function savePatient(){
 }
 async function deleteCurrentPatient(){
   if(!confirm('Supprimer ce patient et toutes ses données ? Action irréversible (RGPD).'))return;
-  const {error} = await supabase.from('patients').delete().eq('id',currentPatientId);
+  const {error} = await db.from('patients').delete().eq('id',currentPatientId);
   if(error){ showToast('Erreur : '+error.message,'red'); return; }
   showToast('Supprimé.'); await loadAllData(); showView('patients');
 }
@@ -809,7 +810,7 @@ async function showPatientDetail(id){
 }
 async function saveNotes(){
   const val=document.getElementById('privateNotes').value;
-  await supabase.from('patients').update({private_notes:val}).eq('id',currentPatientId);
+  await db.from('patients').update({private_notes:val}).eq('id',currentPatientId);
   const p=patients.find(x=>x.id===currentPatientId); if(p)p.private_notes=val;
 }
 function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast('Lien copié !','green'))}
@@ -893,8 +894,8 @@ async function saveProgram(){
     updated_at:new Date().toISOString()
   };
   try{
-    if(editingProgId){ const {error}=await supabase.from('programs').update(payload).eq('id',editingProgId); if(error)throw error; }
-    else{ const {error}=await supabase.from('programs').insert(payload); if(error)throw error; }
+    if(editingProgId){ const {error}=await db.from('programs').update(payload).eq('id',editingProgId); if(error)throw error; }
+    else{ const {error}=await db.from('programs').insert(payload); if(error)throw error; }
     await loadAllData();
     closeModal('modalProgram'); showToast('Sauvegardé !');
     if(currentPatientId) renderPatientPrograms(currentPatientId);
@@ -922,7 +923,7 @@ function renderPatientPrograms(patId){
 function phaseLabel(p){return({crise:'Phase Crise',renfo:'Renforcement',reprise:'Reprise sport',prevention:'Prévention',custom:'Personnalisée'}[p]||p)}
 async function deleteProgram(id){
   if(!confirm('Supprimer ce programme ?'))return;
-  const {error}=await supabase.from('programs').delete().eq('id',id);
+  const {error}=await db.from('programs').delete().eq('id',id);
   if(error){showToast('Erreur','red');return;}
   await loadAllData(); showToast('Supprimé.');
   if(currentPatientId) renderPatientPrograms(currentPatientId);
@@ -964,8 +965,8 @@ async function saveExercise(){
     progression:document.getElementById('exProgress').value, alt_material:document.getElementById('exAlt').value
   };
   try{
-    if(editingExId!==null){ const {error}=await supabase.from('exercises_library').update(payload).eq('id',library[editingExId].id); if(error)throw error; }
-    else{ const {error}=await supabase.from('exercises_library').insert(payload); if(error)throw error; }
+    if(editingExId!==null){ const {error}=await db.from('exercises_library').update(payload).eq('id',library[editingExId].id); if(error)throw error; }
+    else{ const {error}=await db.from('exercises_library').insert(payload); if(error)throw error; }
     await loadAllData(); closeModal('modalExercise'); showToast('Sauvegardé !');
   } catch(e){ showToast('Erreur : '+e.message,'red'); }
 }
@@ -984,7 +985,7 @@ function renderLibrary(){
 }
 async function deleteExercise(i){
   if(!confirm('Supprimer cet exercice ?'))return;
-  const {error}=await supabase.from('exercises_library').delete().eq('id',library[i].id);
+  const {error}=await db.from('exercises_library').delete().eq('id',library[i].id);
   if(error){showToast('Erreur','red');return;}
   await loadAllData(); showToast('Supprimé.');
 }
@@ -1003,7 +1004,7 @@ function addExFromLib(ex){
 
 // ===== MESSAGES =====
 async function renderMessages(patId){
-  const {data} = await supabase.from('messages').select('*').eq('patient_id',patId).order('created_at',{ascending:true});
+  const {data} = await db.from('messages').select('*').eq('patient_id',patId).order('created_at',{ascending:true});
   messages = data||[];
   const c=document.getElementById('messagesContainer');
   if(!messages.length){c.innerHTML=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Aucun message échangé.</div>`;return;}
@@ -1017,14 +1018,14 @@ async function renderMessages(patId){
 async function sendMessage(){
   const input=document.getElementById('newMessage');
   const text=input.value.trim();if(!text||!currentPatientId)return;
-  const {error}=await supabase.from('messages').insert({patient_id:currentPatientId,sender:'kine',text});
+  const {error}=await db.from('messages').insert({patient_id:currentPatientId,sender:'kine',text});
   if(error){showToast('Erreur envoi','red');return;}
   input.value=''; await renderMessages(currentPatientId);
 }
 
 // ===== SUIVI =====
 async function renderSuivi(patId){
-  const {data} = await supabase.from('sessions').select('*').eq('patient_id',patId).order('created_at',{ascending:false});
+  const {data} = await db.from('sessions').select('*').eq('patient_id',patId).order('created_at',{ascending:false});
   const sessions=data||[];
   document.getElementById('nbSessions').textContent=sessions.length;
   if(sessions.length){
@@ -1059,7 +1060,7 @@ async function refreshDashboard(){
   // alerts: patients without session in 5+ days
   let alerts=[];
   for(const p of patients.filter(x=>x.status==='active')){
-    const {data} = await supabase.from('sessions').select('created_at').eq('patient_id',p.id).order('created_at',{ascending:false}).limit(1);
+    const {data} = await db.from('sessions').select('created_at').eq('patient_id',p.id).order('created_at',{ascending:false}).limit(1);
     const last = data && data[0];
     const days = last? Math.floor((Date.now()-new Date(last.created_at).getTime())/86400000) : null;
     if(days===null || days>5) alerts.push({p,days});
@@ -1072,7 +1073,7 @@ async function refreshDashboard(){
 // ===== SETTINGS =====
 async function saveSettings(){
   const payload={first_name:document.getElementById('settFirstName').value,last_name:document.getElementById('settLastName').value,speciality:document.getElementById('settSpeciality').value,cabinet:document.getElementById('settCabinet').value};
-  const {error}=await supabase.from('practitioners').update(payload).eq('id',currentPractitioner.id);
+  const {error}=await db.from('practitioners').update(payload).eq('id',currentPractitioner.id);
   if(error){showToast('Erreur','red');return;}
   currentPractitioner={...currentPractitioner,...payload};
   document.getElementById('sidebarName').textContent=payload.first_name||currentPractitioner.email;
