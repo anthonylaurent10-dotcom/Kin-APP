@@ -544,7 +544,7 @@ async function doLogin(){
     const userId = authResult.data.user.id;
 
     // 3. Cherche ou crée le profil praticien
-    let { data: existing, error: fetchErr } = await supabase
+    let { data: existing, error: fetchErr } = await db
       .from('practitioners')
       .select('*')
       .eq('id', userId)
