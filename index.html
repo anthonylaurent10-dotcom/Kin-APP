@@ -237,6 +237,11 @@ tr:hover td{background:var(--bg)}
     </div>
     <button class="login-btn" onclick="doLogin()" id="loginBtnEl">Se connecter</button>
     <div class="login-hint">Première connexion ? Entrez votre email et un mot de passe (8+ caractères) — votre profil sera créé automatiquement.</div>
+  <div style="text-align:center;font-size:11px;color:#64748b;margin-top:12px">
+  <a href="/legal.html" style="color:#94a3b8">Mentions légales</a> ·
+  <a href="/privacy.html" style="color:#94a3b8">Confidentialité</a> ·
+  <a href="/cgu.html" style="color:#94a3b8">CGU</a>
+</div>
   </div>
 </div>
 
@@ -413,7 +418,16 @@ tr:hover td{background:var(--bg)}
         <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="pEmail" type="email"/></div>
         <div class="form-group"><label class="form-label">Date de début</label><input class="form-input" id="pStartDate" type="date"/></div>
         <div class="form-group"><label class="form-label">Statut</label><select class="form-select" id="pStatus"><option value="active">Actif</option><option value="pause">En pause</option><option value="done">Terminé</option></select></div>
-        <div class="form-group full"><label class="form-label">Notes initiales</label><textarea class="form-textarea" id="pNotes"></textarea></div>
+        <div class="form-group full"><label class="form-label">Notes initiales</label><textarea class="form-textarea" id="pNotes"></textarea><div class="form-group full">
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text2);line-height:1.4;text-transform:none;letter-spacing:0">
+    <input type="checkbox" id="pConsent" style="margin-top:2px"/>
+    <span>
+      Le patient a donné son consentement éclairé pour le suivi numérique,
+      le traitement de ses données de santé, l'accès à son programme en ligne
+      et l'utilisation de la messagerie thérapeutique.
+    </span>
+  </label>
+</div>
       </div>
       <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Ces données sont traitées conformément au RGPD.</div>
     </div>
@@ -513,116 +527,192 @@ let exercisesInBuilder = [];
 let realtimeChannels = [];
 
 // ===== AUTH (simplifié : email = identifiant, table practitioners) =====
-async function doLogin(){
-  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
-  const pwd = document.getElementById('loginPwd').value;
-  const errEl = document.getElementById('loginError');
-  errEl.style.display = 'none';
+async function isEmailAuthorized(email){
+  const { data, error } = await db
+    .from('authorized_practitioners')
+    .select('email, used')
+    .eq('email', email)
+    .maybeSingle();
 
-  if(!email || pwd.length < 4){
-    errEl.textContent = 'Email valide et mot de passe (4+ caractères) requis';
+  if(error){
+    throw error;
+  }
+
+  return !!data;
+}
+
+  async function doLogin(){
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPwd').value;
+  const errEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtnEl');
+
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+
+  if(!email || password.length < 8){
+    errEl.textContent = 'Email valide et mot de passe de 8 caractères minimum requis.';
     errEl.style.display = 'block';
     return;
   }
 
-  const btn = document.getElementById('loginBtnEl');
   btn.disabled = true;
+  const oldHtml = btn.innerHTML;
   btn.innerHTML = '<span class="loading-spinner"></span> Connexion...';
 
   try {
-    // 1. Tentative de connexion
-    let authResult = await db.auth.signInWithPassword({ email, password: pwd });
+    let authData = null;
 
-    // 2. Si compte inexistant, on le crée (première connexion)
-    if(authResult.error && authResult.error.message.includes('Invalid login credentials')){
-      const signUpResult = await db.auth.signUp({ email, password: pwd });
-      if(signUpResult.error) throw signUpResult.error;
-      authResult = await db.auth.signInWithPassword({ email, password: pwd });
+    const loginResult = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(loginResult.error){
+  const msg = loginResult.error.message || '';
+
+  if(msg.includes('Invalid login credentials')){
+    const authorized = await isEmailAuthorized(email);
+
+    if(!authorized){
+      throw new Error("Cet email n'est pas autorisé à créer un compte kiné.");
     }
 
-    if(authResult.error) throw authResult.error;
+    const signupResult = await db.auth.signUp({
+      email,
+      password
+    });
 
-    const userId = authResult.data.user.id;
+    if(signupResult.error){
+      throw signupResult.error;
+    }
 
-    // 3. Cherche ou crée le profil praticien
-    let { data: existing, error: fetchErr } = await db
+    authData = signupResult.data;
+
+  } else {
+    throw loginResult.error;
+  } else {
+  authData = loginResult.data;
+}
+}
+
+    const user = authData.user;
+
+    if(!user){
+      throw new Error('Utilisateur Supabase introuvable après authentification.');
+    }
+
+    let { data: practitioner, error: profileError } = await db
       .from('practitioners')
       .select('*')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
 
-    if(fetchErr) throw fetchErr;
-
-    if(!existing){
-      const { data: created, error: createErr } = await db
-        .from('practitioners')
-        .insert({ id: userId, email, first_name: '', last_name: '', speciality: '', cabinet: '' })
-        .select()
-        .single();
-      if(createErr) throw createErr;
-      existing = created;
+    if(profileError){
+      throw profileError;
     }
 
-    currentPractitioner = existing;
-    localStorage.setItem('kine_practitioner_id', existing.id);
+    if(!practitioner){
+      const { data: created, error: createError } = await db
+        .from('practitioners')
+        .insert({
+          id: user.id,
+          email: user.email,
+          first_name: '',
+          last_name: '',
+          speciality: '',
+          cabinet: ''
+        })
+        .select()
+        .single();
 
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('sidebarName').textContent = existing.first_name || email;
-    document.getElementById('sidebarInitials').textContent = (existing.first_name?.[0] || email[0]).toUpperCase();
-    document.getElementById('settFirstName').value = existing.first_name || '';
-    document.getElementById('settLastName').value = existing.last_name || '';
-    document.getElementById('settSpeciality').value = existing.speciality || '';
-    document.getElementById('settCabinet').value = existing.cabinet || '';
+      if(createError){
+        throw createError;
+      }
+
+      practitioner = created;
+    }
+
+    currentPractitioner = practitioner;
+
+    showBackoffice();
 
     await loadAllData();
     setupRealtimeSubscriptions();
 
-  } catch(e){
+  } catch(e) {
+    console.error('Erreur login:', e);
     errEl.textContent = 'Erreur : ' + e.message;
     errEl.style.display = 'block';
+
   } finally {
     btn.disabled = false;
-    btn.innerHTML = 'Se connecter';
+    btn.innerHTML = oldHtml;
   }
 }
+
 
 document.getElementById('loginPwd').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 
 async function doLogout(){
   realtimeChannels.forEach(ch => db.removeChannel(ch));
   realtimeChannels = [];
+
   await db.auth.signOut();
-  localStorage.removeItem('kine_practitioner_id');
-  location.reload();
+
+  currentPractitioner = null;
+  patients = [];
+  programs = [];
+  library = [];
+
+  showLogin();
 }
+
 
 // Auto-login si déjà connecté
 async function tryAutoLogin(){
-  const { data: { session } } = await db.auth.getSession();
-  if(!session) return;
+  try {
+    const { data: { session }, error } = await db.auth.getSession();
 
-  const userId = session.user.id;
-  const { data } = await db
-    .from('practitioners')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle();
+    if(error){
+      throw error;
+    }
 
-  if(data){
-    currentPractitioner = data;
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'block';
-    document.getElementById('sidebarName').textContent = data.first_name || data.email;
-    document.getElementById('sidebarInitials').textContent = (data.first_name?.[0] || data.email[0]).toUpperCase();
-    document.getElementById('settFirstName').value = data.first_name || '';
-    document.getElementById('settLastName').value = data.last_name || '';
-    document.getElementById('settSpeciality').value = data.speciality || '';
-    document.getElementById('settCabinet').value = data.cabinet || '';
+    if(!session || !session.user){
+      showLogin();
+      return;
+    }
+
+    const user = session.user;
+
+    const { data: practitioner, error: profileError } = await db
+      .from('practitioners')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if(profileError){
+      throw profileError;
+    }
+
+    if(!practitioner){
+      showLogin();
+      return;
+    }
+
+    currentPractitioner = practitioner;
+
+    showBackoffice();
+
     await loadAllData();
     setupRealtimeSubscriptions();
+
+  } catch(e) {
+    console.error('Erreur auto-login:', e);
+    showLogin();
   }
 }
+
 
 // ===== LOAD DATA =====
 async function loadAllData(){
@@ -692,7 +782,7 @@ function addActivityRow(patient, action, date){
 }
 
 // ===== PATIENTS CRUD =====
-function genToken(){return Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10)}
+function genToken(){return crypto.randomUUID();}
 const avatarColors=['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
 function getColor(id){return avatarColors[parseInt((id||'0').replace(/-/g,'').slice(-2),16)%avatarColors.length]||avatarColors[0]}
 function getInitials(p){return((p.first_name||'?')[0]+(p.last_name||'?')[0]).toUpperCase()}
@@ -703,6 +793,7 @@ function openNewPatient(){
   ['pFirstName','pLastName','pAge','pPhone','pEmail','pNotes','pPathology'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('pStatus').value='active';
   document.getElementById('pStartDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('pConsent').checked = false;
   openModal('modalPatient');
 }
 function editCurrentPatient(){
@@ -724,23 +815,42 @@ async function savePatient(){
   const fn=document.getElementById('pFirstName').value.trim();
   const ln=document.getElementById('pLastName').value.trim();
   const path=document.getElementById('pPathology').value.trim();
+  const consentChecked = document.getElementById('pConsent').checked;
   if(!fn||!ln){showToast('Prénom et nom requis','red');return;}
+  if(!editingPatientId && !consentChecked){
+  showToast('Consentement patient requis', 'red');
+  return;
+}
   const btn=document.getElementById('btnSavePat');
   btn.disabled=true; const origHtml=btn.innerHTML; btn.innerHTML='<span class="loading-spinner" style="border-top-color:#fff"></span> Enregistrement...';
 
   const payload={
-    first_name:fn, last_name:ln, age:document.getElementById('pAge').value||null,
-    pathology:path, phone:document.getElementById('pPhone').value,
-    email:document.getElementById('pEmail').value, status:document.getElementById('pStatus').value,
-    start_date:document.getElementById('pStartDate').value||null, notes:document.getElementById('pNotes').value
-  };
+    const payload={
+  first_name: fn,
+  last_name: ln,
+  age: document.getElementById('pAge').value ? parseInt(document.getElementById('pAge').value, 10) : null,
+  pathology: path,
+  phone: document.getElementById('pPhone').value.trim(),
+  email: document.getElementById('pEmail').value.trim().toLowerCase(),
+  status: document.getElementById('pStatus').value,
+  start_date: document.getElementById('pStartDate').value || null,
+  notes: document.getElementById('pNotes').value,
+  consent_given: consentChecked,
+  consent_given_at: consentChecked ? new Date().toISOString() : null,
+  consent_text_version: consentChecked ? 'v1-2026-06' : null,
+  updated_at: new Date().toISOString()
+};
+
   try{
     if(editingPatientId){
-      const {error} = await db.from('patients').update(payload).eq('id',editingPatientId);
+      const {error} = await db.from('patients').update(payload)
+.eq('id', editingPatientId)
+.eq('practitioner_id', currentPractitioner.id);
       if(error) throw error;
     } else {
       payload.practitioner_id = currentPractitioner.id;
-      payload.token = genToken();
+      payload.token = crypto.randomUUID();
+
       const {error} = await db.from('patients').insert(payload);
       if(error) throw error;
     }
@@ -752,7 +862,9 @@ async function savePatient(){
 }
 async function deleteCurrentPatient(){
   if(!confirm('Supprimer ce patient et toutes ses données ? Action irréversible (RGPD).'))return;
-  const {error} = await db.from('patients').delete().eq('id',currentPatientId);
+  const {error} = await db.from('patients').delete()
+  .eq('id', currentPatientId)
+  .eq('practitioner_id', currentPractitioner.id);
   if(error){ showToast('Erreur : '+error.message,'red'); return; }
   showToast('Supprimé.'); await loadAllData(); showView('patients');
 }
@@ -811,7 +923,12 @@ async function showPatientDetail(id){
 }
 async function saveNotes(){
   const val=document.getElementById('privateNotes').value;
-  await db.from('patients').update({private_notes:val}).eq('id',currentPatientId);
+  await db.from('patients').update({
+    private_notes: val,
+    updated_at: new Date().toISOString()
+  })
+  .eq('id', currentPatientId)
+  .eq('practitioner_id', currentPractitioner.id);
   const p=patients.find(x=>x.id===currentPatientId); if(p)p.private_notes=val;
 }
 function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast('Lien copié !','green'))}
@@ -1010,8 +1127,8 @@ async function renderMessages(patId){
   const c=document.getElementById('messagesContainer');
   if(!messages.length){c.innerHTML=`<div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">Aucun message échangé.</div>`;return;}
   c.innerHTML=messages.map(m=>`
-    <div style="display:flex;flex-direction:column;align-items:${m.sender==='kine'?'flex-end':'flex-start'}">
-      <div style="max-width:75%;background:${m.sender==='kine'?'var(--accent)':'var(--bg)'};color:${m.sender==='kine'?'#fff':'var(--text)'};border-radius:${m.sender==='kine'?'14px 14px 4px 14px':'14px 14px 14px 4px'};padding:10px 14px;font-size:13px;border:1px solid var(--border)">${m.text}</div>
+    <div style="display:flex;flex-direction:column;align-items:${escapeHTML(m.sender==='kine'?'flex-end':'flex-start')}">
+      <div style="max-width:75%;background:${escapeHTML(m.sender==='kine'?'var(--accent)':'var(--bg)')};color:${escapeHTML(m.sender==='kine'?'#fff':'var(--text)')};border-radius:${escapeHTML(m.sender==='kine'?'14px 14px 4px 14px':'14px 14px 14px 4px')};padding:10px 14px;font-size:13px;border:1px solid var(--border)">${escapeHTML(m.text)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:3px">${new Date(m.created_at).toLocaleString('fr-FR')}</div>
     </div>`).join('');
   c.scrollTop=c.scrollHeight;
@@ -1082,6 +1199,33 @@ async function saveSettings(){
 }
 
 // ===== VIEWS / UTILS =====
+function showBackoffice(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'block';
+
+  document.getElementById('sidebarName').textContent =
+    currentPractitioner.first_name ||
+    currentPractitioner.email ||
+    'Kinésithérapeute';
+
+  document.getElementById('sidebarInitials').textContent =
+    (
+      currentPractitioner.first_name?.[0] ||
+      currentPractitioner.email?.[0] ||
+      'K'
+    ).toUpperCase();
+
+  document.getElementById('settFirstName').value = currentPractitioner.first_name || '';
+  document.getElementById('settLastName').value = currentPractitioner.last_name || '';
+  document.getElementById('settSpeciality').value = currentPractitioner.speciality || '';
+  document.getElementById('settCabinet').value = currentPractitioner.cabinet || '';
+}
+
+function showLogin(){
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+}
+
 function showView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
@@ -1100,6 +1244,14 @@ function closeModal(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(o=>o.classList.remove('open'))});
 let toastTimer;
+function escapeHTML(value){
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
 function showToast(msg,type='green'){
   const existing=document.querySelector('.toast');if(existing)existing.remove();
   const icons={green:'fa-circle-check',red:'fa-circle-xmark',blue:'fa-circle-info'};
@@ -1108,8 +1260,26 @@ function showToast(msg,type='green'){
   document.body.appendChild(t);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),3500);
 }
 
+  document.getElementById('sidebarName').textContent =
+    currentPractitioner.first_name ||
+    currentPractitioner.email ||
+    'Kinésithérapeute';
+
+  document.getElementById('sidebarInitials').textContent =
+    (
+      currentPractitioner.first_name?.[0] ||
+      currentPractitioner.email?.[0] ||
+      'K'
+    ).toUpperCase();
+
+  document.getElementById('settFirstName').value = currentPractitioner.first_name || '';
+  document.getElementById('settLastName').value = currentPractitioner.last_name || '';
+  document.getElementById('settSpeciality').value = currentPractitioner.speciality || '';
+  document.getElementById('settCabinet').value = currentPractitioner.cabinet || '';
+}
+
+
 tryAutoLogin();
 </script>
 </body>
 </html>
-
