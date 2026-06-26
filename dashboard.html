@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Alyzio — Dashboard de Suivi</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--text:#1a202c;--text2:#4a5568;--text3:#718096;
+  --border:#e2e8f0;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--orange:#f59e0b;--purple:#8b5cf6;
+  --shadow:0 2px 12px rgba(0,0,0,.07);--shadow2:0 8px 32px rgba(0,0,0,.12);
+  --radius:14px;--radius-sm:9px;
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text2:#cbd5e1;--text3:#64748b;
+  --border:#334155;--shadow:0 2px 12px rgba(0,0,0,.3);--shadow2:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.full-screen-msg{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:14px}
+.full-screen-msg i{font-size:42px;color:var(--accent)}
+.spinner-lg{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fs-title{font-size:18px;font-weight:700;color:var(--text)}
+.app-hidden{display:none !important}
+
+/* LOGIN (réutilise le même compte que index.html) */
+#loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0f172a 100%);padding:20px}
+.login-card{background:rgba(255,255,255,.05);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:40px 36px;width:100%;max-width:420px}
+.login-logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px}
+.login-logo-icon{width:52px;height:52px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+.login-logo-text{font-size:26px;font-weight:800;color:#fff}
+.login-title{font-size:18px;font-weight:700;color:#fff;text-align:center;margin-bottom:20px}
+.login-input{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:10px;padding:12px 14px;color:#fff;font-size:14px;outline:none;margin-bottom:14px}
+.login-btn{width:100%;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+.login-hint{text-align:center;font-size:12px;color:#64748b;margin-top:14px}
+
+.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;box-shadow:var(--shadow)}
+.tb-left{display:flex;align-items:center;gap:14px}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-icon{width:34px;height:34px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px}
+.logo-text{font-size:15px;font-weight:700;color:var(--text)}
+.tb-title{font-size:16px;font-weight:700;color:var(--text)}
+.tb-sub{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px}
+.live-dot{display:inline-block;width:7px;height:7px;background:#10b981;border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.tb-btn{background:var(--bg);border:1px solid var(--border);color:var(--text2);width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s}
+.tb-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.page{padding:24px;max-width:1400px;margin:0 auto}
+.filter-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+.filter-select{background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:9px 14px;font-size:13px;color:var(--text);outline:none;cursor:pointer;min-width:180px}
+.period-pills{display:flex;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:4px}
+.period-pill{padding:6px 14px;border-radius:7px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .2s}
+.period-pill.active{background:var(--accent);color:#fff}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:22px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:18px;border:1px solid var(--border);box-shadow:var(--shadow)}
+.stat-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.stat-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px}
+.stat-icon.blue{background:#dbeafe;color:#1d4ed8}.stat-icon.green{background:#d1fae5;color:#065f46}
+.stat-icon.orange{background:#fed7aa;color:#92400e}.stat-icon.red{background:#fee2e2;color:#991b1b}
+.stat-icon.purple{background:#ede9fe;color:#5b21b6}
+[data-theme="dark"] .stat-icon.blue{background:rgba(59,130,246,.2);color:#60a5fa}
+[data-theme="dark"] .stat-icon.green{background:rgba(16,185,129,.2);color:#34d399}
+[data-theme="dark"] .stat-icon.orange{background:rgba(245,158,11,.2);color:#fbbf24}
+[data-theme="dark"] .stat-icon.red{background:rgba(239,68,68,.2);color:#fca5a5}
+[data-theme="dark"] .stat-icon.purple{background:rgba(139,92,246,.2);color:#a78bfa}
+.stat-value{font-size:26px;font-weight:800;color:var(--text);line-height:1}
+.stat-label{font-size:12px;color:var(--text3);margin-top:4px}
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:18px}
+.panel{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden}
+.panel-hdr{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.panel-title{font-size:14px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.panel-title i{color:var(--accent)}
+.panel-body{padding:18px}
+.chart-legend{display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+.chart-wrap{position:relative;width:100%;height:240px}
+.chart-tooltip{position:absolute;background:#1e293b;color:#fff;padding:7px 11px;border-radius:8px;font-size:11px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10;white-space:nowrap}
+.alert-item{display:flex;align-items:flex-start;gap:11px;padding:12px;border-radius:var(--radius-sm);margin-bottom:8px;border:1px solid var(--border);cursor:pointer;transition:all .2s}
+.alert-item:hover{border-color:var(--accent);background:var(--bg)}
+.alert-item.danger{background:#fff1f2;border-color:#fca5a5}
+.alert-item.warn{background:#fffbeb;border-color:#fcd34d}
+[data-theme="dark"] .alert-item.danger{background:rgba(239,68,68,.08);border-color:#7f1d1d}
+[data-theme="dark"] .alert-item.warn{background:rgba(245,158,11,.08);border-color:#92400e}
+.alert-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.alert-icon.danger{background:#fee2e2;color:#dc2626}
+.alert-icon.warn{background:#fef3c7;color:#d97706}
+[data-theme="dark"] .alert-icon.danger{background:rgba(239,68,68,.2);color:#fca5a5}
+[data-theme="dark"] .alert-icon.warn{background:rgba(245,158,11,.2);color:#fbbf24}
+.alert-text{font-size:12.5px;color:var(--text);line-height:1.4}
+.alert-time{font-size:10.5px;color:var(--text3);margin-top:2px}
+.empty-state{text-align:center;padding:30px 16px;color:var(--text3);font-size:13px}
+.empty-state i{font-size:28px;margin-bottom:10px;display:block;color:var(--green)}
+.comp-table{width:100%;border-collapse:collapse}
+.comp-table th{padding:10px 14px;text-align:left;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);background:var(--bg);border-bottom:1px solid var(--border)}
+.comp-table td{padding:11px 14px;font-size:12.5px;color:var(--text2);border-bottom:1px solid var(--border);vertical-align:middle}
+.comp-table tr:last-child td{border-bottom:none}
+.comp-table tr:hover td{background:var(--bg);cursor:pointer}
+.pt-cell{display:flex;align-items:center;gap:9px}
+.pt-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#fff;flex-shrink:0}
+.pt-name{font-weight:600;color:var(--text);font-size:12.5px}
+.mini-bar-bg{width:60px;height:6px;background:var(--bg);border-radius:10px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+.mini-bar-fill{height:100%;border-radius:10px}
+.trend-arrow{font-size:11px;font-weight:700}
+.trend-arrow.up-bad{color:#dc2626}.trend-arrow.down-good{color:#059669}.trend-arrow.flat{color:var(--text3)}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10.5px;font-weight:700}
+.badge-green{background:#d1fae5;color:#065f46}.badge-orange{background:#fef3c7;color:#92400e}.badge-red{background:#fee2e2;color:#991b1b}
+[data-theme="dark"] .badge-green{background:rgba(16,185,129,.2);color:#34d399}
+[data-theme="dark"] .badge-orange{background:rgba(245,158,11,.2);color:#fbbf24}
+[data-theme="dark"] .badge-red{background:rgba(239,68,68,.2);color:#fca5a5}
+.deep-dive-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.symptom-bars{display:flex;flex-direction:column;gap:10px}
+.symptom-bar-row{display:flex;align-items:center;gap:10px}
+.symptom-bar-label{font-size:12px;color:var(--text2);width:130px;flex-shrink:0}
+.symptom-bar-track{flex:1;height:10px;background:var(--bg);border-radius:10px;overflow:hidden}
+.symptom-bar-fill{height:100%;background:linear-gradient(90deg,#f59e0b,#ef4444);border-radius:10px;transition:width .4s}
+.symptom-bar-count{font-size:11px;font-weight:700;color:var(--text3);width:24px;text-align:right}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--radius-sm);font-size:12.5px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:linear-gradient(135deg,var(--accent),#6366f1);color:#fff}
+.btn-secondary{background:var(--bg);border:1.5px solid var(--border);color:var(--text2)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:1100px){.stats-row{grid-template-columns:repeat(3,1fr)}.dash-grid{grid-template-columns:1fr}.deep-dive-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.stats-row{grid-template-columns:1fr 1fr}.page{padding:14px}.filter-bar{flex-direction:column;align-items:stretch}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.fade-in{animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png"/>
+<link rel="manifest" href="./manifest.json"/>
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="full-screen-msg" id="loadingScreen"><div class="spinner-lg"></div><div class="fs-title">Chargement...</div></div>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="app-hidden">
+  <div class="login-card">
+    <div class="login-logo"><div class="login-logo-icon" style="background:transparent;padding:0;overflow:hidden;flex-shrink:0">
+  <img src="./icon-192.png" alt="Alyzio"
+       style="width:100%;height:100%;object-fit:contain;border-radius:12px;display:block"/>
+</div><div class="login-logo-text">Alyzio</div></div>
+    <div class="login-title">Connexion au Dashboard</div>
+
+    <div id="loginError" style="display:none;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#fca5a5;border-radius:10px;padding:10px 12px;font-size:12px;margin-bottom:14px;line-height:1.4"></div>
+
+    <input class="login-input" type="email" id="loginEmail" placeholder="Votre email professionnel"/>
+    <input class="login-input" type="password" id="loginPwd" placeholder="Mot de passe"/>
+    <button class="login-btn" onclick="doLogin()" id="loginBtn">Accéder au dashboard</button>
+
+    <div class="login-hint">Utilisez le même email que sur votre back-office</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appRoot" class="app-hidden">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="logo"><div class="logo-icon" style="background:transparent;padding:0;overflow:hidden;flex-shrink:0">
+  <img src="./icon-192.png" alt="Alyzio"
+       style="width:100%;height:100%;object-fit:contain;border-radius:12px;display:block"/>
+</div><div class="logo-text">Alyzio</div></div>
+      <div style="border-left:1px solid var(--border);padding-left:14px">
+        <div class="tb-title">Dashboard de Suivi</div>
+        <div class="tb-sub"><span class="live-dot"></span>Données en temps réel</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+  <button class="tb-btn" onclick="goBackoffice()" title="Retour backoffice">
+    <i class="fa-solid fa-arrow-left"></i>
+  </button>
+
+  <button class="tb-btn" onclick="exportData()" title="Exporter">
+    <i class="fa-solid fa-file-export"></i>
+  </button>
+
+  <button class="tb-btn" onclick="toggleTheme()" id="themeBtn">
+    <i class="fa-solid fa-moon"></i>
+  </button>
+
+  <button class="tb-btn" onclick="doLogout()" title="Déconnexion">
+    <i class="fa-solid fa-right-from-bracket"></i>
+  </button>
+</div>
+
+  </div>
+
+  <div class="page">
+    <div class="filter-bar">
+      <select class="filter-select" id="patientFilter" onchange="onPatientFilterChange()"><option value="all">📊 Tous les patients</option></select>
+      <div class="period-pills">
+        <div class="period-pill active" onclick="setPeriod(7,this)">7 jours</div>
+        <div class="period-pill" onclick="setPeriod(30,this)">30 jours</div>
+        <div class="period-pill" onclick="setPeriod(90,this)">90 jours</div>
+        <div class="period-pill" onclick="setPeriod(9999,this)">Tout</div>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <div class="dash-grid">
+      <div class="panel">
+        <div class="panel-hdr">
+          <div class="panel-title"><i class="fa-solid fa-chart-line"></i>Évolution Douleur (EVA) & Fatigue (Borg)</div>
+          <div class="chart-legend"><div class="legend-item"><span class="legend-dot" style="background:#ef4444"></span>EVA</div><div class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Borg</div></div>
+        </div>
+        <div class="panel-body"><div class="chart-wrap" id="chartWrap"></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr"><div class="panel-title"><i class="fa-solid fa-bell"></i>Alertes</div></div>
+        <div class="panel-body" id="alertsPanel" style="max-height:300px;overflow-y:auto"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:18px">
+      <div class="panel-hdr">
+        <div class="panel-title"><i class="fa-solid fa-users"></i>Vue comparative multi-patients</div>
+        <button class="btn btn-secondary" onclick="exportData()"><i class="fa-solid fa-file-export"></i>Exporter CSV</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table class="comp-table">
+          <thead><tr><th>Patient</th><th>Statut</th><th>Adhérence</th><th>EVA moy.</th><th>Borg moy.</th><th>Tendance EVA</th><th>Dernière séance</th></tr></thead>
+          <tbody id="compTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" id="deepDivePanel" style="display:none">
+      <div class="panel-hdr"><div class="panel-title"><i class="fa-solid fa-magnifying-glass-chart"></i><span id="deepDiveTitle">Détail patient</span></div></div>
+      <div class="panel-body">
+        <div class="deep-dive-grid">
+          <div><div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Symptômes les plus fréquents</div><div class="symptom-bars" id="symptomBars"></div></div>
+          <div><div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px">Historique des séances</div><div id="sessionTimeline" style="max-height:260px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURATION SUPABASE — REMPLACE PAR TES VRAIES VALEURS
+// ============================================================
+const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentPractitioner = null;
+let allPatients = [];
+let allSessions = [];
+let currentFilter = 'all';
+let currentPeriod = 30;
+let selectedPatientId = null;
+let realtimeChannels = [];
+let realtimeStarted = false;
+let loginInProgress = false;
+function showLoading(){
+  document.getElementById('loadingScreen').style.display = 'flex';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'none';
+
+  document.getElementById('loadingScreen').classList.remove('app-hidden');
+  document.getElementById('loginScreen').classList.add('app-hidden');
+  document.getElementById('appRoot').classList.add('app-hidden');
+}
+
+function showDashboardLogin(){
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appRoot').style.display = 'none';
+
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('loginScreen').classList.remove('app-hidden');
+  document.getElementById('appRoot').classList.add('app-hidden');
+
+  window.scrollTo(0, 0);
+}
+
+function forceShowDashboard(){
+  document.getElementById('loadingScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appRoot').style.display = 'block';
+
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('loginScreen').classList.add('app-hidden');
+  document.getElementById('appRoot').classList.remove('app-hidden');
+
+  window.scrollTo(0, 0);
+}
+
+function showLoginError(message){
+  const el = document.getElementById('loginError');
+
+  if(!el){
+    alert(message);
+    return;
+  }
+
+  el.textContent = message;
+  el.style.display = 'block';
+}
+
+function clearLoginError(){
+  const el = document.getElementById('loginError');
+
+  if(!el){
+    return;
+  }
+
+  el.textContent = '';
+  el.style.display = 'none';
+}
+
+
+const avatarColors = ['#3b82f6','#10b981','#8b5cf6','#f59e0b','#ef4444','#06b6d4','#ec4899'];
+
+function getColor(id){
+  return avatarColors[parseInt((id || '0').replace(/-/g,'').slice(-2),16) % avatarColors.length] || avatarColors[0];
+}
+
+function getInitials(p){
+  return ((p.first_name || '?')[0] + (p.last_name || '?')[0]).toUpperCase();
+}
+function escapeHTML(value){
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+async function doLogin(){
+  if(loginInProgress){
+    return;
+  }
+
+  loginInProgress = true;
+  clearLoginError();
+
+  const btn = document.getElementById('loginBtn');
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPwd').value;
+
+  if(btn){
+    btn.disabled = true;
+    btn.textContent = 'Connexion...';
+  }
+
+  if(!email || password.length < 8){
+    showLoginError('Email valide et mot de passe de 8 caractères minimum requis.');
+    loginInProgress = false;
+
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Accéder au dashboard';
+    }
+
+    return;
+  }
+
+  try {
+    showLoading();
+
+    const { data: authData, error: authError } = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(authError){
+      throw new Error('Connexion impossible : ' + authError.message);
+    }
+
+    if(!authData || !authData.user){
+      throw new Error('Connexion impossible : utilisateur Supabase introuvable.');
+    }
+
+    const user = authData.user;
+
+    const { data: practitioner, error: practitionerError } = await db
+      .from('practitioners')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if(practitionerError){
+      throw new Error('Erreur lecture profil praticien : ' + practitionerError.message);
+    }
+
+    if(!practitioner){
+      throw new Error("Profil praticien introuvable. Connectez-vous d'abord au backoffice pour créer votre profil.");
+    }
+
+    currentPractitioner = practitioner;
+
+    await loadAndRender();
+
+    forceShowDashboard();
+
+    setupRealtime();
+
+  } catch(e) {
+    console.error('Erreur doLogin dashboard:', e);
+    showDashboardLogin();
+    showLoginError(e.message || 'Erreur inconnue pendant la connexion.');
+
+  } finally {
+    loginInProgress = false;
+
+    if(btn){
+      btn.disabled = false;
+      btn.textContent = 'Accéder au dashboard';
+    }
+  }
+}
+
+async function doLogout(){
+  realtimeChannels.forEach(ch => db.removeChannel(ch));
+  realtimeChannels = [];
+  realtimeStarted = false;
+
+  await db.auth.signOut();
+
+  currentPractitioner = null;
+  allPatients = [];
+  allSessions = [];
+  selectedPatientId = null;
+  currentFilter = 'all';
+
+  location.href = '/';
+}
+
+async function tryAutoLogin(){
+  try {
+    showLoading();
+
+    const { data: { session }, error } = await db.auth.getSession();
+
+    if(error){
+      throw error;
+    }
+
+    if(!session || !session.user){
+      showDashboardLogin();
+      return;
+    }
+
+    const user = session.user;
+
+    const { data: practitioner, error: practitionerError } = await db
+      .from('practitioners')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if(practitionerError){
+      throw practitionerError;
+    }
+
+    if(!practitioner){
+      showDashboardLogin();
+      return;
+    }
+
+    currentPractitioner = practitioner;
+
+    await loadAndRender();
+
+    forceShowDashboard();
+
+    setupRealtime();
+
+  } catch(e) {
+    console.error('Erreur auto-login dashboard:', e);
+    showDashboardLogin();
+    showLoginError('Session expirée ou invalide. Reconnectez-vous.');
+  }
+}
+
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+function getDateBefore(days){
+  if(days >= 9999) return '2000-01-01T00:00:00.000Z';
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
+async function loadAndRender(){
+  if(!currentPractitioner){
+    console.warn('Pas de praticien connecté');
+    return;
+  }
+
+  const practitionerId = currentPractitioner.id;
+
+  const { data: patients, error: patientsError } = await db
+    .from('patients')
+    .select('*')
+    .eq('practitioner_id', practitionerId)
+    .order('created_at', { ascending: false });
+
+  if(patientsError){
+  console.error(patientsError);
+  throw new Error('Erreur chargement patients : ' + patientsError.message);
+}
+
+
+  allPatients = patients || [];
+
+  const patientIds = allPatients.map(p => p.id);
+
+  if(!patientIds.length){
+    allSessions = [];
+    renderPatientFilter();
+    renderStats();
+    renderChart();
+    renderAlerts();
+    renderCompTable();
+    return;
+  }
+
+  let sessionsQuery = db
+    .from('sessions')
+    .select('*')
+    .in('patient_id', patientIds)
+    .order('created_at', { ascending: true });
+
+  if(currentPeriod < 9999){
+    sessionsQuery = sessionsQuery.gte('created_at', getDateBefore(currentPeriod));
+  }
+
+  if(currentFilter !== 'all'){
+    sessionsQuery = sessionsQuery.eq('patient_id', currentFilter);
+  }
+
+  const { data: sessions, error: sessionsError } = await sessionsQuery;
+
+  if(sessionsError){
+  console.error(sessionsError);
+  throw new Error('Erreur chargement séances : ' + sessionsError.message);
+}
+
+
+  allSessions = sessions || [];
+
+  renderPatientFilter();
+  renderStats();
+  renderChart();
+  renderAlerts();
+  renderCompTable();
+
+  if(selectedPatientId){
+    renderDeepDive(selectedPatientId);
+  }
+}
+
+function renderPatientFilter(){
+  const sel = document.getElementById('patientFilter');
+  const previousValue = sel.value || currentFilter;
+
+  sel.innerHTML = '<option value="all">📊 Tous les patients</option>' +
+  allPatients.map(p => `
+    <option value="${p.id}">
+      ${escapeHTML(p.first_name)} ${escapeHTML(p.last_name)}
+    </option>
+  `).join('');
+
+  sel.value = previousValue;
+}
+
+// ============================================================
+// RENDER STATS
+// ============================================================
+function renderStats(){
+  const activePatients = allPatients.filter(p => p.status === 'active').length;
+
+  const avgEVA = allSessions.length
+    ? (allSessions.reduce((a,s) => a + Number(s.eva || 0), 0) / allSessions.length).toFixed(1)
+    : '—';
+
+  const borgSessions = allSessions.filter(s => s.borg !== null && s.borg !== undefined);
+
+  const avgBorg = borgSessions.length
+    ? (borgSessions.reduce((a,s) => a + Number(s.borg || 0), 0) / borgSessions.length).toFixed(1)
+    : '—';
+
+  const patientsWithSessions = new Set(allSessions.map(s => s.patient_id)).size;
+
+  const adherence = allPatients.length
+    ? Math.round((patientsWithSessions / allPatients.length) * 100)
+    : 0;
+
+  document.getElementById('statsRow').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${activePatients}</div>
+          <div class="stat-label">Patients actifs</div>
+        </div>
+        <div class="stat-icon blue"><i class="fa-solid fa-users"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${allSessions.length}</div>
+          <div class="stat-label">Séances période</div>
+        </div>
+        <div class="stat-icon green"><i class="fa-solid fa-calendar-check"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${avgEVA}</div>
+          <div class="stat-label">EVA moyenne</div>
+        </div>
+        <div class="stat-icon red"><i class="fa-solid fa-heart-pulse"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${avgBorg}</div>
+          <div class="stat-label">Borg moyen</div>
+        </div>
+        <div class="stat-icon orange"><i class="fa-solid fa-fire"></i></div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="stat-value">${adherence}%</div>
+          <div class="stat-label">Patients actifs sur période</div>
+        </div>
+        <div class="stat-icon purple"><i class="fa-solid fa-chart-pie"></i></div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// CHART SIMPLE SVG
+// ============================================================
+function renderChart(){
+  const wrap = document.getElementById('chartWrap');
+
+  if(!allSessions.length){
+    wrap.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-chart-line"></i>
+        Aucune donnée sur cette période
+      </div>
+    `;
+    return;
+  }
+
+  const byDate = {};
+
+  allSessions.forEach(s => {
+    const d = new Date(s.created_at).toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit'
+    });
+
+    if(!byDate[d]) byDate[d] = { eva: [], borg: [] };
+
+    if(s.eva !== null && s.eva !== undefined) byDate[d].eva.push(Number(s.eva));
+    if(s.borg !== null && s.borg !== undefined) byDate[d].borg.push(Number(s.borg));
+  });
+
+  const points = Object.keys(byDate).map(date => {
+    const evaAvg = byDate[date].eva.length
+      ? byDate[date].eva.reduce((a,b) => a+b, 0) / byDate[date].eva.length
+      : 0;
+
+    const borgAvgRaw = byDate[date].borg.length
+      ? byDate[date].borg.reduce((a,b) => a+b, 0) / byDate[date].borg.length
+      : 0;
+
+    // Borg 6-20 ramené sur 0-10 pour affichage commun
+    const borgScaled = borgAvgRaw ? ((borgAvgRaw - 6) / 14) * 10 : 0;
+
+    return {
+      date,
+      eva: evaAvg,
+      borgScaled,
+      borgRaw: borgAvgRaw
+    };
+  });
+
+  const width = wrap.clientWidth || 600;
+  const height = 240;
+  const pad = 35;
+
+  const x = idx => {
+    if(points.length === 1) return width / 2;
+    return pad + idx * ((width - pad * 2) / (points.length - 1));
+  };
+
+  const y = val => height - pad - (val / 10) * (height - pad * 2);
+
+  const lineEva = points.map((p,i) => `${x(i)},${y(p.eva)}`).join(' ');
+  const lineBorg = points.map((p,i) => `${x(i)},${y(p.borgScaled)}`).join(' ');
+
+  wrap.innerHTML = `
+    <svg width="100%" height="${height}" viewBox="0 0 ${width} ${height}">
+      <line x1="${pad}" y1="${height-pad}" x2="${width-pad}" y2="${height-pad}" stroke="var(--border)" />
+      <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height-pad}" stroke="var(--border)" />
+
+      <text x="5" y="${pad+5}" fill="var(--text3)" font-size="10">10</text>
+      <text x="10" y="${height-pad}" fill="var(--text3)" font-size="10">0</text>
+
+      <polyline points="${lineEva}" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="${lineBorg}" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+      ${points.map((p,i) => `
+        <circle cx="${x(i)}" cy="${y(p.eva)}" r="4" fill="#ef4444"/>
+        <circle cx="${x(i)}" cy="${y(p.borgScaled)}" r="4" fill="#f59e0b"/>
+        <text x="${x(i)}" y="${height-10}" text-anchor="middle" fill="var(--text3)" font-size="10">${p.date}</text>
+      `).join('')}
+    </svg>
+  `;
+}
+
+// ============================================================
+// ALERTS
+// ============================================================
+function renderAlerts(){
+  const panel = document.getElementById('alertsPanel');
+  const alerts = [];
+
+  allPatients
+    .filter(p => p.status === 'active')
+    .forEach(p => {
+      const sessions = allSessions
+        .filter(s => s.patient_id === p.id)
+        .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+      const last = sessions[0];
+
+      if(!last){
+        alerts.push({
+          type: 'warn',
+          text: `${p.first_name} ${p.last_name} : aucune séance sur la période`,
+          time: 'À surveiller'
+        });
+        return;
+      }
+
+      const days = Math.floor((Date.now() - new Date(last.created_at).getTime()) / 86400000);
+
+      if(days > 5){
+        alerts.push({
+          type: 'warn',
+          text: `${p.first_name} ${p.last_name} : ${days} jours sans séance`,
+          time: 'Adhérence faible'
+        });
+      }
+
+      if(Number(last.eva) >= 7){
+        alerts.push({
+          type: 'danger',
+          text: `${p.first_name} ${p.last_name} : EVA élevée (${last.eva}/10)`,
+          time: new Date(last.created_at).toLocaleDateString('fr-FR')
+        });
+      }
+    });
+
+  if(!alerts.length){
+    panel.innerHTML = `
+      <div class="empty-state">
+        <i class="fa-solid fa-circle-check"></i>
+        Aucune alerte active
+      </div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = alerts.map(a => `
+  <div class="alert-item ${a.type}">
+    <div class="alert-icon ${a.type}">
+      <i class="fa-solid ${a.type === 'danger' ? 'fa-triangle-exclamation' : 'fa-clock'}"></i>
+    </div>
+    <div>
+      <div class="alert-text">${escapeHTML(a.text)}</div>
+      <div class="alert-time">${escapeHTML(a.time)}</div>
+    </div>
+  </div>
+`).join('');
+}
+
+// ============================================================
+// COMPARATIVE TABLE
+// ============================================================
+function renderCompTable(){
+  const body = document.getElementById('compTableBody');
+
+  if(!allPatients.length){
+    body.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">
+          Aucun patient
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  body.innerHTML = allPatients.map(p => {
+    const sessions = allSessions.filter(s => s.patient_id === p.id);
+    const lastSession = sessions[0]; // La plus récente
+
+    // Extraction de la zone la plus douloureuse de la dernière séance
+    let mainPain = "RAS";
+    if (lastSession && lastSession.body_chart) {
+      const zones = Object.values(lastSession.body_chart);
+      if (zones.length > 0) {
+        // Trouve le symptôme avec l'EVA la plus haute
+        let maxEva = 0;
+        zones.forEach(z => {
+          z.symptoms.forEach(s => {
+            if (s.eva > maxEva) { maxEva = s.eva; mainPain = `${z.name} (${s.eva}/10)`; }
+          });
+        });
+      }
+    }
+
+    return `
+      <tr onclick="selectPatientDeepDive('${p.id}')">
+        <td><div class="pt-cell"><div class="pt-avatar" style="background:${getColor(p.id)}">${getInitials(p)}</div>${escapeHTML(p.first_name)} ${escapeHTML(p.last_name)}</div></td>
+        <td><span class="badge ${lastSession?.eva >= 7 ? 'badge-red' : 'badge-green'}">${mainPain}</span></td>
+        <td>${lastSession ? new Date(lastSession.created_at).toLocaleDateString() : '—'}</td>
+        <!-- ... reste des colonnes -->
+      </tr>
+    `;
+  }).join('');
+}
+
+// ============================================================
+// DEEP DIVE
+// ============================================================
+function selectPatientDeepDive(patientId){
+  selectedPatientId = patientId;
+  document.getElementById('patientFilter').value = patientId;
+  currentFilter = patientId;
+  document.getElementById('deepDivePanel').style.display = 'block';
+  loadAndRender();
+}
+
+function renderDeepDive(patientId){
+  const patient = allPatients.find(p => p.id === patientId);
+  if(!patient) return;
+
+  const sessions = allSessions
+    .filter(s => s.patient_id === patientId)
+    .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+
+  document.getElementById('deepDiveTitle').textContent = `Détail patient — ${patient.first_name} ${patient.last_name}`;
+
+  const symptomsCount = {};
+
+  sessions.forEach(s => {
+    let symptoms = s.symptoms || [];
+
+    if(typeof symptoms === 'string'){
+      try {
+        symptoms = JSON.parse(symptoms);
+      } catch(e) {
+        symptoms = [];
+      }
+    }
+
+    if(Array.isArray(symptoms)){
+      symptoms.forEach(sym => {
+        symptomsCount[sym] = (symptomsCount[sym] || 0) + 1;
+      });
+    }
+  });
+
+  const maxCount = Math.max(1, ...Object.values(symptomsCount));
+
+  const symptomsHTML = Object.entries(symptomsCount).length
+    ? Object.entries(symptomsCount).map(([sym,count]) => `
+        <div class="symptom-bar-row">
+          <div class="symptom-bar-label">${escapeHTML(sym)}</div>
+          <div class="symptom-bar-track">
+            <div class="symptom-bar-fill" style="width:${Math.round(count / maxCount * 100)}%"></div>
+          </div>
+          <div class="symptom-bar-count">${count}</div>
+        </div>
+      `).join('')
+    : `<div class="empty-state">Aucun symptôme déclaré</div>`;
+
+  document.getElementById('symptomBars').innerHTML = symptomsHTML;
+
+  document.getElementById('sessionTimeline').innerHTML = sessions.length
+    ? sessions.map(s => `
+        <div style="padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:10px">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">
+            ${new Date(s.created_at).toLocaleString('fr-FR')}
+          </div>
+          <div style="font-size:11.5px;color:var(--text2);margin-top:4px">
+            EVA ${s.eva ?? '—'}/10 · Borg ${s.borg ?? '—'}/20
+          </div>
+          ${s.note ? `<div style="font-size:11.5px;color:var(--text3);margin-top:4px;font-style:italic">${escapeHTML(s.note)}</div>` : ''}
+        </div>
+      `).join('')
+    : `<div class="empty-state">Aucune séance pour ce patient</div>`;
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+function onPatientFilterChange(){
+  const val = document.getElementById('patientFilter').value;
+  currentFilter = val;
+  selectedPatientId = val === 'all' ? null : val;
+
+  if(selectedPatientId){
+    document.getElementById('deepDivePanel').style.display = 'block';
+  } else {
+    document.getElementById('deepDivePanel').style.display = 'none';
+  }
+
+  loadAndRender();
+}
+
+function setPeriod(days, el){
+  currentPeriod = days;
+  document.querySelectorAll('.period-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  loadAndRender();
+}
+
+// ============================================================
+// REALTIME
+// ============================================================
+function setupRealtime(){
+  if(realtimeStarted){
+    console.log('Realtime dashboard déjà lancé, on ignore.');
+    return;
+  }
+
+  realtimeStarted = true;
+
+  const sessionsChannel = db.channel('dashboard-sessions')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'sessions' },
+      () => {
+        console.log('Changement détecté dans sessions');
+        loadAndRender();
+      }
+    )
+    .subscribe(status => {
+      if(status === 'SUBSCRIBED') {
+        console.log('Realtime sessions dashboard actif');
+      }
+
+      if(status === 'CLOSED') {
+        console.log('Realtime sessions dashboard fermé');
+      }
+
+      if(status === 'CHANNEL_ERROR') {
+        console.log('Erreur canal realtime sessions');
+      }
+    });
+
+  const patientsChannel = db.channel('dashboard-patients')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'patients' },
+      () => {
+        console.log('Changement détecté dans patients');
+        loadAndRender();
+      }
+    )
+    .subscribe(status => {
+      if(status === 'SUBSCRIBED') {
+        console.log('Realtime patients dashboard actif');
+      }
+
+      if(status === 'CLOSED') {
+        console.log('Realtime patients dashboard fermé');
+      }
+
+      if(status === 'CHANNEL_ERROR') {
+        console.log('Erreur canal realtime patients');
+      }
+    });
+
+  realtimeChannels = [sessionsChannel, patientsChannel];
+}
+
+// ============================================================
+// EXPORT CSV
+// ============================================================
+function safeCSV(value){
+  const str = String(value ?? '');
+  if (/^[=+\-@]/.test(str)) {
+    return "'" + str;
+  }
+  return str;
+}
+
+function exportData(){
+  const rows = [
+    ['Patient','Pathologie','Statut','Date séance','EVA','Borg','Symptômes','Note']
+  ];
+
+  allSessions.forEach(s => {
+    const p = allPatients.find(x => x.id === s.patient_id);
+
+    let symptoms = s.symptoms || [];
+
+    if(typeof symptoms === 'string'){
+      try {
+        symptoms = JSON.parse(symptoms);
+      } catch(e) {
+        symptoms = [];
+      }
+    }
+
+    rows.push([
+      p ? `${p.first_name} ${p.last_name}` : '',
+      p ? p.pathology || '' : '',
+      p ? p.status || '' : '',
+      new Date(s.created_at).toLocaleString('fr-FR'),
+      s.eva ?? '',
+      s.borg ?? '',
+      Array.isArray(symptoms) ? symptoms.join(', ') : '',
+      s.note || ''
+    ]);
+  });
+
+  const csv = rows
+    .map(r => r.map(v => `"${safeCSV(v)}"`).join(';'))
+    .join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+
+  a.href = url;
+  a.download = 'kineapp-dashboard-export.csv';
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// UI
+// ============================================================
+function goBackoffice(){
+  window.location.href = new URL('index.html', window.location.href).href;
+}
+
+function toggleTheme(){
+  const d = document.documentElement;
+  const dark = d.getAttribute('data-theme') === 'dark';
+
+  d.setAttribute('data-theme', dark ? 'light' : 'dark');
+
+  document.getElementById('themeBtn').innerHTML = dark
+    ? '<i class="fa-solid fa-moon"></i>'
+    : '<i class="fa-solid fa-sun"></i>';
+}
+
+document.getElementById('loginPwd').addEventListener('keydown', e => {
+  if(e.key === 'Enter') doLogin();
+});
+
+window.addEventListener('unhandledrejection', e => {
+  console.error('Unhandled promise rejection:', e.reason);
+
+  if(!currentPractitioner){
+    showDashboardLogin();
+  }
+});
+
+
+tryAutoLogin();
+</script>

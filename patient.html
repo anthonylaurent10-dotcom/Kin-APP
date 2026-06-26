@@ -1,0 +1,2229 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#3b82f6"/>
+<link rel="manifest" href="./manifest.json"/>
+
+<meta name="theme-color" content="#3b82f6"/>
+
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Alyzio"/>
+<link rel="apple-touch-icon" href="./icon-192.png"/>
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png"/>
+<link rel="manifest" href="./manifest.json"/>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --bg:#f0f4f8;--card:#fff;--text:#1a202c;--text2:#4a5568;--text3:#718096;
+  --border:#e2e8f0;--accent:#3b82f6;--green:#10b981;--red:#ef4444;--orange:#f59e0b;
+  --purple:#8b5cf6;--teal:#0d9488;
+  --shadow:0 2px 12px rgba(0,0,0,.07);--shadow2:0 8px 32px rgba(0,0,0,.12);
+  --radius:16px;--radius-sm:10px;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
+}
+[data-theme="dark"]{
+  --bg:#0f172a;--card:#1e293b;--text:#f1f5f9;--text2:#cbd5e1;--text3:#64748b;
+  --border:#334155;--shadow:0 2px 12px rgba(0,0,0,.3);--shadow2:0 8px 32px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;position:relative}
+
+/* ERROR / LOADING SCREENS */
+.full-screen-msg{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:14px}
+.full-screen-msg i{font-size:42px;color:var(--accent)}
+.full-screen-msg.error i{color:var(--red)}
+.fs-title{font-size:18px;font-weight:700;color:var(--text)}
+.fs-text{font-size:13px;color:var(--text3);max-width:320px;line-height:1.5}
+.spinner-lg{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.pat-header{background:linear-gradient(135deg,#1e293b,#1e3a8a);padding:calc(16px + var(--safe-top)) 16px 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow2)}
+.pat-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pat-logo{display:flex;align-items:center;gap:9px}
+.pat-logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px}
+.pat-logo-text{font-size:14px;font-weight:700;color:#fff}
+.pat-header-actions{display:flex;gap:8px}
+.pat-hdr-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:#fff;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;transition:all .2s;position:relative}
+.pat-hdr-btn:hover{background:rgba(255,255,255,.2)}
+.pat-welcome{color:#93c5fd;font-size:12px;font-weight:600;margin-bottom:3px}
+.pat-name{color:#fff;font-size:19px;font-weight:800;margin-bottom:2px}
+.pat-pathology{color:#94a3b8;font-size:12px}
+.session-progress{background:rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;margin-top:14px}
+.sp-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sp-label{font-size:12px;color:#93c5fd;font-weight:600}
+.sp-pct{font-size:18px;font-weight:800;color:#fff}
+.sp-bar-bg{height:6px;background:rgba(255,255,255,.15);border-radius:20px;overflow:hidden}
+.sp-bar-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:20px;transition:width .4s ease}
+.sp-stats{display:flex;gap:12px;margin-top:8px}
+.sp-stat{font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:4px}
+.sp-stat i{color:#60a5fa;font-size:10px}
+.eva-banner{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1.5px solid #f59e0b;border-radius:var(--radius-sm);padding:10px 14px;margin:12px 16px 0;display:flex;align-items:center;gap:10px}
+[data-theme="dark"] .eva-banner{background:linear-gradient(135deg,#3a2800,#4a3200);border-color:#b45309}
+.eva-banner i{color:#d97706;font-size:15px;flex-shrink:0}
+.eva-text{font-size:12px;color:#92400e;font-weight:500;line-height:1.4}
+[data-theme="dark"] .eva-text{color:#fbbf24}
+.eva-pill{display:inline-flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;border-radius:6px;padding:2px 7px;font-weight:700;font-size:12px}
+.legal-notice{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;margin:10px 16px 0;display:flex;gap:8px;align-items:flex-start;font-size:11px;color:var(--text3)}
+.legal-notice i{color:var(--accent);flex-shrink:0;margin-top:1px}
+.phase-tabs{display:flex;margin:12px 16px 0;gap:8px}
+.phase-tab{flex:1;padding:11px 8px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);color:var(--text2);font-weight:600;font-size:12px;cursor:pointer;transition:all .25s;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
+.phase-tab .t-icon{font-size:18px}
+.phase-tab .t-lbl{font-size:10px;color:var(--text3)}
+.phase-tab.act-crisis{background:linear-gradient(135deg,#fef2f2,#fee2e2);border-color:#ef4444;color:#ef4444}
+.phase-tab.act-renfo{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-color:#10b981;color:#10b981}
+[data-theme="dark"] .phase-tab.act-crisis{background:linear-gradient(135deg,#2d1010,#3d1515);border-color:#f87171;color:#f87171}
+[data-theme="dark"] .phase-tab.act-renfo{background:linear-gradient(135deg,#0d2818,#0f3320);border-color:#34d399;color:#34d399}
+.pat-content{padding:0 16px 120px}
+.sec-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin:16px 0 8px;display:flex;align-items:center;gap:7px}
+.sec-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.ss-tabs{display:flex;gap:6px;margin:10px 0;overflow-x:auto;padding-bottom:2px}
+.ss-tabs::-webkit-scrollbar{display:none}
+.ss-tab{flex-shrink:0;padding:6px 13px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);color:var(--text2);font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+.ss-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.ex-card{background:var(--card);border-radius:var(--radius);border:1.5px solid var(--border);margin-bottom:10px;overflow:hidden;box-shadow:var(--shadow)}
+.ex-card.done{border-color:var(--green)}
+.ex-card-hdr{display:flex;align-items:center;gap:11px;padding:13px 13px 13px 11px;cursor:pointer;user-select:none}
+.ex-num{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ex-name{font-size:13px;font-weight:600;color:var(--text);line-height:1.3;flex:1}
+.ex-quick{font-size:10px;color:var(--text3);margin-top:2px}
+.chk-btn{width:28px;height:28px;border-radius:8px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;transition:all .2s;flex-shrink:0}
+.chk-btn.checked{background:var(--green);border-color:var(--green);color:#fff}
+.ex-chevron{color:var(--text3);font-size:11px;transition:transform .3s;flex-shrink:0;margin-left:2px}
+.ex-card.open .ex-chevron{transform:rotate(180deg)}
+.ex-body{display:none;padding:0 13px 13px;border-top:1px solid var(--border)}
+.ex-card.open .ex-body{display:block}
+.dosage-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:11px 0}
+.d-item{background:var(--bg);border-radius:var(--radius-sm);padding:9px 11px;border:1px solid var(--border)}
+.d-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:3px}
+.d-value{font-size:13px;font-weight:700;color:var(--text)}
+.d-item.full{grid-column:1/-1}
+.tempo-row{display:flex;gap:5px;margin:9px 0;align-items:center}
+.tempo-lbl{font-size:10px;font-weight:700;color:var(--text3);flex-shrink:0}
+.tempo-blocks{display:flex;gap:3px}
+.tempo-block{background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border-radius:7px;padding:5px 9px;font-size:13px;font-weight:700;text-align:center;min-width:30px}
+.tempo-sep{color:var(--text3);font-size:12px;font-weight:700;align-self:center}
+.focus-box{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd;border-radius:var(--radius-sm);padding:9px 11px;margin:7px 0;display:flex;gap:7px;align-items:flex-start}
+[data-theme="dark"] .focus-box{background:linear-gradient(135deg,#1e3a5f22,#1e3a8a22);border-color:#3b82f6}
+.focus-box i{color:var(--accent);font-size:13px;margin-top:1px;flex-shrink:0}
+.focus-box p{font-size:12px;color:#1e40af;line-height:1.4;font-style:italic}
+[data-theme="dark"] .focus-box p{color:#93c5fd}
+.note-box{background:linear-gradient(135deg,#f5f3ff,#ede9fe);border:1px solid #c4b5fd;border-radius:var(--radius-sm);padding:9px 11px;margin:7px 0;display:flex;gap:7px;align-items:flex-start}
+[data-theme="dark"] .note-box{background:linear-gradient(135deg,#1e144022,#2d1f5e22);border-color:#7c3aed}
+.note-box i{color:#8b5cf6;font-size:13px;margin-top:1px;flex-shrink:0}
+.note-box p{font-size:12px;color:#5b21b6;line-height:1.4}
+[data-theme="dark"] .note-box p{color:#c4b5fd}
+.adapt-row{display:flex;gap:7px;margin:5px 0;align-items:flex-start}
+.adapt-badge{flex-shrink:0;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;text-transform:uppercase}
+.adapt-regress{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+.adapt-progress{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}
+[data-theme="dark"] .adapt-regress{background:#2d1f00;color:#fbbf24;border-color:#92400e}
+[data-theme="dark"] .adapt-progress{background:#022c1a;color:#34d399;border-color:#065f46}
+.adapt-text{font-size:11px;color:var(--text2);line-height:1.4;padding-top:2px}
+.action-row{display:flex;gap:7px;margin-top:11px}
+.btn-video{flex:1;background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px}
+.btn-mat{background:var(--bg);border:1.5px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);padding:9px 11px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.bottom-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);padding:12px 16px calc(12px + var(--safe-bottom));display:flex;gap:10px;align-items:center;z-index:90;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+.btn-session{flex:1;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-session:disabled{opacity:.5}
+.btn-msg{background:var(--bg);border:1.5px solid var(--border);color:var(--text2);border-radius:var(--radius-sm);width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;flex-shrink:0;position:relative}
+.msg-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--red);border-radius:50%;border:2px solid var(--card)}.notif-badge{
+  position:absolute;
+  top:-5px;
+  right:-5px;
+  min-width:18px;
+  height:18px;
+  padding:0 5px;
+  background:var(--red);
+  color:#fff;
+  border-radius:999px;
+  border:2px solid var(--card);
+  font-size:10px;
+  font-weight:800;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  line-height:1;
+  box-shadow:0 2px 8px rgba(239,68,68,.45);
+  animation:notifPop .25s ease;
+}
+
+.pat-header .notif-badge{
+  border-color:#1e293b;
+}
+
+@keyframes notifPop{
+  from{
+    transform:scale(.4);
+    opacity:0;
+  }
+  to{
+    transform:scale(1);
+    opacity:1;
+  }
+}
+.notification-toast{
+  position:fixed;
+  top:calc(14px + var(--safe-top));
+  left:50%;
+  transform:translateX(-50%);
+  width:calc(100% - 28px);
+  max-width:440px;
+  background:var(--card);
+  color:var(--text);
+  border:1px solid var(--border);
+  border-left:4px solid var(--accent);
+  border-radius:14px;
+  padding:12px 14px;
+  z-index:1000;
+  box-shadow:var(--shadow2);
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  animation:notifSlideDown .25s ease;
+}
+
+.notification-toast-icon{
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+  font-size:14px;
+}
+
+.notification-toast-content{
+  flex:1;
+  min-width:0;
+}
+
+.notification-toast-title{
+  font-size:13px;
+  font-weight:800;
+  color:var(--text);
+  margin-bottom:2px;
+}
+
+.notification-toast-text{
+  font-size:12px;
+  color:var(--text2);
+  line-height:1.35;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.notification-toast-close{
+  border:none;
+  background:transparent;
+  color:var(--text3);
+  cursor:pointer;
+  font-size:13px;
+  padding:2px;
+}
+
+@keyframes notifSlideDown{
+  from{
+    opacity:0;
+    transform:translate(-50%,-12px);
+  }
+  to{
+    opacity:1;
+    transform:translate(-50%,0);
+  }
+}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:300;align-items:flex-end;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--shadow2);padding-bottom:var(--safe-bottom)}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--border);flex-shrink:0}
+.modal-hdr-title{font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+.modal-close{background:var(--bg);border:1px solid var(--border);width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text3);font-size:13px}
+.modal-body{padding:18px;overflow-y:auto;flex:1}
+.video-container{position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px}
+.video-container iframe{position:absolute;inset:0;width:100%;height:100%;border:none}
+.session-form{display:flex;flex-direction:column;gap:16px}
+.sf-section{background:var(--bg);border-radius:var(--radius-sm);padding:14px;border:1px solid var(--border)}
+.sf-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+input[type=range]{width:100%;-webkit-appearance:none;height:6px;border-radius:20px;background:linear-gradient(90deg,#10b981,#f59e0b,#ef4444);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.2);cursor:pointer}
+.slider-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:4px}
+.slider-val{text-align:center;font-size:22px;font-weight:800;color:var(--accent);margin-bottom:4px}
+.slider-desc{text-align:center;font-size:12px;font-weight:600;margin-bottom:6px}
+.borg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:8px 0}
+.borg-btn{padding:8px 4px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;text-align:center;font-size:12px;font-weight:700;color:var(--text2)}
+.borg-btn.selected{background:var(--accent);color:#fff;border-color:var(--accent)}
+.borg-desc{text-align:center;font-size:11px;color:var(--text3);margin-top:4px}
+.symptoms-grid{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0}
+.symptom-btn{padding:7px 12px;border-radius:20px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;font-size:12px;font-weight:500;color:var(--text2);display:flex;align-items:center;gap:5px}
+.symptom-btn.selected{background:linear-gradient(135deg,#fee2e2,#fecaca);border-color:#f87171;color:#991b1b}
+[data-theme="dark"] .symptom-btn.selected{background:linear-gradient(135deg,#2d0a0a,#3d1010);border-color:#dc2626;color:#fca5a5}
+.sf-textarea{width:100%;background:var(--card);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);outline:none;resize:none;min-height:70px;font-family:inherit}
+.btn-submit{width:100%;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:var(--radius-sm);padding:13px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-submit:disabled{opacity:.6}
+.messages-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px;max-height:280px;overflow-y:auto}
+.msg-bubble.kine{align-items:flex-end;display:flex;flex-direction:column}
+.msg-bubble.patient{align-items:flex-start;display:flex;flex-direction:column}
+.msg-text{max-width:80%;padding:10px 13px;border-radius:14px;font-size:13px;line-height:1.4;border:1px solid var(--border)}
+.msg-bubble.kine .msg-text{background:var(--accent);color:#fff;border-radius:14px 14px 4px 14px;border-color:var(--accent)}
+.msg-bubble.patient .msg-text{background:var(--bg);color:var(--text);border-radius:14px 14px 14px 4px}
+.msg-meta{font-size:10px;color:var(--text3);margin-top:3px}
+.msg-input-row{display:flex;gap:8px}
+.msg-input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);outline:none;font-family:inherit}
+.msg-send-btn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);width:40px;height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;flex-shrink:0}
+.mat-list{display:flex;flex-direction:column;gap:8px}
+.mat-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.mat-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--purple));display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0}
+.mat-text{font-size:12px;color:var(--text2);line-height:1.3}
+.mat-text strong{display:block;font-size:11px;color:var(--text);font-weight:700}
+.success-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+.success-overlay.show{display:flex}
+.success-card{background:var(--card);border-radius:24px;padding:32px 28px;text-align:center;max-width:300px;width:90%;box-shadow:var(--shadow2)}
+.success-icon{width:64px;height:64px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;margin:0 auto 16px}
+.success-title{font-size:20px;font-weight:800;color:var(--text);margin-bottom:8px}
+.success-sub{font-size:13px;color:var(--text3);line-height:1.5}
+.success-close{margin-top:20px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:10px;padding:11px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;z-index:999;box-shadow:var(--shadow2);white-space:nowrap;max-width:90vw}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.app-hidden{display:none}
+.flag-screening-card{
+  background:var(--card);
+  border:1.5px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  margin:14px 16px;
+  padding:16px;
+}
+
+.flag-screening-title{
+  font-size:15px;
+  font-weight:800;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:6px;
+}
+
+.flag-screening-sub{
+  font-size:12px;
+  color:var(--text3);
+  line-height:1.45;
+  margin-bottom:14px;
+}
+
+.flag-question{
+  border:1px solid var(--border);
+  background:var(--bg);
+  border-radius:12px;
+  padding:11px;
+  margin-bottom:9px;
+}
+
+.flag-question-text{
+  font-size:13px;
+  font-weight:600;
+  color:var(--text);
+  line-height:1.35;
+  margin-bottom:8px;
+}
+
+.flag-choice-row{
+  display:flex;
+  gap:8px;
+}
+
+.flag-choice-btn{
+  flex:1;
+  border:1.5px solid var(--border);
+  background:var(--card);
+  color:var(--text2);
+  border-radius:10px;
+  padding:9px;
+  font-size:12px;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.flag-choice-btn.selected.yes{
+  background:#fee2e2;
+  color:#991b1b;
+  border-color:#ef4444;
+}
+
+.flag-choice-btn.selected.no{
+  background:#d1fae5;
+  color:#065f46;
+  border-color:#10b981;
+}
+
+.flag-warning-red{
+  background:#fef2f2;
+  border:1.5px solid #ef4444;
+  color:#991b1b;
+  border-radius:12px;
+  padding:12px;
+  font-size:13px;
+  line-height:1.45;
+  margin-top:12px;
+}
+
+.flag-warning-yellow{
+  background:#fffbeb;
+  border:1.5px solid #f59e0b;
+  color:#92400e;
+  border-radius:12px;
+  padding:12px;
+  font-size:13px;
+  line-height:1.45;
+  margin-top:12px;
+}
+
+.flag-submit{
+  width:100%;
+  margin-top:12px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  color:#fff;
+  border:none;
+  border-radius:12px;
+  padding:12px;
+  font-size:14px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.flag-submit:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+/* --- BODY CHART --- */
+.body-chart-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  position: relative;
+}
+.bc-zone {
+  fill: #e2e8f0;
+  stroke: #fff;
+  stroke-width: 2;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+[data-theme="dark"] .bc-zone { fill: #334155; stroke: #0f172a; }
+.bc-zone:active, .bc-zone:hover { fill: #cbd5e1; }
+[data-theme="dark"] .bc-zone:active, [data-theme="dark"] .bc-zone:hover { fill: #475569; }
+.bc-zone.has-data { fill: #f59e0b; } /* Zone avec symptôme renseigné */
+
+.cascade-menu { display: flex; flex-direction: column; gap: 10px; }
+.cascade-btn {
+  background: var(--card); border: 1.5px solid var(--border);
+  padding: 12px; border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 600; color: var(--text);
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer;
+}
+.cascade-btn i { color: var(--text3); }
+.cascade-btn:active { border-color: var(--accent); background: var(--bg); }
+
+.symptom-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  margin: 4px;
+}
+.symptom-tag .remove { color: var(--red); cursor: pointer; padding: 2px; }
+.symptom-tag .eva-badge { background: #f59e0b; color: #fff; padding: 2px 6px; border-radius: 10px; }
+</style>
+</head>
+<body>
+
+<!-- LOADING SCREEN -->
+<div class="full-screen-msg" id="loadingScreen">
+  <div class="spinner-lg"></div>
+  <div class="fs-title">Chargement de votre programme...</div>
+</div>
+
+<!-- ERROR SCREEN -->
+<div class="full-screen-msg error app-hidden" id="errorScreen">
+  <i class="fa-solid fa-triangle-exclamation"></i>
+  <div class="fs-title">Lien invalide ou expiré</div>
+  <div class="fs-text">Ce lien ne correspond à aucun programme actif. Contactez votre kinésithérapeute pour obtenir un nouveau lien.</div>
+</div>
+
+<!-- MAIN APP (hidden until loaded) -->
+
+<div id="flagScreeningView" class="app-hidden">
+  <div class="pat-header">
+    <div class="pat-header-top">
+      <div class="pat-logo">
+        <div class="pat-logo-icon" style="background:transparent;padding:0;overflow:hidden;flex-shrink:0">
+  <img src="./icon-192.png" alt="Alyzio"
+       style="width:100%;height:100%;object-fit:contain;border-radius:12px;display:block"/>
+</div>
+        <div class="pat-logo-text">Alyzio</div>
+      </div>
+    </div>
+    <div class="pat-welcome">Avant de commencer</div>
+    <div class="pat-name">Questionnaire de sécurité</div>
+    <div class="pat-pathology">Quelques questions rapides pour adapter votre prise en charge.</div>
+  </div>
+
+  <div class="flag-screening-card">
+    <div class="flag-screening-title">
+  <i class="fa-solid fa-shield-heart" style="color:var(--accent)"></i>
+  <span id="flagScreeningTitleText">Dépistage Red / Yellow Flags</span>
+</div>
+<div class="flag-screening-sub" id="flagScreeningSubText">
+  Répondez honnêtement. Si une réponse nécessite de la vigilance, votre kinésithérapeute sera automatiquement informé.
+</div>
+
+    <div id="flagQuestionsContainer"></div>
+
+    <div id="flagScreeningFeedback"></div>
+
+    <button class="flag-submit" id="btnSubmitFlags" onclick="submitFlagScreening()">
+      Valider et continuer
+    </button>
+  </div>
+</div>
+
+<div id="appRoot" class="app-hidden">
+
+<div class="pat-header">
+  <div class="pat-header-top">
+    <div class="pat-logo"><div class="pat-logo-icon" style="background:transparent;padding:0;overflow:hidden;flex-shrink:0">
+  <img src="./icon-192.png" alt="Alyzio"
+       style="width:100%;height:100%;object-fit:contain;border-radius:12px;display:block"/>
+</div><div class="pat-logo-text">Alyzio</div></div>
+    <div class="pat-header-actions">
+      <button class="pat-hdr-btn" onclick="openMessages()" id="msgHeaderBtn"><i class="fa-solid fa-comment-medical"></i><span class="notif-badge" id="msgDot" style="display:none"></span></button>
+      <button class="pat-hdr-btn" onclick="toggleTheme()" id="themeBtn"><i class="fa-solid fa-moon"></i></button>
+    </div>
+  </div>
+  <div class="pat-welcome" id="patWelcome">Bonjour 👋</div>
+  <div class="pat-name" id="patName">—</div>
+  <div class="pat-pathology" id="patPathology">—</div>
+  <div class="session-progress">
+    <div class="sp-top"><span class="sp-label">Séance en cours</span><span class="sp-pct" id="spPct">0%</span></div>
+    <div class="sp-bar-bg"><div class="sp-bar-fill" id="spBar" style="width:0%"></div></div>
+    <div class="sp-stats"><span class="sp-stat"><i class="fa-solid fa-circle-check"></i><span id="spDone">0</span> / <span id="spTotal">0</span> exercices</span><span class="sp-stat"><i class="fa-solid fa-calendar-day"></i><span id="spDate"></span></span></div>
+  </div>
+</div>
+
+<div class="eva-banner"><i class="fa-solid fa-heart-pulse"></i><div class="eva-text">Règle douleur : rester <span class="eva-pill">≤ 3-4/10</span> pendant l'effort. Si douleur > 4 → stopper ou régresser.</div></div>
+<div class="legal-notice"><i class="fa-solid fa-shield-halved"></i><span>Ces exercices sont prescrits par votre kinésithérapeute. Ils ne remplacent pas une consultation. En cas de douleur inhabituelle, contactez votre praticien.</span></div>
+<div id="patientAdviceBox" style="display:none; margin:16px; background:var(--card); padding:16px; border-radius:var(--radius); border: 1px solid var(--border);">
+  <div style="font-weight:800; color:var(--accent); margin-bottom:4px;">💡 Le saviez-vous ?</div>
+  <div id="patientAdviceText" style="font-size: 13px; color: var(--text2);"></div>
+</div>
+<div class="phase-tabs" id="phaseTabs"></div>
+<div class="pat-content" id="patContent"></div>
+<div id="promSection" class="app-hidden">
+  <div class="sec-title"><i class="fa-solid fa-file-signature"></i>Questionnaires à remplir</div>
+  <div id="promListContainer"></div>
+</div>
+<div id="syncStatus" style="font-size:12px;margin:8px 0;color:#10b981"></div>
+
+<div class="bottom-bar">
+  <button class="btn-session" onclick="openSessionModal()" id="btnOpenSession"><i class="fa-solid fa-clipboard-check"></i><span>Valider ma séance</span></button>
+  <button class="btn-msg" onclick="openMessages()"><i class="fa-solid fa-comment-medical"></i><span class="notif-badge" id="msgDotBottom" style="display:none"></span></button>
+</div>
+
+</div><!-- end appRoot -->
+
+<!-- VIDEO MODAL -->
+<div class="modal-overlay" id="videoModal">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-brands fa-youtube" style="color:#ef4444"></i><span id="videoTitle">Vidéo</span></div><button class="modal-close" onclick="closeModal('videoModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body"><div class="video-container"><iframe id="videoIframe" src="" allowfullscreen allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture"></iframe></div></div>
+  </div>
+</div>
+
+<!-- MATERIAL MODAL -->
+<div class="modal-overlay" id="matModal">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-toolbox" style="color:var(--accent)"></i>Matériel Système D</div><button class="modal-close" onclick="closeModal('matModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="mat-list">
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-ring"></i></div><div class="mat-text"><strong>Élastique</strong>Collants épais / ceinture de peignoir</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-wine-bottle"></i></div><div class="mat-text"><strong>Lest</strong>Bouteilles d'eau / sac à dos lesté</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-couch"></i></div><div class="mat-text"><strong>Surface surélevée</strong>Marche d'escalier / bord du canapé</div></div>
+        <div class="mat-item"><div class="mat-icon"><i class="fa-solid fa-grip-lines-vertical"></i></div><div class="mat-text"><strong>Point d'ancrage</strong>Pied de table / poignée de porte</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SESSION MODAL -->
+<div class="modal-overlay" id="sessionModal">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-clipboard-check" style="color:var(--green)"></i>Valider ma séance</div><button class="modal-close" onclick="closeModal('sessionModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="session-form">
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-heart-pulse" style="color:#ef4444"></i>Douleur ressentie — EVA</div>
+          <div class="slider-val" id="evaVal">0<span style="font-size:14px">/10</span></div>
+          <div class="slider-desc" id="evaDesc" style="color:var(--green)">Pas de douleur</div>
+          <input type="range" min="0" max="10" value="0" id="evaSlider" oninput="updateEVA(this.value)"/>
+          <div class="slider-labels"><span>0 — Aucune</span><span>5 — Modérée</span><span>10 — Max</span></div>
+        </div>
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-fire" style="color:#f59e0b"></i>Fatigue perçue — Borg (6–20)</div>
+          <div class="borg-grid" id="borgGrid"></div>
+          <div class="borg-desc" id="borgDesc">Sélectionnez votre niveau de fatigue</div>
+        </div>
+        <div class="sf-section">
+  <div class="sf-title"><i class="fa-solid fa-child-reaching" style="color:var(--purple)"></i>Où avez-vous mal ? (Body Chart)</div>
+  <div id="bodyChartSummary" style="margin-bottom:10px; font-size:12px; color:var(--text3)">Aucune zone renseignée.</div>
+  <button class="btn btn-secondary" style="width:100%; justify-content:center" onclick="openBodyChart()">
+    <i class="fa-solid fa-map-location-dot"></i> Cartographier mes sensations
+  </button>
+</div>
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i>Exercices réalisés</div>
+          <div id="sessionExSummary" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div class="sf-section">
+          <div class="sf-title"><i class="fa-solid fa-pen-to-square" style="color:var(--teal)"></i>Note libre</div>
+          <textarea class="sf-textarea" id="sessionNote" placeholder="Comment s'est passée votre séance ?"></textarea>
+        </div>
+        <button class="btn-submit" onclick="submitSession()" id="btnSubmitSession"><i class="fa-solid fa-circle-check"></i><span>Enregistrer ma séance</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MESSAGES MODAL -->
+<div class="modal-overlay" id="messagesModal">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-comment-medical" style="color:var(--accent)"></i>Messages de votre kiné</div><button class="modal-close" onclick="closeModal('messagesModal')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="messages-list" id="messagesList"></div>
+      <div class="msg-input-row"><input class="msg-input" id="patMsgInput" placeholder="Répondre à votre kiné..." onkeydown="if(event.key==='Enter')sendPatientMessage()"/><button class="msg-send-btn" onclick="sendPatientMessage()"><i class="fa-solid fa-paper-plane"></i></button></div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS OVERLAY -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <div class="success-icon"><i class="fa-solid fa-trophy"></i></div>
+    <div class="success-title">Séance validée ! 🎉</div>
+    <div class="success-sub">Vos données ont été transmises en temps réel à votre kinésithérapeute. À la prochaine séance !</div>
+    <button class="success-close" onclick="closeSuccess()">Retour au programme</button>
+  </div>
+</div>
+<!-- MODAL BODY CHART (Le corps humain) -->
+<div class="modal-overlay" id="bodyChartModal">
+  <div class="modal" style="height: 85vh;">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title"><i class="fa-solid fa-child-reaching" style="color:var(--accent)"></i>Body Chart</div>
+      <button class="modal-close" onclick="closeModal('bodyChartModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div style="text-align:center; font-size:12px; color:var(--text3); margin-bottom:16px;">
+        Touchez une zone pour décrire ce que vous y ressentez.
+      </div>
+      <div class="body-chart-container">
+        <!-- SVG simplifié d'un corps humain avec des zones cliquables -->
+        <svg viewBox="0 0 200 400" width="100%" height="320px">
+          <!-- Tête & Cou -->
+          <circle cx="100" cy="40" r="20" class="bc-zone" id="zone-tete" onclick="selectZone('tete', 'Tête / Nuque')" />
+          <rect x="92" y="60" width="16" height="15" class="bc-zone" id="zone-cou" onclick="selectZone('tete', 'Tête / Nuque')" />
+          <!-- Tronc -->
+          <path d="M 70 75 L 130 75 L 120 140 L 80 140 Z" class="bc-zone" id="zone-thorax" onclick="selectZone('thorax', 'Thorax / Dos')" />
+          <path d="M 80 140 L 120 140 L 115 180 L 85 180 Z" class="bc-zone" id="zone-abdomen" onclick="selectZone('abdomen', 'Abdomen / Lombaire')" />
+          <path d="M 85 180 L 115 180 L 120 210 L 100 230 L 80 210 Z" class="bc-zone" id="zone-bassin" onclick="selectZone('bassin', 'Bassin / Périnée')" />
+          <!-- Bras Gauche (à droite sur l'écran) -->
+          <circle cx="135" cy="85" r="12" class="bc-zone" id="zone-epaule-g" onclick="selectZone('epaule-g', 'Épaule Gauche')" />
+          <rect x="135" y="95" width="16" height="40" rx="8" class="bc-zone" id="zone-bras-g" onclick="selectZone('bras-g', 'Bras Gauche')" />
+          <circle cx="143" cy="140" r="10" class="bc-zone" id="zone-coude-g" onclick="selectZone('coude-g', 'Coude Gauche')" />
+          <rect x="139" y="150" width="14" height="35" rx="7" class="bc-zone" id="zone-avantbras-g" onclick="selectZone('avantbras-g', 'Avant-bras Gauche')" />
+          <circle cx="146" cy="195" r="12" class="bc-zone" id="zone-main-g" onclick="selectZone('main-g', 'Main Gauche')" />
+          <!-- Bras Droit (à gauche sur l'écran) -->
+          <circle cx="65" cy="85" r="12" class="bc-zone" id="zone-epaule-d" onclick="selectZone('epaule-d', 'Épaule Droite')" />
+          <rect x="49" y="95" width="16" height="40" rx="8" class="bc-zone" id="zone-bras-d" onclick="selectZone('bras-d', 'Bras Droit')" />
+          <circle cx="57" cy="140" r="10" class="bc-zone" id="zone-coude-d" onclick="selectZone('coude-d', 'Coude Droit')" />
+          <rect x="47" y="150" width="14" height="35" rx="7" class="bc-zone" id="zone-avantbras-d" onclick="selectZone('avantbras-d', 'Avant-bras Droit')" />
+          <circle cx="54" cy="195" r="12" class="bc-zone" id="zone-main-d" onclick="selectZone('main-d', 'Main Droite')" />
+          <!-- Jambe Gauche -->
+          <rect x="102" y="220" width="22" height="60" rx="10" class="bc-zone" id="zone-cuisse-g" onclick="selectZone('cuisse-g', 'Cuisse Gauche')" />
+          <circle cx="113" cy="285" r="12" class="bc-zone" id="zone-genou-g" onclick="selectZone('genou-g', 'Genou Gauche')" />
+          <rect x="105" y="300" width="18" height="50" rx="9" class="bc-zone" id="zone-mollet-g" onclick="selectZone('mollet-g', 'Mollet Gauche')" />
+          <path d="M 105 355 L 123 355 L 128 370 L 105 370 Z" class="bc-zone" id="zone-pied-g" onclick="selectZone('pied-g', 'Pied Gauche')" />
+          <!-- Jambe Droite -->
+          <rect x="76" y="220" width="22" height="60" rx="10" class="bc-zone" id="zone-cuisse-d" onclick="selectZone('cuisse-d', 'Cuisse Droite')" />
+          <circle cx="87" cy="285" r="12" class="bc-zone" id="zone-genou-d" onclick="selectZone('genou-d', 'Genou Droit')" />
+          <rect x="77" y="300" width="18" height="50" rx="9" class="bc-zone" id="zone-mollet-d" onclick="selectZone('mollet-d', 'Mollet Droit')" />
+          <path d="M 77 355 L 95 355 L 95 370 L 72 370 Z" class="bc-zone" id="zone-pied-d" onclick="selectZone('pied-d', 'Pied Droit')" />
+        </svg>
+      </div>
+      <button class="btn-submit" onclick="closeModal('bodyChartModal')">Terminer la cartographie</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SÉLECTION SYMPTÔME (Menu Cascade) -->
+<div class="modal-overlay" id="symptomModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title"><i class="fa-solid fa-crosshairs" style="color:var(--accent)"></i><span id="sympZoneTitle">Zone</span></div>
+      <button class="modal-close" onclick="closeModal('symptomModal')"><i class="fa-solid fa-arrow-left"></i></button>
+    </div>
+    <div class="modal-body" id="symptomStep1">
+      <div style="font-size:13px; font-weight:700; margin-bottom:12px;">Qu'est-ce que vous ressentez ici ?</div>
+      <div class="cascade-menu">
+        <div class="cascade-btn" onclick="openSymptomCategory('douleur')">De la douleur <i class="fa-solid fa-chevron-right"></i></div>
+        <div class="cascade-btn" onclick="openSymptomCategory('sensation')">Une sensation bizarre <i class="fa-solid fa-chevron-right"></i></div>
+        <div class="cascade-btn" onclick="openSymptomCategory('mecanique')">Un problème mécanique <i class="fa-solid fa-chevron-right"></i></div>
+        <div class="cascade-btn" id="btnSpecialZone" style="display:none" onclick="openSymptomCategory('special')">Symptômes spécifiques <i class="fa-solid fa-chevron-right"></i></div>
+      </div>
+    </div>
+    
+    <div class="modal-body app-hidden" id="symptomStep2">
+      <div style="font-size:13px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
+        <i class="fa-solid fa-arrow-left" style="color:var(--text3); cursor:pointer;" onclick="backToSymptomStep1()"></i>
+        Comment la décririez-vous ?
+      </div>
+      <div class="cascade-menu" id="symptomListContainer"></div>
+    </div>
+
+    <div class="modal-body app-hidden" id="symptomStep3">
+      <div style="font-size:13px; font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:8px;">
+        <i class="fa-solid fa-arrow-left" style="color:var(--text3); cursor:pointer;" onclick="backToSymptomStep2()"></i>
+        Intensité
+      </div>
+      <div style="text-align:center; font-size:12px; color:var(--text2); margin-bottom:16px;" id="selectedSymptomLabel"></div>
+      
+      <div class="slider-val" id="sympEvaVal">0<span style="font-size:14px">/10</span></div>
+      <input type="range" min="0" max="10" value="0" id="sympEvaSlider" oninput="updateSympEVA(this.value)"/>
+      <div class="slider-labels" style="margin-bottom: 24px;"><span>0 — Aucune</span><span>5 — Modérée</span><span>10 — Max</span></div>
+      
+      <button class="btn-submit" onclick="saveZoneSymptom()">Ajouter à la carte</button>
+    </div>
+  </div>
+</div>
+<script>
+// ============================================================
+// CONFIGURATION SUPABASE — REMPLACE PAR TES VRAIES VALEURS
+// ============================================================
+const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ===== READ TOKEN FROM URL — clé de l'unicité patient =====
+const urlParams = new URLSearchParams(window.location.search);
+const patientToken = urlParams.get('token');
+function getTodayLocalDate() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function showSmallStatus(message, isError = false) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+
+  el.textContent = message;
+  el.style.color = isError ? '#ef4444' : '#10b981';
+
+  setTimeout(() => {
+    el.textContent = '';
+  }, 2000);
+}
+
+// ===== STATE =====
+let currentPatient = null;
+let currentPrograms = [];
+let currentPhaseIdx = 0;
+let currentSS = 0;
+let checkedExercises = new Set();
+let allExerciseIds = [];
+let selectedBorg = null;
+let selectedSymptoms = new Set();
+let hasUnread = false;
+let unreadCount = 0;
+let realtimeChannel = null;
+let notificationToastTimer = null;
+let flagQuestions = [];
+let flagAnswers = {};
+let mustCompleteFlagScreening = true;
+// Dictionnaire du Body Chart
+let bodyChartData = {}; // Va stocker : { "epaule-d": [{ symptom: "Brûlure", eva: 6 }] }
+let currentZoneId = null;
+let currentZoneName = null;
+let currentCategory = null;
+let currentSymptom = null;
+
+const SYMPTOM_DICT = {
+  douleur: [
+    { id: "meca", label: "Douleur au mouvement (quand je force)" },
+    { id: "repos", label: "Douleur au repos / La nuit" },
+    { id: "brulure", label: "Brûlure / Chaleur intense" },
+    { id: "decharge", label: "Décharge / Coup de jus" },
+    { id: "poignard", label: "Coup de poignard (très vif)" },
+    { id: "sourd", label: "Lancement / Douleur sourde" }
+  ],
+  sensation: [
+    { id: "fourmis", label: "Fourmillements / Picotements" },
+    { id: "engourdi", label: "Engourdissement / Peau cartonnée" }
+  ],
+  mecanique: [
+    { id: "force", label: "Manque de force" },
+    { id: "tendu", label: "Muscle tendu / Nœud" },
+    { id: "crampe", label: "Crampe" },
+    { id: "saute", label: "Muscle qui saute" },
+    { id: "raide", label: "Raideur / Ça coince" },
+    { id: "blocage", label: "Blocage net" },
+    { id: "lache", label: "Ça lâche / Dérobement" },
+    { id: "craque", label: "Ça craque / Ça grince" },
+    { id: "gonfle", label: "Gonflement / Œdème" }
+  ]
+};
+
+const ZONE_SPECIFICS = {
+  "tete": [
+    { id: "vertige", label: "Vertiges / Tête qui tourne" },
+    { id: "maux", label: "Maux de tête" }
+  ],
+  "thorax": [
+    { id: "souffle", label: "Essoufflement / Manque d'air" },
+    { id: "toux", label: "Encombrement / Toux" }
+  ],
+  "bassin": [
+    { id: "fuite", label: "Fuites (urines/gaz)" },
+    { id: "lourd", label: "Sensation de lourdeur" },
+    { id: "intime", label: "Douleur intime" }
+  ]
+};
+
+const SYMPTOMS = ['Douleur latérale','Gonflement','Raideur matinale','Brûlure','Douleur nocturne','Fatigue musculaire','Instabilité','Claquement','Engourdissement','Picotements'];
+const BORG_LABELS = {6:'Très très léger',7:'Très léger',8:'',9:'Léger',10:'',11:'Assez léger',12:'',13:'Assez dur',14:'',15:'Dur',16:'',17:'Très dur',18:'',19:'Très très dur',20:'Maximum'};
+const EVA_DESCS = ['Pas de douleur','Quasi nulle','Très légère','Légère','Modérée-légère','Modérée','Modérée-forte','Forte','Très forte','Insupportable','Maximale'];
+const EVA_COLORS = ['#10b981','#10b981','#34d399','#84cc16','#eab308','#f59e0b','#f97316','#ef4444','#dc2626','#b91c1c','#7f1d1d'];
+
+// ===== INIT : charge les données du patient via son token =====
+async function init(){
+  if(!patientToken){
+    showError(); return;
+  }
+  try{
+    const { data: patient, error } = await db
+  .from('patients')
+  .select('*')
+  .eq('token', patientToken)
+  .maybeSingle();
+
+if(error || !patient){
+  showError();
+  return;
+}
+
+currentPatient = patient;
+
+// Charge l'astuce éducative de la pathologie si elle existe dans la bibliothèque du praticien
+await loadPatientPathologyAdvice();
+
+    const { data: debugData, error: debugError } = await db.rpc('debug_patient_programs_by_token', {
+  p_token: patientToken
+});
+
+console.log('[DEBUG PATIENT PROGRAMS]', debugData, debugError);
+
+const { data: progs, error: progsError } = await db.rpc('get_patient_programs_by_token', {
+  p_token: patientToken
+});
+
+console.log('[PROGRAMMES PATIENT CHARGÉS]', progs, progsError);
+
+if(progsError){
+  console.error('Erreur chargement programmes patient:', progsError);
+
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('errorScreen').querySelector('.fs-title').textContent = 'Erreur de chargement';
+  document.getElementById('errorScreen').querySelector('.fs-text').textContent =
+    'Impossible de charger votre programme. Contactez votre kinésithérapeute.';
+  document.getElementById('errorScreen').classList.remove('app-hidden');
+  return;
+}
+
+currentPrograms = progs || [];
+
+
+    if(!currentPrograms.length){
+      // Patient valide mais sans programme encore assigné
+      document.getElementById('loadingScreen').classList.add('app-hidden');
+      document.getElementById('errorScreen').querySelector('.fs-title').textContent='Aucun programme assigné';
+      document.getElementById('errorScreen').querySelector('.fs-text').textContent="Votre kinésithérapeute n'a pas encore créé votre programme. Revenez bientôt !";
+      document.getElementById('errorScreen').classList.remove('app-hidden');
+      return;
+    }
+
+    renderPatientInfo();
+    buildPhaseTabs();
+    await renderPhase(0);
+    buildBorgGrid();
+    await checkUnreadMessages();
+    setupRealtimeForPatient();
+
+    flagQuestions = await loadFlagQuestions();
+
+const alreadyScreenedToday =
+  currentPatient.last_flag_screened_at &&
+  new Date(currentPatient.last_flag_screened_at).toDateString() === new Date().toDateString();
+
+if(flagQuestions.length && !currentPatient.last_flag_screened_at){
+  // Affiche le questionnaire si le patient ne l'a jamais rempli
+  renderFlagScreening();
+} else {
+  // Affiche le programme normal si déjà rempli
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('appRoot').classList.remove('app-hidden');
+}
+  } catch(e){
+    console.error(e);
+    showError();
+  }
+}
+function showError(customMessage = null){
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  const errorScreen = document.getElementById('errorScreen');
+  errorScreen.classList.remove('app-hidden');
+  
+  if (customMessage) {
+    errorScreen.querySelector('.fs-text').textContent = customMessage;
+  } else {
+    errorScreen.querySelector('.fs-text').textContent = "Ce lien ne correspond à aucun programme actif ou votre connexion internet est instable. Vérifiez votre réseau ou contactez votre praticien.";
+  }
+}
+
+async function findCurrentPatientPathology(){
+  if(!currentPatient || !currentPatient.practitioner_id || !currentPatient.pathology){
+    return null;
+  }
+
+  const pathologyName = String(currentPatient.pathology || '').trim();
+
+  if(!pathologyName){
+    return null;
+  }
+
+  const { data, error } = await db
+    .from('pathologies_library')
+    .select('*')
+    .eq('practitioner_id', currentPatient.practitioner_id)
+    .ilike('name', pathologyName)
+    .maybeSingle();
+
+  if(error){
+    console.error('Erreur recherche pathologie:', error);
+    return null;
+  }
+
+  return data || null;
+}
+
+async function loadPatientPathologyAdvice(){
+  const pathology = await findCurrentPatientPathology();
+
+  if(!pathology || !pathology.education_tip){
+    return;
+  }
+
+  const box = document.getElementById('patientAdviceBox');
+  const text = document.getElementById('patientAdviceText');
+
+  if(!box || !text) return;
+
+  box.style.display = 'block';
+  text.textContent = pathology.education_tip;
+}
+
+function renderPatientInfo(){
+  document.getElementById('patName').textContent = currentPatient.first_name+' '+currentPatient.last_name;
+  document.getElementById('patPathology').textContent = currentPatient.pathology||'';
+  const h=new Date().getHours();
+  document.getElementById('patWelcome').textContent = h<12?'Bonjour 👋':h<18?'Bon après-midi 👋':'Bonsoir 👋';
+  document.getElementById('spDate').textContent = new Date().toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'});
+}
+function escapeHTML(value){
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+function updateMessageBadges(){
+  const badgeTop = document.getElementById('msgDot');
+  const badgeBottom = document.getElementById('msgDotBottom');
+
+  const count = Math.max(0, unreadCount);
+  const label = count > 9 ? '9+' : String(count);
+
+  if(count > 0){
+    hasUnread = true;
+
+    if(badgeTop){
+      badgeTop.textContent = label;
+      badgeTop.style.display = 'flex';
+    }
+
+    if(badgeBottom){
+      badgeBottom.textContent = label;
+      badgeBottom.style.display = 'flex';
+    }
+  } else {
+    hasUnread = false;
+
+    if(badgeTop){
+      badgeTop.textContent = '0';
+      badgeTop.style.display = 'none';
+    }
+
+    if(badgeBottom){
+      badgeBottom.textContent = '0';
+      badgeBottom.style.display = 'none';
+    }
+  }
+}
+
+function incrementUnreadMessages(){
+  unreadCount += 1;
+  updateMessageBadges();
+}
+
+function resetUnreadMessages(){
+  unreadCount = 0;
+  updateMessageBadges();
+}
+function showNotificationToast(title, text){
+  const existing = document.querySelector('.notification-toast');
+  if(existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'notification-toast';
+
+  toast.innerHTML = `
+    <div class="notification-toast-icon">
+      <i class="fa-solid fa-comment-medical"></i>
+    </div>
+    <div class="notification-toast-content">
+      <div class="notification-toast-title">${escapeHTML(title)}</div>
+      <div class="notification-toast-text">${escapeHTML(text || '')}</div>
+    </div>
+    <button class="notification-toast-close" onclick="this.closest('.notification-toast')?.remove()">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  `;
+
+  toast.addEventListener('click', e => {
+    if(e.target.closest('.notification-toast-close')) return;
+    openMessages();
+  });
+
+  document.body.appendChild(toast);
+
+  clearTimeout(notificationToastTimer);
+  notificationToastTimer = setTimeout(() => {
+    toast.remove();
+  }, 4500);
+}
+async function requestBrowserNotificationPermission(){
+  if(!('Notification' in window)) return false;
+
+  if(Notification.permission === 'granted') return true;
+  if(Notification.permission === 'denied') return false;
+
+  try{
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+  } catch(e){
+    console.warn('Permission notification impossible :', e);
+    return false;
+  }
+}
+
+function sendBrowserNotification(title, body){
+  if(!('Notification' in window)) return;
+  if(Notification.permission !== 'granted') return;
+
+  try{
+    const n = new Notification(title, {
+  body,
+  icon: './icon-192.png',
+  badge: './badge-72.png'
+});
+
+    n.onclick = () => {
+      window.focus();
+      openMessages();
+      n.close();
+    };
+  } catch(e){
+    console.warn('Notification navigateur impossible :', e);
+  }
+}
+
+// ===== REALTIME : reçoit messages du kiné en direct =====
+function setupRealtimeForPatient(){
+  if(realtimeChannel){
+    db.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+
+  realtimeChannel = db.channel('patient-' + currentPatient.id)
+    .on(
+      'postgres_changes',
+      {
+        event:'INSERT',
+        schema:'public',
+        table:'messages',
+        filter:`patient_id=eq.${currentPatient.id}`
+      },
+      payload => {
+        const msg = payload.new;
+
+        if(!msg || msg.sender !== 'kine') return;
+
+        const modalOpen = document.getElementById('messagesModal').classList.contains('open');
+
+        if(modalOpen){
+          renderMessages();
+
+          db.from('messages')
+            .update({read:true})
+            .eq('patient_id', currentPatient.id)
+            .eq('sender', 'kine')
+            .eq('read', false)
+            .then(({error}) => {
+              if(error) console.error('Erreur read auto:', error);
+            });
+
+          resetUnreadMessages();
+          return;
+        }
+
+        incrementUnreadMessages();
+
+        const preview = msg.text || 'Votre kiné vous a envoyé un message.';
+
+        showNotificationToast('Nouveau message de votre kiné', preview);
+
+        sendBrowserNotification('Nouveau message de votre kiné', preview);
+      }
+    )
+    .on(
+      'postgres_changes',
+      {
+        event:'*',
+        schema:'public',
+        table:'programs',
+        filter:`patient_id=eq.${currentPatient.id}`
+      },
+      async payload => {
+        const {data: progs, error} = await db.rpc('get_patient_programs_by_token', {
+  p_token: patientToken
+});
+
+        if(error){
+          console.error('Erreur reload programs:', error);
+          return;
+        }
+
+        currentPrograms = progs || [];
+
+        if(currentPhaseIdx >= currentPrograms.length){
+          currentPhaseIdx = 0;
+        }
+
+        buildPhaseTabs();
+        renderPhase(currentPhaseIdx);
+
+        showNotificationToast(
+          'Programme mis à jour',
+          'Votre kinésithérapeute a modifié votre programme.'
+        );
+
+        showToast('📋 Votre programme a été mis à jour');
+      }
+    )
+    .subscribe(status => {
+      console.log('Realtime patient status:', status);
+    });
+}
+
+
+// ===== PHASES (construites depuis les programmes Supabase) =====
+function buildPhaseTabs(){
+  const tabs=document.getElementById('phaseTabs');
+  const phaseIcons={crise:'🔴',renfo:'🟢',reprise:'🏃',prevention:'🛡️',custom:'📋'};
+  const phaseClass={crise:'act-crisis',renfo:'act-renfo',reprise:'act-renfo',prevention:'act-renfo',custom:'act-renfo'};
+  tabs.innerHTML = currentPrograms.map((p,i)=>`
+    <button class="phase-tab ${i===0?phaseClass[p.phase]||'act-renfo':''}" onclick="switchPhase(${i})" id="ptab${i}">
+      <span class="t-icon">${phaseIcons[p.phase]||'📋'}</span><strong>${p.name}</strong><span class="t-lbl">${p.frequency||''}</span>
+    </button>`).join('');
+}
+function switchPhase(i){
+  currentPhaseIdx=i; currentSS=0;
+  const phaseClass={crise:'act-crisis',renfo:'act-renfo',reprise:'act-renfo',prevention:'act-renfo',custom:'act-renfo'};
+  document.querySelectorAll('.phase-tab').forEach((t,idx)=>{
+    t.className='phase-tab'+(idx===i?' '+(phaseClass[currentPrograms[i].phase]||'act-renfo'):'');
+  });
+  renderPhase(i);
+}
+async function loadAndRenderPromForProgram(promId){
+  const container = document.getElementById('promListContainer');
+  if(!container || !promId) return;
+
+  container.innerHTML = `
+    <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">
+      Chargement du questionnaire...
+    </div>
+  `;
+
+  try {
+    const { data, error } = await db
+      .from('prom_templates')
+      .select('*')
+      .eq('id', promId)
+      .maybeSingle();
+
+    if(error) throw error;
+
+    if(!data){
+      container.innerHTML = `
+        <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">
+          Questionnaire introuvable.
+        </div>
+      `;
+      return;
+    }
+
+    let questions = [];
+
+    try {
+      questions = typeof data.questions === 'string'
+        ? JSON.parse(data.questions || '[]')
+        : data.questions || [];
+    } catch(e) {
+      questions = [];
+    }
+
+    renderPromFormFromTemplate(data, questions);
+
+  } catch(e) {
+    console.error('Erreur chargement PROM:', e);
+    container.innerHTML = `
+      <div style="padding:16px;text-align:center;color:var(--red);font-size:13px">
+        Erreur chargement questionnaire.
+      </div>
+    `;
+  }
+}
+
+function renderPromFormFromTemplate(template, questions){
+  const container = document.getElementById('promListContainer');
+
+  if(!questions.length){
+    container.innerHTML = `
+      <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">
+        Ce questionnaire ne contient aucune question.
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="sf-section" style="margin-bottom:10px">
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px">
+        ${escapeHTML(template.title || 'Questionnaire')}
+      </div>
+      ${template.description ? `
+        <div style="font-size:12px;color:var(--text3);line-height:1.4">
+          ${escapeHTML(template.description)}
+        </div>
+      ` : ''}
+    </div>
+
+    ${questions.map((q, index) => {
+      const qId = `prom-q-${index}`;
+
+      if(q.type === 'scale' || q.type === 'number'){
+        return `
+          <div class="sf-section" style="margin-bottom:10px">
+            <div class="sf-title">${escapeHTML(q.question)}</div>
+            <input class="msg-input"
+              type="number"
+              id="${qId}"
+              min="${q.min ?? 0}"
+              max="${q.max ?? 10}"
+              placeholder="${q.min ?? 0} à ${q.max ?? 10}"
+              data-prom-question-index="${index}"/>
+          </div>
+        `;
+      }
+
+      if(q.type === 'yesno'){
+        return `
+          <div class="sf-section" style="margin-bottom:10px">
+            <div class="sf-title">${escapeHTML(q.question)}</div>
+            <select class="msg-input" id="${qId}" data-prom-question-index="${index}">
+              <option value="">— Choisir —</option>
+              <option value="oui">Oui</option>
+              <option value="non">Non</option>
+            </select>
+          </div>
+        `;
+      }
+
+      if(q.type === 'choice'){
+        const options = String(q.options || '')
+          .split('|')
+          .map(o => o.trim())
+          .filter(Boolean);
+
+        return `
+          <div class="sf-section" style="margin-bottom:10px">
+            <div class="sf-title">${escapeHTML(q.question)}</div>
+            <select class="msg-input" id="${qId}" data-prom-question-index="${index}">
+              <option value="">— Choisir —</option>
+              ${options.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}
+            </select>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="sf-section" style="margin-bottom:10px">
+          <div class="sf-title">${escapeHTML(q.question)}</div>
+          <textarea class="sf-textarea"
+            id="${qId}"
+            data-prom-question-index="${index}"
+            placeholder="Votre réponse..."></textarea>
+        </div>
+      `;
+    }).join('')}
+
+    <button class="btn-submit" onclick="submitPromResponse('${template.id}')">
+      Envoyer mes réponses
+    </button>
+  `;
+}
+
+async function submitPromResponse(templateId){
+  const prog = currentPrograms[currentPhaseIdx];
+
+  const inputs = document.querySelectorAll('[data-prom-question-index]');
+  const responses = [];
+
+  inputs.forEach(input => {
+    responses.push({
+      question_index: Number(input.dataset.promQuestionIndex),
+      value: input.value
+    });
+  });
+
+  try {
+    const { error } = await db
+      .from('prom_responses')
+      .insert({
+        patient_id: currentPatient.id,
+        template_id: templateId,
+        program_id: prog?.id || null,
+        responses: JSON.stringify(responses),
+        timing: 'programme'
+      });
+
+    if(error) throw error;
+
+    showToast('Questionnaire envoyé !');
+
+  } catch(e) {
+    console.error('Erreur submitPromResponse:', e);
+    showToast('Erreur envoi questionnaire');
+  }
+}
+
+async function renderPhase(i){
+  const prog = currentPrograms[i];
+  const promDiv = document.getElementById('promSection');
+
+if (prog.prom_id) {
+  promDiv.classList.remove('app-hidden');
+  await loadAndRenderPromForProgram(prog.prom_id);
+} else {
+  promDiv.classList.add('app-hidden');
+  document.getElementById('promListContainer').innerHTML = '';
+}
+
+  if(!prog) return;
+
+  const c = document.getElementById('patContent');
+
+  allExerciseIds = [];
+  checkedExercises = new Set();
+
+  let html = '';
+
+  if(prog.description){
+    html += `<div class="focus-box" style="margin:12px 0">
+      <i class="fa-solid fa-circle-info"></i>
+      <p>${escapeHTML(prog.description)}</p>
+    </div>`;
+  }
+
+  const exercises = prog.exercises || [];
+
+  html += `<div class="sec-title">
+    <i class="fa-solid fa-dumbbell"></i>
+    ${exercises.length} exercice(s)
+  </div>`;
+
+  exercises.forEach((ex, k) => {
+    const exId = prog.id + '-' + (ex.id || k);
+    allExerciseIds.push(exId);
+    html += buildExCard(ex, k + 1, exId);
+  });
+
+  c.innerHTML = html;
+
+  await loadCheckedFromToday();
+  updateProgress();
+}
+async function loadFlagQuestions(){
+  if(!currentPatient) return [];
+
+  try {
+    const pathology = await findCurrentPatientPathology();
+
+    if(pathology){
+      const { data: specificQuestionnaire, error: specificError } = await db
+        .from('pathology_flag_questionnaires')
+        .select('*')
+        .eq('practitioner_id', currentPatient.practitioner_id)
+        .eq('pathology_id', pathology.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending:false })
+        .limit(1)
+        .maybeSingle();
+
+      if(specificError){
+        console.error('Erreur chargement questionnaire spécifique:', specificError);
+      }
+
+      if(
+        specificQuestionnaire &&
+        Array.isArray(specificQuestionnaire.questions) &&
+        specificQuestionnaire.questions.length
+      ){
+        return specificQuestionnaire.questions
+          .filter(q => q.is_active !== false)
+          .map((q, index) => ({
+            id: `pathology-${specificQuestionnaire.id}-${index}`,
+            question_id: null,
+            questionnaire_id: specificQuestionnaire.id,
+            questionnaire_source: 'pathology',
+            questionnaire_title: specificQuestionnaire.title || 'Questionnaire Red / Yellow Flags',
+            questionnaire_version: specificQuestionnaire.version || 'v1',
+            question: q.question || '',
+            flag_type: q.flag_type === 'red' ? 'red' : 'yellow',
+            is_active: q.is_active !== false,
+            position: q.position || index + 1
+          }))
+          .sort((a, b) => (a.position || 0) - (b.position || 0));
+      }
+    }
+
+    const { data: globalQuestions, error: globalError } = await db
+      .from('flag_questions')
+      .select('*')
+      .eq('practitioner_id', currentPatient.practitioner_id)
+      .eq('is_active', true)
+      .order('position', { ascending:true });
+
+    if(globalError){
+      console.error('Erreur chargement flag questions globales:', globalError);
+      return [];
+    }
+
+    return (globalQuestions || []).map(q => ({
+      id: q.id,
+      question_id: q.id,
+      questionnaire_id: null,
+      questionnaire_source: 'global',
+      questionnaire_title: 'Questionnaire Red / Yellow Flags global',
+      questionnaire_version: 'global',
+      question: q.question || '',
+      flag_type: q.flag_type === 'red' ? 'red' : 'yellow',
+      is_active: q.is_active !== false,
+      position: q.position || 0
+    }));
+
+  } catch(e) {
+    console.error('Erreur loadFlagQuestions:', e);
+    return [];
+  }
+}
+
+function renderFlagScreening(){
+  const container = document.getElementById('flagQuestionsContainer');
+  const btn = document.getElementById('btnSubmitFlags');
+const titleEl = document.getElementById('flagScreeningTitleText');
+const subEl = document.getElementById('flagScreeningSubText');
+
+if(titleEl){
+  titleEl.textContent =
+    flagQuestions[0]?.questionnaire_title || 'Dépistage Red / Yellow Flags';
+}
+
+if(subEl){
+  subEl.innerHTML = `
+    Répondez honnêtement. Si une réponse nécessite de la vigilance, votre kinésithérapeute sera automatiquement informé.
+    ${
+      flagQuestions[0]?.questionnaire_source === 'pathology'
+        ? `<br><span style="font-size:11px;color:var(--accent);font-weight:700">
+            Questionnaire adapté à votre pathologie.
+          </span>`
+        : ''
+    }
+  `;
+}
+
+  if(!flagQuestions.length){
+    mustCompleteFlagScreening = false;
+    document.getElementById('flagScreeningView').classList.add('app-hidden');
+    document.getElementById('appRoot').classList.remove('app-hidden');
+    return;
+  }
+
+  flagAnswers = {};
+
+  container.innerHTML = flagQuestions.map(q => `
+    <div class="flag-question" id="flag-q-${q.id}">
+      <div class="flag-question-text">
+        ${escapeHTML(q.question)}
+      </div>
+      <div class="flag-choice-row">
+        <button class="flag-choice-btn" id="flag-${q.id}-no" onclick="setFlagAnswer('${q.id}', false)">
+          Non
+        </button>
+        <button class="flag-choice-btn" id="flag-${q.id}-yes" onclick="setFlagAnswer('${q.id}', true)">
+          Oui
+        </button>
+      </div>
+    </div>
+  `).join('');
+
+  btn.disabled = true;
+
+  document.getElementById('loadingScreen').classList.add('app-hidden');
+  document.getElementById('flagScreeningView').classList.remove('app-hidden');
+  document.getElementById('appRoot').classList.add('app-hidden');
+}
+
+function setFlagAnswer(questionId, value){
+  flagAnswers[questionId] = value;
+
+  const yesBtn = document.getElementById(`flag-${questionId}-yes`);
+  const noBtn = document.getElementById(`flag-${questionId}-no`);
+
+  if(yesBtn && noBtn){
+    yesBtn.classList.remove('selected', 'yes');
+    noBtn.classList.remove('selected', 'no');
+
+    if(value === true){
+      yesBtn.classList.add('selected', 'yes');
+    } else {
+      noBtn.classList.add('selected', 'no');
+    }
+  }
+
+  updateFlagFeedback();
+}
+
+function updateFlagFeedback(){
+  const feedback = document.getElementById('flagScreeningFeedback');
+  const btn = document.getElementById('btnSubmitFlags');
+
+  const answeredCount = Object.keys(flagAnswers).length;
+  const allAnswered = answeredCount === flagQuestions.length;
+
+  btn.disabled = !allAnswered;
+
+  if(!allAnswered){
+    feedback.innerHTML = '';
+    return;
+  }
+
+  const hasRed = flagQuestions.some(q => q.flag_type === 'red' && flagAnswers[q.id] === true);
+  const hasYellow = flagQuestions.some(q => q.flag_type === 'yellow' && flagAnswers[q.id] === true);
+
+  if(hasRed){
+    feedback.innerHTML = `
+      <div class="flag-warning-red">
+        <strong><i class="fa-solid fa-triangle-exclamation"></i> Attention</strong><br>
+        Certaines réponses nécessitent l’avis de votre kinésithérapeute avant de poursuivre.
+      </div>
+    `;
+  } else if(hasYellow){
+    feedback.innerHTML = `
+      <div class="flag-warning-yellow">
+        <strong><i class="fa-solid fa-circle-exclamation"></i> Vigilance</strong><br>
+        Certaines réponses seront transmises à votre kinésithérapeute pour adapter votre programme.
+      </div>
+    `;
+  } else {
+    feedback.innerHTML = '';
+  }
+}
+async function submitFlagScreening(){
+  const btn = document.getElementById('btnSubmitFlags');
+  btn.disabled = true;
+  const old = btn.innerHTML;
+  btn.innerHTML = 'Enregistrement...';
+
+  const answersPayload = flagQuestions.map(q => ({
+  question_id: q.question_id || q.id,
+  questionnaire_id: q.questionnaire_id || null,
+  questionnaire_source: q.questionnaire_source || 'global',
+  questionnaire_title: q.questionnaire_title || 'Questionnaire Red / Yellow Flags',
+  questionnaire_version: q.questionnaire_version || null,
+  question: q.question,
+  flag_type: q.flag_type,
+  answer: flagAnswers[q.id] === true
+}));
+
+  const hasRed = answersPayload.some(a => a.flag_type === 'red' && a.answer);
+  const hasYellow = answersPayload.some(a => a.flag_type === 'yellow' && a.answer);
+
+  try{
+    const { error } = await db.rpc('submit_flag_screening', {
+      p_token: patientToken,
+      p_answers: answersPayload,
+      p_has_red_flag: hasRed,
+      p_has_yellow_flag: hasYellow
+    });
+
+    if(error) throw error;
+
+    currentPatient.last_flag_status = hasRed ? 'red' : hasYellow ? 'yellow' : 'none';
+    currentPatient.last_flag_screened_at = new Date().toISOString();
+
+    document.getElementById('flagScreeningView').classList.add('app-hidden');
+    document.getElementById('appRoot').classList.remove('app-hidden');
+
+  } catch(e){
+    console.error('Erreur submitFlagScreening:', e);
+    showToast('Erreur lors de l’enregistrement');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = old;
+  }
+}
+
+
+function buildExCard(ex, num, exId){
+  const done = checkedExercises.has(exId);
+
+  const name = escapeHTML(ex.name || 'Exercice');
+  const series = escapeHTML(ex.series || '?');
+  const reps = escapeHTML(ex.reps || '?');
+  const rest = escapeHTML(ex.rest || '?');
+  const evaTarget = escapeHTML(ex.evaTarget || '');
+  const focus = escapeHTML(ex.focus || '');
+  const regression = escapeHTML(ex.regression || '');
+  const progression = escapeHTML(ex.progression || '');
+
+  const tempoHTML = ex.tempo
+    ? `<div class="tempo-row">
+        <span class="tempo-lbl">TEMPO :</span>
+        <div class="tempo-blocks">
+          ${String(ex.tempo).split('-').map(t =>
+            `<div class="tempo-block">${escapeHTML(t)}s</div>`
+          ).join('<span class="tempo-sep">—</span>')}
+        </div>
+      </div>`
+    : '';
+
+  const videoId = ex.video ? getYTId(ex.video) : null;
+
+  return `<div class="ex-card${done ? ' done' : ''}" id="excard-${escapeHTML(exId)}">
+    <div class="ex-card-hdr" onclick="toggleEx('${escapeHTML(exId)}')">
+      <div class="ex-num">${num}</div>
+
+      <div style="flex:1">
+        <div class="ex-name">${name}</div>
+        <div class="ex-quick">${series} × ${reps} · ${rest}</div>
+      </div>
+
+      <button class="chk-btn${done ? ' checked' : ''}" id="chk-${escapeHTML(exId)}" onclick="toggleCheck(event,'${escapeHTML(exId)}')">
+        <i class="fa-solid fa-check"></i>
+      </button>
+
+      <i class="fa-solid fa-chevron-down ex-chevron"></i>
+    </div>
+
+    <div class="ex-body">
+      <div class="dosage-grid">
+        <div class="d-item">
+          <div class="d-label"><i class="fa-solid fa-layer-group"></i>Séries</div>
+          <div class="d-value">${series}</div>
+        </div>
+
+        <div class="d-item">
+          <div class="d-label"><i class="fa-solid fa-repeat"></i>Reps/Durée</div>
+          <div class="d-value">${reps}</div>
+        </div>
+
+        <div class="d-item">
+          <div class="d-label"><i class="fa-solid fa-rotate-left"></i>Récup.</div>
+          <div class="d-value">${rest}</div>
+        </div>
+
+        ${evaTarget ? `
+          <div class="d-item">
+            <div class="d-label"><i class="fa-solid fa-heart-pulse"></i>EVA cible</div>
+            <div class="d-value">${evaTarget}</div>
+          </div>
+        ` : ''}
+      </div>
+
+      ${tempoHTML}
+
+      ${focus ? `
+        <div class="focus-box">
+          <i class="fa-solid fa-eye"></i>
+          <p>${focus}</p>
+        </div>
+      ` : ''}
+
+      ${regression ? `
+        <div class="adapt-row">
+          <span class="adapt-badge adapt-regress">▼ Régression</span>
+          <p class="adapt-text">${regression}</p>
+        </div>
+      ` : ''}
+
+      ${progression ? `
+        <div class="adapt-row">
+          <span class="adapt-badge adapt-progress">▲ Progression</span>
+          <p class="adapt-text">${progression}</p>
+        </div>
+      ` : ''}
+
+      <div class="action-row">
+        ${videoId ? `
+          <button class="btn-video" onclick="openVideo('${videoId}','${name}')">
+            <i class="fa-brands fa-youtube"></i>VOIR LA VIDÉO
+          </button>
+        ` : ''}
+
+        <button class="btn-mat" onclick="openModal('matModal')">
+          <i class="fa-solid fa-toolbox"></i>Matériel ?
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleEx(id){document.getElementById('excard-'+id).classList.toggle('open')}
+async function toggleCheck(e, id) {
+  e.stopPropagation();
+
+  const btn = document.getElementById('chk-' + id);
+  const card = document.getElementById('excard-' + id);
+
+  if (!btn || !card) return;
+
+  const wasChecked = checkedExercises.has(id);
+  const newChecked = !wasChecked;
+
+  // Optimistic UI : on modifie immédiatement l'affichage
+  if (newChecked) {
+    checkedExercises.add(id);
+    btn.classList.add('checked');
+    card.classList.add('done');
+    showToast('✓ Exercice validé !');
+  } else {
+    checkedExercises.delete(id);
+    btn.classList.remove('checked');
+    card.classList.remove('done');
+  }
+
+  updateProgress();
+  btn.disabled = true;
+  showSmallStatus('Synchronisation...');
+
+  try {
+    await saveExerciseCheckToSupabase(id, newChecked);
+    showSmallStatus('Sauvegardé');
+  } catch (err) {
+    // Rollback si Supabase échoue
+    if (wasChecked) {
+      checkedExercises.add(id);
+      btn.classList.add('checked');
+      card.classList.add('done');
+    } else {
+      checkedExercises.delete(id);
+      btn.classList.remove('checked');
+      card.classList.remove('done');
+    }
+
+    updateProgress();
+    showSmallStatus('Erreur de sauvegarde', true);
+    showToast('Erreur de sauvegarde');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function updateProgress(){
+  const total=allExerciseIds.length;
+  const done=allExerciseIds.filter(id=>checkedExercises.has(id)).length;
+  const pct=total?Math.round(done/total*100):0;
+  document.getElementById('spBar').style.width=pct+'%';
+  document.getElementById('spPct').textContent=pct+'%';
+  document.getElementById('spDone').textContent=done;
+  document.getElementById('spTotal').textContent=total;
+}
+// checked state persists per day in Supabase
+
+async function saveExerciseCheckToSupabase(exId, isChecked) {
+  const prog = currentPrograms[currentPhaseIdx];
+  if (!prog) return;
+
+  const exercise = (prog.exercises || []).find((ex, k) => {
+    const currentExId = prog.id + '-' + (ex.id || k);
+    return currentExId === exId;
+  });
+
+  const exerciseName = exercise?.name || exId;
+
+  const { error } = await db.rpc('upsert_daily_exercise_check', {
+    p_token: patientToken,
+    p_program_id: prog.id,
+    p_check_date: getTodayLocalDate(),
+    p_exercise_key: exId,
+    p_exercise_name: exerciseName,
+    p_is_checked: isChecked
+  });
+
+  if (error) {
+    console.error('Erreur sauvegarde check:', error);
+    throw error;
+  }
+}
+
+async function loadCheckedFromToday() {
+  const prog = currentPrograms[currentPhaseIdx];
+  if (!prog) return;
+
+  const { data, error } = await db.rpc('get_daily_exercise_checks', {
+    p_token: patientToken,
+    p_program_id: prog.id,
+    p_check_date: getTodayLocalDate()
+  });
+
+  if (error) {
+    console.error('Erreur chargement checks:', error);
+    checkedExercises = new Set();
+    showSmallStatus('Erreur de synchronisation', true);
+    return;
+  }
+
+  checkedExercises = new Set(
+    (data || [])
+      .filter(row => row.is_checked)
+      .map(row => row.exercise_key)
+  );
+
+  checkedExercises.forEach(id => {
+    const btn = document.getElementById('chk-' + id);
+    const card = document.getElementById('excard-' + id);
+
+    if (btn) btn.classList.add('checked');
+    if (card) card.classList.add('done');
+  });
+
+  updateProgress();
+}
+
+function getYTId(url){
+  if(!url)return null;
+  if(/^[a-zA-Z0-9_-]{11}$/.test(url))return url;
+  const m=url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+  return m?m[1]:null;
+}
+function openVideo(id,title){
+  document.getElementById('videoTitle').textContent=title;
+  document.getElementById('videoIframe').src=`https://www.youtube.com/embed/${id}?autoplay=1`;
+  openModal('videoModal');
+}
+
+// ===== SESSION =====
+function buildBorgGrid(){
+  document.getElementById('borgGrid').innerHTML=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(v=>`<button class="borg-btn" id="borg-${v}" onclick="selectBorg(${v})">${v}</button>`).join('');
+}
+function selectBorg(v){
+  selectedBorg=v;
+  document.querySelectorAll('.borg-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('borg-'+v).classList.add('selected');
+  document.getElementById('borgDesc').textContent=BORG_LABELS[v]||'';
+}
+function buildSymptomsGrid(){
+  document.getElementById('symptomsGrid').innerHTML=SYMPTOMS.map(s=>`<button class="symptom-btn" onclick="toggleSymptom('${s}',this)"><i class="fa-solid fa-circle" style="font-size:8px"></i>${s}</button>`).join('');
+}
+function toggleSymptom(s,btn){
+  if(selectedSymptoms.has(s)){selectedSymptoms.delete(s);btn.classList.remove('selected');}
+  else{selectedSymptoms.add(s);btn.classList.add('selected');}
+}
+function updateEVA(v){
+  document.getElementById('evaVal').innerHTML=v+'<span style="font-size:14px">/10</span>';
+  document.getElementById('evaDesc').textContent=EVA_DESCS[v];
+  document.getElementById('evaDesc').style.color=EVA_COLORS[v];
+}
+function openSessionModal(){
+  document.getElementById('evaSlider').value=0; updateEVA(0);
+  selectedBorg=null; selectedSymptoms.clear(); bodyChartData = {}; // <-- Ajout ici
+  renderBodyChartSummary(); // <-- Ajout ici
+  // ... le reste de la fonction reste identique
+  document.querySelectorAll('.borg-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('.symptom-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('sessionNote').value='';
+  const prog=currentPrograms[currentPhaseIdx];
+  const exercises=prog.exercises||[];
+  document.getElementById('sessionExSummary').innerHTML=exercises.map((ex,k)=>{
+    const exId=prog.id+'-'+(ex.id||k);
+    const done=checkedExercises.has(exId);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg);border-radius:8px;border:1px solid var(--border);font-size:12px">
+      <i class="fa-solid ${done?'fa-circle-check':'fa-circle'}" style="color:${done?'var(--green)':'var(--text3)'}"></i>
+      <span style="font-weight:${done?'700':'400'}">${ex.name}</span>
+      ${done?'<span class="adapt-badge adapt-progress" style="margin-left:auto;font-size:10px">✓ Fait</span>':''}
+    </div>`;
+  }).join('');
+  openModal('sessionModal');
+}
+// --- LOGIQUE BODY CHART ---
+function openBodyChart() {
+  openModal('bodyChartModal');
+}
+
+function selectZone(zoneId, zoneName) {
+  currentZoneId = zoneId;
+  currentZoneName = zoneName;
+  document.getElementById('sympZoneTitle').textContent = zoneName;
+  
+  // Gérer le bouton des symptômes spécifiques
+  const btnSpecial = document.getElementById('btnSpecialZone');
+  if(ZONE_SPECIFICS[zoneId]) {
+    btnSpecial.style.display = 'flex';
+  } else {
+    btnSpecial.style.display = 'none';
+  }
+  
+  backToSymptomStep1();
+  openModal('symptomModal');
+}
+
+function openSymptomCategory(catKey) {
+  currentCategory = catKey;
+  document.getElementById('symptomStep1').classList.add('app-hidden');
+  document.getElementById('symptomStep2').classList.remove('app-hidden');
+  
+  const container = document.getElementById('symptomListContainer');
+  let list = catKey === 'special' ? ZONE_SPECIFICS[currentZoneId] : SYMPTOM_DICT[catKey];
+  
+  container.innerHTML = list.map(item => `
+    <div class="cascade-btn" onclick="selectSymptom('${item.label}')">${item.label}</div>
+  `).join('');
+}
+
+function selectSymptom(label) {
+  currentSymptom = label;
+  document.getElementById('symptomStep2').classList.add('app-hidden');
+  document.getElementById('symptomStep3').classList.remove('app-hidden');
+  document.getElementById('selectedSymptomLabel').textContent = label;
+  document.getElementById('sympEvaSlider').value = 0;
+  updateSympEVA(0);
+}
+
+function updateSympEVA(v) {
+  document.getElementById('sympEvaVal').innerHTML = v + '<span style="font-size:14px">/10</span>';
+}
+
+function backToSymptomStep1() {
+  document.getElementById('symptomStep1').classList.remove('app-hidden');
+  document.getElementById('symptomStep2').classList.add('app-hidden');
+  document.getElementById('symptomStep3').classList.add('app-hidden');
+}
+
+function backToSymptomStep2() {
+  document.getElementById('symptomStep2').classList.remove('app-hidden');
+  document.getElementById('symptomStep3').classList.add('app-hidden');
+}
+
+function saveZoneSymptom() {
+  const eva = parseInt(document.getElementById('sympEvaSlider').value);
+  
+  if(!bodyChartData[currentZoneId]) {
+    bodyChartData[currentZoneId] = { name: currentZoneName, symptoms: [] };
+  }
+  
+  // Éviter les doublons exacts
+  const exists = bodyChartData[currentZoneId].symptoms.find(s => s.label === currentSymptom);
+  if(!exists) {
+    bodyChartData[currentZoneId].symptoms.push({ label: currentSymptom, eva: eva });
+  }
+
+  // Colorer la zone sur le SVG
+  document.getElementById('zone-' + currentZoneId).classList.add('has-data');
+  
+  renderBodyChartSummary();
+  closeModal('symptomModal');
+}
+
+function removeSymptom(zoneId, index) {
+  bodyChartData[zoneId].symptoms.splice(index, 1);
+  if(bodyChartData[zoneId].symptoms.length === 0) {
+    delete bodyChartData[zoneId];
+    document.getElementById('zone-' + zoneId).classList.remove('has-data');
+  }
+  renderBodyChartSummary();
+}
+
+function renderBodyChartSummary() {
+  const summary = document.getElementById('bodyChartSummary');
+  const keys = Object.keys(bodyChartData);
+  
+  if(keys.length === 0) {
+    summary.innerHTML = "Aucune zone renseignée.";
+    return;
+  }
+  
+  let html = '';
+  keys.forEach(zId => {
+    const zone = bodyChartData[zId];
+    html += `<div style="margin-bottom:8px;"><strong>${zone.name}:</strong><br>`;
+    zone.symptoms.forEach((symp, idx) => {
+      html += `<span class="symptom-tag">
+                 ${symp.label} <span class="eva-badge">${symp.eva}/10</span>
+                 <i class="fa-solid fa-xmark remove" onclick="removeSymptom('${zId}', ${idx})"></i>
+               </span>`;
+    });
+    html += `</div>`;
+  });
+  summary.innerHTML = html;
+}
+async function submitSession(){
+  const btn=document.getElementById('btnSubmitSession');
+  btn.disabled=true; const orig=btn.innerHTML; btn.innerHTML='<span style="width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span> Envoi...';
+
+  const eva=parseInt(document.getElementById('evaSlider').value);
+  const note=document.getElementById('sessionNote').value;
+  const prog=currentPrograms[currentPhaseIdx];
+
+  try{
+    const {error} = await db.from('sessions').insert({
+      patient_id: currentPatient.id,
+      program_id: prog.id,
+      eva, borg: selectedBorg,
+      symptoms        : JSON.stringify([...selectedSymptoms]),
+      exercises_done  : JSON.stringify([...checkedExercises]),
+      body_chart      : bodyChartData, // <-- AJOUT ICI !
+      note, phase: prog.phase
+    });
+    if(error) throw error;
+    closeModal('sessionModal');
+    showSuccess();
+  } catch(e){
+    showToast("Erreur lors de l'envoi. Réessayez.");
+    console.error(e);
+  } finally {
+    btn.disabled=false; btn.innerHTML=orig;
+  }
+}
+
+// ===== MESSAGES =====
+async function checkUnreadMessages(){
+  const {data, error} = await db
+    .from('messages')
+    .select('id')
+    .eq('patient_id', currentPatient.id)
+    .eq('sender', 'kine')
+    .eq('read', false);
+
+  if(error){
+    console.error('Erreur checkUnreadMessages:', error);
+    return;
+  }
+
+  unreadCount = data ? data.length : 0;
+  updateMessageBadges();
+}
+
+async function openMessages(){
+  requestBrowserNotificationPermission();
+
+  resetUnreadMessages();
+
+  const notif = document.querySelector('.notification-toast');
+  if(notif) notif.remove();
+
+  await renderMessages();
+
+  const {error} = await db
+    .from('messages')
+    .update({read:true})
+    .eq('patient_id', currentPatient.id)
+    .eq('sender', 'kine')
+    .eq('read', false);
+
+  if(error){
+    console.error('Erreur marquage messages lus:', error);
+  }
+
+  openModal('messagesModal');
+}
+async function renderMessages(){
+  const {data, error} = await db
+    .from('messages')
+    .select('*')
+    .eq('patient_id', currentPatient.id)
+    .order('created_at', {ascending:true});
+
+  const list = document.getElementById('messagesList');
+
+  if(error){
+    console.error('Erreur renderMessages:', error);
+
+    list.innerHTML = `
+      <div style="text-align:center;padding:16px;color:var(--red);font-size:13px">
+        Impossible de charger les messages.
+      </div>
+    `;
+
+    return;
+  }
+
+  if(!data || !data.length){
+    list.innerHTML = `
+      <div style="text-align:center;padding:16px;color:var(--text3);font-size:13px">
+        Aucun message échangé.
+      </div>
+    `;
+
+    return;
+  }
+
+  list.innerHTML = data.map(m => `
+    <div class="msg-bubble ${m.sender === 'kine' ? 'kine' : 'patient'}">
+      <div class="msg-text">${escapeHTML(m.text)}</div>
+      <div class="msg-meta">
+        ${m.sender === 'kine' ? 'Votre kiné · ' : 'Vous · '}
+        ${new Date(m.created_at).toLocaleDateString('fr-FR', {
+          day:'numeric',
+          month:'short',
+          hour:'2-digit',
+          minute:'2-digit'
+        })}
+      </div>
+    </div>
+  `).join('');
+
+  list.scrollTop = list.scrollHeight;
+}
+
+async function sendPatientMessage(){
+  const input = document.getElementById('patMsgInput');
+  const text = input.value.trim();
+
+  if(!text) return;
+
+  input.disabled = true;
+
+  try{
+    const {error} = await db
+      .from('messages')
+      .insert({
+        patient_id: currentPatient.id,
+        sender: 'patient',
+        text,
+        read: false
+      });
+
+    if(error) throw error;
+
+    input.value = '';
+    await renderMessages();
+
+  } catch(e){
+    console.error('Erreur sendPatientMessage:', e);
+    showToast('Erreur envoi');
+  } finally {
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+
+function showSuccess(){
+  document.getElementById('successOverlay').classList.add('show');
+}
+
+function closeSuccess(){document.getElementById('successOverlay').classList.remove('show')}
+
+function toggleTheme(){
+  const d=document.documentElement; const dark=d.getAttribute('data-theme')==='dark';
+  d.setAttribute('data-theme',dark?'light':'dark');
+  document.getElementById('themeBtn').innerHTML=dark?'<i class="fa-solid fa-moon"></i>':'<i class="fa-solid fa-sun"></i>';
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){if(id==='videoModal')document.getElementById('videoIframe').src='';document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeModal(o.id)}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(o=>closeModal(o.id))});
+
+let toastTimer;
+function showToast(msg){
+  const ex=document.querySelector('.toast');if(ex)ex.remove();
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.remove(),2800);
+}
+async function registerServiceWorkerForPWA() {
+  if (!('serviceWorker' in navigator)) {
+    console.log('[PWA] Service Worker non supporté');
+    return;
+  }
+
+  try {
+    const registration = await navigator.serviceWorker.register('./sw.js');
+    console.log('[PWA] Service Worker enregistré :', registration.scope);
+  } catch (e) {
+    console.error('[PWA] Erreur Service Worker :', e);
+  }
+}
+
+registerServiceWorkerForPWA();
+init();
+</script>
+</body>
+</html>

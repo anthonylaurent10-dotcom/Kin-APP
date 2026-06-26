@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="referrer" content="strict-origin-when-cross-origin"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<!-- PWA Manifest -->
+<link rel="manifest" href="./manifest.json"/>
+
+<!-- Couleur de la barre de statut sur mobile -->
+<meta name="theme-color" content="#3b82f6"/>
+
+<!-- iOS : permet l'ajout à l'écran d'accueil -->
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Alyzio"/>
+<!-- Favicon navigateur -->
+<link rel="icon" type="image/png" sizes="16x16" href="./icon-16.png"/>
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png"/>
+<link rel="icon" type="image/png" sizes="48x48" href="./icon-48.png"/>
+
+<!-- iOS — écran d'accueil iPhone/iPad -->
+<link rel="apple-touch-icon" sizes="72x72"  href="./icon-72.png"/>
+<link rel="apple-touch-icon" sizes="96x96"  href="./icon-96.png"/>
+<link rel="apple-touch-icon" sizes="128x128" href="./icon-128.png"/>
+<link rel="apple-touch-icon" sizes="144x144" href="./icon-144.png"/>
+<link rel="apple-touch-icon" sizes="152x152" href="./icon-152.png"/>
+<link rel="apple-touch-icon" sizes="192x192" href="./icon-192.png"/>
+
+<title>Alyzio — Espace Professionnel</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="./style.css"/>
+</head>
+<body>
+
+<!-- Overlay mobile pour fermer la sidebar -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- ===== LOGIN ===== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon" style="background:none; padding:0; overflow:hidden; width:80px; height:80px; flex-shrink:0">
+  <img src="./icon-192.png" alt="Alyzio" 
+       style="width:80px; height:80px; object-fit:contain; border-radius:20px; display:block"/>
+</div>
+
+      <div><div class="login-logo-text">Alyzio</div><div class="login-logo-sub">Professional Platform</div></div>
+    </div>
+    <div class="login-title">Connexion Professionnelle</div>
+    <div class="login-sub">Accédez à votre espace kiné sécurisé</div>
+    <div class="login-error" id="loginError"></div>
+    <div class="login-field">
+      <label class="login-label">Email</label>
+      <input class="login-input" type="email" id="loginEmail" placeholder="kine@cabinet.fr"/>
+    </div>
+    <div class="login-field">
+      <label class="login-label">Mot de passe</label>
+      <input class="login-input" type="password" id="loginPwd" placeholder="••••••••"/>
+    </div>
+    <button class="login-btn" onclick="doLogin()" id="loginBtnEl">Se connecter</button>
+    <div class="login-hint">Première connexion ? Entrez votre email et un mot de passe (8+ caractères) — votre profil sera créé automatiquement.</div>
+  <div style="text-align:center;font-size:11px;color:#64748b;margin-top:12px">
+  <a href="./legal.html" style="color:#94a3b8">Mentions légales</a> ·
+  <a href="./privacy.html" style="color:#94a3b8">Confidentialité</a> ·
+  <a href="./cgu.html" style="color:#94a3b8">CGU</a>
+</div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="appScreen">
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="sidebar-logo-icon" style="background:none; padding:0; overflow:hidden; width:52px; height:52px; flex-shrink:0">
+  <img src="./icon-192.png" alt="Alyzio" 
+       style="width:52px; height:52px; object-fit:contain; border-radius:12px; display:block"/>
+</div>
+
+        <div><div class="sidebar-logo-text">Alyzio</div><div class="sidebar-logo-sub"><span class="live-dot"></span>Connecté</div></div>
+      </div>
+      <div class="sidebar-user">
+        <div class="sidebar-avatar" id="sidebarInitials">K</div>
+        <div class="sidebar-user-info"><div class="sidebar-user-name" id="sidebarName">—</div><div class="sidebar-user-role">Kinésithérapeute</div></div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-section">PRINCIPAL</div>
+        <div class="nav-item active" onclick="showView('dashboard')" id="nav-dashboard"><i class="fa-solid fa-gauge"></i><span>Tableau de bord</span></div>
+        <div class="nav-item" onclick="showView('patients')" id="nav-patients"><i class="fa-solid fa-users"></i><span>Patients</span><span class="nav-badge" id="patientsBadge">0</span></div>
+        <div class="nav-item" onclick="showView('programs')" id="nav-programs"><i class="fa-solid fa-clipboard-list"></i><span>Programmes</span></div>
+        <div class="nav-section">OUTILS</div>
+        <div class="nav-item" onclick="goToDashboard()" id="nav-dashboard-suivi"><i class="fa-solid fa-chart-line"></i><span>Dashboard de suivi</span></div>
+        <div class="nav-item" onclick="showView('library')" id="nav-library"><i class="fa-solid fa-book-medical"></i><span>Bibliothèque d'exercices</span></div>
+        <div class="nav-item" onclick="showView('patho-lib')" id="nav-patho-lib">
+  <i class="fa-solid fa-book-medical"></i><span>Pathologies</span>
+</div>
+<div class="nav-item" onclick="showView('proms')" id="nav-proms">
+  <i class="fa-solid fa-file-signature"></i><span>Questionnaires (PROMs)</span>
+</div>
+        <div class="nav-item" onclick="showView('settings')" id="nav-settings"><i class="fa-solid fa-gear"></i><span>Paramètres</span></div>
+      </nav>
+      <div class="sidebar-bottom"><div class="nav-item" onclick="doLogout()"><i class="fa-solid fa-right-from-bracket"></i><span>Déconnexion</span></div></div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+  <div class="topbar-left">
+  <!-- Bouton burger mobile -->
+  <button class="tb-btn" id="burgerBtn" onclick="toggleSidebar()"
+          style="display:none">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+  <div>
+    <div class="topbar-title" id="topbarTitle">Tableau de bord</div>
+    <div class="topbar-sub" id="topbarSub">Données en temps réel</div>
+  </div>
+</div>
+
+  <div class="topbar-right">
+
+    <!-- Cloche -->
+    <div style="position:relative">
+      <button class="tb-btn" onclick="toggleNotifPanel()" id="notifBell">
+        <i class="fa-solid fa-bell"></i>
+      </button>
+      <span id="notifBadge" style="
+        display:none;
+        position:absolute;
+        top:-4px;right:-4px;
+        background:#ef4444;
+        color:#fff;
+        border-radius:10px;
+        padding:1px 5px;
+        font-size:9px;
+        font-weight:700;
+        min-width:16px;
+        text-align:center;
+        pointer-events:none;
+      ">0</span>
+    </div>
+
+    <!-- Panneau déroulant -->
+    <div id="notifPanel" style="
+      display:none;
+      position:absolute;
+      top:56px;
+      right:16px;
+      width:360px;
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow2);
+      z-index:300;
+      overflow:hidden;
+    ">
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        padding:14px 16px;
+        border-bottom:1px solid var(--border);
+        background:var(--bg);
+      ">
+        <div style="font-size:14px;font-weight:700;color:var(--text);
+                    display:flex;align-items:center;gap:8px">
+          <i class="fa-solid fa-bell" style="color:var(--accent)"></i>
+          Notifications
+        </div>
+        <button class="btn btn-secondary btn-sm"
+                onclick="markAllNotifRead()"
+                style="font-size:11px">
+          Tout marquer lu
+        </button>
+      </div>
+      <div id="notifList" style="max-height:400px;overflow-y:auto">
+        <div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">
+          <i class="fa-solid fa-bell-slash"
+             style="font-size:24px;margin-bottom:8px;display:block"></i>
+          Aucune notification
+        </div>
+      </div>
+      <div style="
+        padding:10px 16px;
+        border-top:1px solid var(--border);
+        text-align:center;
+        background:var(--bg);
+      ">
+        <span style="font-size:11px;color:var(--text3)">
+          Les notifications push nécessitent votre autorisation
+        </span>
+      </div>
+    </div>
+
+    <!-- Bouton thème -->
+    <button class="tb-btn" onclick="toggleTheme()" id="themeBtn">
+      <i class="fa-solid fa-moon"></i>
+    </button>
+
+  </div>
+</div>
+
+      <div class="page-content">
+
+        <!-- DASHBOARD -->
+        <div class="view active fade-in" id="view-dashboard">
+          <div class="stats-grid">
+            <div class="stat-card"><div class="stat-icon blue"><i class="fa-solid fa-users"></i></div><div><div class="stat-value" id="statPatients">0</div><div class="stat-label">Patients actifs</div></div></div>
+            <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-clipboard-check"></i></div><div><div class="stat-value" id="statProgs">0</div><div class="stat-label">Programmes actifs</div></div></div>
+            <div class="stat-card"><div class="stat-icon orange"><i class="fa-solid fa-triangle-exclamation"></i></div><div><div class="stat-value" id="statInactive">0</div><div class="stat-label">Patients inactifs</div></div></div>
+            <div class="stat-card"><div class="stat-icon purple"><i class="fa-solid fa-dumbbell"></i></div><div><div class="stat-value" id="statExos">0</div><div class="stat-label">Exercices en biblio</div></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+            <div class="table-wrap">
+              <div class="table-header"><div class="section-title"><i class="fa-solid fa-clock-rotate-left"></i>Activité récente <span class="live-dot"></span></div></div>
+              <table><thead><tr><th>Patient</th><th>Action</th><th>Quand</th></tr></thead><tbody id="activityBody"><tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text3)">Aucune activité récente</td></tr></tbody></table>
+            </div>
+            <div class="table-wrap">
+              <div class="table-header"><div class="section-title"><i class="fa-solid fa-bell"></i>Alertes</div></div>
+              <div style="padding:16px" id="alertsContainer"><div class="alert alert-warn"><i class="fa-solid fa-circle-info"></i><div>Aucune alerte active.</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PATIENTS -->
+        <div class="view fade-in" id="view-patients">
+          <div class="table-wrap">
+            <div class="table-header">
+              <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="patientSearch" placeholder="Rechercher un patient..." oninput="filterPatients()"/></div>
+              <button class="btn btn-primary" onclick="openNewPatient()"><i class="fa-solid fa-plus"></i>Nouveau patient</button>
+            </div>
+            <table><thead><tr><th>Patient</th><th>Âge</th><th>Programme</th><th>Statut</th><th>Dernière activité</th><th>Actions</th></tr></thead>
+            <tbody id="patientsBody"><tr><td colspan="6" class="full-loader"><span class="loading-spinner" style="border-top-color:var(--accent);border-color:var(--border)"></span>Chargement...</td></tr></tbody></table>
+          </div>
+        </div>
+
+        <!-- PATIENT DETAIL -->
+        <div class="view fade-in" id="view-patient-detail">
+          <div style="margin-bottom:16px"><button class="btn btn-secondary btn-sm" onclick="showView('patients')"><i class="fa-solid fa-arrow-left"></i>Retour</button></div>
+          <div class="detail-grid">
+            <div class="detail-sidebar">
+              <div class="patient-profile-card">
+                <div class="profile-avatar" id="detailAvatar">K</div>
+                <div class="profile-name" id="detailName">—</div>
+                <div class="profile-patho" id="detailPatho">—</div>
+                <div class="profile-meta" id="detailMeta"></div>
+                <div style="display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap">
+                  <button class="btn btn-primary btn-sm" onclick="editCurrentPatient()"><i class="fa-solid fa-pen"></i>Modifier</button>
+                  <button class="btn btn-danger btn-sm" onclick="deleteCurrentPatient()"><i class="fa-solid fa-trash"></i>Supprimer</button>
+                </div>
+              </div>
+              <div class="info-card"><div class="info-card-title"><i class="fa-solid fa-circle-info"></i>Informations</div><div id="detailInfoRows"></div></div>
+              <div class="info-card"><div class="info-card-title"><i class="fa-solid fa-share-nodes"></i>Partage</div><div id="shareBox"></div></div>
+              <div class="info-card">
+                <div class="info-card-title"><i class="fa-solid fa-lock"></i>Notes cliniques privées</div>
+                <textarea class="form-textarea" id="privateNotes" style="font-size:13px" placeholder="Notes visibles uniquement par vous..." onblur="saveNotes()"></textarea>
+                <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Non accessibles au patient (RGPD)</div>
+              </div>
+            </div>
+            <div>
+              <div class="tabs">
+  <div class="tab active" onclick="switchTab(0,this)">Programme</div>
+  <div class="tab" onclick="switchTab(1,this)">Suivi <span class="live-dot"></span></div>
+  <div class="tab" onclick="switchTab(2,this)">Messages</div>
+  <div class="tab" onclick="switchTab(3,this)">Bilans</div>
+</div>
+              <div id="tabContent0">
+                <div id="flagScreeningDetail"></div>
+                <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Programme actif</div><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer programme</button></div>
+                <div id="patientProgramContainer"><div style="text-align:center;padding:32px;color:var(--text3)">Aucun programme assigné.</div></div>
+              </div>
+              <div id="tabContent1" style="display:none">
+                <div class="section-title" style="margin-bottom:16px"><i class="fa-solid fa-chart-line"></i>Suivi & Ressentis (temps réel)</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+                  <div class="stat-card"><div class="stat-icon green"><i class="fa-solid fa-heart-pulse"></i></div><div><div class="stat-value" id="avgEVA">—</div><div class="stat-label">Satisfaction moy.</div></div></div>
+                  <div class="stat-card"><div class="stat-icon orange"><i class="fa-solid fa-fire"></i></div><div><div class="stat-value" id="avgBorg">—</div><div class="stat-label">Borg moy.</div></div></div>
+                  <div class="stat-card"><div class="stat-icon blue"><i class="fa-solid fa-calendar-check"></i></div><div><div class="stat-value" id="nbSessions">0</div><div class="stat-label">Séances</div></div></div>
+                </div>
+                <div class="table-wrap"><div class="table-header"><div class="section-title"><i class="fa-solid fa-list"></i>Historique séances</div></div>
+                  <table><thead><tr><th>Date</th><th>Satisfaction</th><th>Borg</th><th>Body Chart & Sensations</th><th>Note patient</th></tr></thead>
+                  <tbody id="sessionHistoryBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucune séance enregistrée</td></tr></tbody></table>
+                </div>
+              </div>
+              <div id="tabContent2" style="display:none">
+  <div class="section-title" style="margin-bottom:16px">
+    <i class="fa-solid fa-comment-medical"></i>Messagerie
+  </div>
+  <div id="messagesContainer" style="max-height:350px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding:4px"></div>
+  <div style="display:flex;gap:8px">
+    <input class="form-input" id="newMessage" placeholder="Écrire un message au patient..." style="flex:1" onkeydown="if(event.key==='Enter')sendMessage()"/>
+    <button class="btn btn-primary" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+  </div>
+</div>
+
+<div id="tabContent3" style="display:none">
+  <div class="section-hdr">
+    <div class="section-title">
+      <i class="fa-solid fa-clipboard-question"></i>
+      Bilans enregistrés
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="openAssessmentForCurrentPatient()">
+      <i class="fa-solid fa-plus"></i>
+      Nouveau bilan
+    </button>
+  </div>
+  <div id="patientAssessmentsContainer">
+    <div style="text-align:center;padding:24px;color:var(--text3)">
+      Aucun bilan enregistré.
+    </div>
+  </div>
+</div>
+
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROGRAMS -->
+        <div class="view fade-in" id="view-programs">
+          <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Tous les programmes</div><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer un programme</button></div>
+          <div class="cards-grid" id="programsGrid"></div>
+        </div>
+
+        <!-- LIBRARY -->
+<div class="view fade-in" id="view-library">
+<div class="section-hdr">
+
+  <div class="section-title"><i class="fa-solid fa-book-medical"></i>Bibliothèque d'exercices</div>
+  
+  <!-- AJOUTE CE BLOC ICI -->
+  <div style="display:flex; gap:10px;">
+    <select class="form-select" id="regionFilter" onchange="renderLibrary()">
+  <option value="all">Toutes régions</option>
+  <optgroup label="Membre inférieur">
+    <option value="Pied">Pied</option>
+    <option value="Cheville">Cheville</option>
+    <option value="Genou">Genou</option>
+    <option value="Hanche">Hanche</option>
+  </optgroup>
+  <optgroup label="Membre supérieur">
+    <option value="Épaule">Épaule</option>
+    <option value="Coude">Coude</option>
+    <option value="Poignet">Poignet</option>
+    <option value="Main">Main</option>
+  </optgroup>
+  <optgroup label="Rachis & Tronc">
+    <option value="Cou">Cou</option>
+    <option value="Thorax">Thorax</option>
+    <option value="Lombaires">Lombaires</option>
+    <option value="Abdos">Abdos</option>
+  </optgroup>
+  <option value="Autre">Autre</option>
+</select>
+    <button class="btn btn-primary" onclick="openNewExercise()"><i class="fa-solid fa-plus"></i>Ajouter exercice</button>
+  </div>
+</div>
+                    <div class="lib-grid" id="libraryGrid"></div>
+        </div>
+        <!-- fin view-library -->
+        <!-- PATHOLOGIES LIB -->
+<div class="view fade-in" id="view-patho-lib">
+  <div class="section-hdr">
+    <div class="section-title"><i class="fa-solid fa-book-medical"></i>Mes Pathologies</div>
+    <button class="btn btn-primary" onclick="openNewPatho()"><i class="fa-solid fa-plus"></i>Ajouter pathologie</button>
+  </div>
+  <div class="table-wrap">
+    <table id="pathoTable">
+  <thead>
+    <tr>
+      <th>Pathologie</th>
+      <th>Frise de rééducation</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody id="pathoBody">
+    <tr><td colspan="3" class="full-loader">
+      <span class="loading-spinner" style="border-top-color:var(--accent);border-color:var(--border)"></span>
+      Chargement...
+    </td></tr>
+  </tbody>
+</table>
+  </div>
+</div>
+
+                <!-- PROMS -->
+        <div class="view fade-in" id="view-proms">
+          <div class="section-hdr">
+            <div class="section-title">
+              <i class="fa-solid fa-file-signature"></i>Questionnaires (PROMs)
+            </div>
+            <button class="btn btn-primary" onclick="openNewProm()">
+              <i class="fa-solid fa-plus"></i>Nouveau questionnaire
+            </button>
+          </div>
+
+          <!-- Constructeur (masqué par défaut) -->
+          <div class="info-card" id="promBuilderCard" style="display:none;margin-bottom:20px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div class="info-card-title" style="margin-bottom:0">
+                <i class="fa-solid fa-pen-to-square"></i>
+                Construire le questionnaire
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="closeProm()">
+                <i class="fa-solid fa-xmark"></i> Fermer
+              </button>
+            </div>
+
+            <!-- Infos générales -->
+            <div class="form-grid" style="margin-bottom:16px">
+              <div class="form-group full">
+                <label class="form-label">Titre du questionnaire <span>*</span></label>
+                <input class="form-input" id="promTitle" placeholder="Ex: KOOS, EVA hebdomadaire, Oswestry..."/>
+              </div>
+              <div class="form-group full">
+                <label class="form-label">Description / Consigne</label>
+                <textarea class="form-textarea" id="promDescription"
+                  placeholder="Ex: Répondez en pensant à vos symptômes des 7 derniers jours."
+                  style="min-height:60px"></textarea>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Mode de calcul du score</label>
+                <select class="form-select" id="promScoreMode">
+                  <option value="sum">Somme des scores</option>
+                  <option value="average">Moyenne des scores</option>
+                  <option value="percent">Pourcentage du maximum</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Score maximum (optionnel)</label>
+                <input class="form-input" id="promScoreMax" type="number" min="0"
+                  placeholder="Ex: 100 — laisser vide pour calcul automatique"/>
+              </div>
+            </div>
+
+            <!-- Questions -->
+            <div style="font-size:13px;font-weight:700;color:var(--text);
+                        margin-bottom:10px;display:flex;align-items:center;gap:8px">
+              <i class="fa-solid fa-list-check" style="color:var(--accent)"></i>
+              Questions
+            </div>
+            <div id="dynamicQuestions" style="margin-bottom:12px"></div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary btn-sm" onclick="addQuestionRow()">
+                <i class="fa-solid fa-plus"></i> Ajouter une question
+              </button>
+              <button class="btn btn-primary" id="savePromBtn" onclick="savePromTemplate()">
+                <i class="fa-solid fa-floppy-disk"></i> Sauvegarder
+              </button>
+            </div>
+
+            <div class="rgpd-notice" style="margin-top:12px">
+              <i class="fa-solid fa-circle-info"></i>
+              Le score final est calculé automatiquement selon le mode choisi et les coefficients de chaque question.
+            </div>
+          </div>
+
+          <!-- Liste -->
+          <div class="section-hdr" style="margin-top:4px">
+            <div class="section-title">
+              <i class="fa-solid fa-list"></i>Mes modèles de questionnaires
+            </div>
+          </div>
+          <div class="table-wrap" id="promList">
+            <div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">
+              Aucun questionnaire créé.
+            </div>
+          </div>
+        </div>
+
+
+        <!-- SETTINGS -->
+        <div class="view fade-in" id="view-settings">
+          <div class="section-title" style="margin-bottom:20px"><i class="fa-solid fa-gear"></i>Paramètres du compte</div>
+          <div style="max-width:100%">
+            <div class="info-card">
+              <div class="info-card-title"><i class="fa-solid fa-user"></i>Profil professionnel</div>
+              <div class="form-grid" style="margin-top:12px">
+                <div class="form-group"><label class="form-label">Prénom</label><input class="form-input" id="settFirstName"/></div>
+                <div class="form-group"><label class="form-label">Nom</label><input class="form-input" id="settLastName"/></div>
+                <div class="form-group full"><label class="form-label">Spécialité</label><input class="form-input" id="settSpeciality"/></div>
+                <div class="form-group full"><label class="form-label">Cabinet</label><input class="form-input" id="settCabinet"/></div>
+                <div class="form-group full"><button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-floppy-disk"></i>Sauvegarder</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modalPatient">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-user-plus" style="color:var(--accent)"></i><span id="modalPatientTitle">Nouveau patient</span></div><button class="modal-close" onclick="closeModal('modalPatient')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Prénom <span>*</span></label><input class="form-input" id="pFirstName"/></div>
+        <div class="form-group"><label class="form-label">Nom <span>*</span></label><input class="form-input" id="pLastName"/></div>
+        <div class="form-group"><label class="form-label">Âge</label><input class="form-input" id="pAge" type="number"/></div>
+        <div class="form-group"><label class="form-label">Genre</label><select class="form-select" id="pGender"><option value="H">Homme</option><option value="F">Femme</option><option value="N">Autre</option></select></div>
+        <div class="form-group full">
+  <label class="form-label">Pathologie <span>*</span></label>
+
+  <select class="form-select" id="pPathologySelect" onchange="handlePatientPathologySelect()">
+    <option value="">— Sélectionner une pathologie enregistrée —</option>
+  </select>
+
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <input class="form-input"
+      id="pPathology"
+      style="flex:1"
+      placeholder="Ou saisir une pathologie manuellement"/>
+
+    <button type="button"
+      class="btn btn-secondary btn-sm"
+      onclick="addTypedPathologyFromPatientForm()"
+      title="Ajouter cette pathologie à ma bibliothèque">
+      <i class="fa-solid fa-plus"></i>
+      Ajouter
+    </button>
+  </div>
+
+  <div style="font-size:11px;color:var(--text3);margin-top:6px">
+    Si la pathologie n’existe pas encore, saisissez son nom puis cliquez sur “Ajouter”.
+  </div>
+</div>
+
+        <div class="form-group"><label class="form-label">Téléphone</label><input class="form-input" id="pPhone"/></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="pEmail" type="email"/></div>
+        <div class="form-group"><label class="form-label">Date de début</label><input class="form-input" id="pStartDate" type="date"/></div>
+        <div class="form-group"><label class="form-label">Statut</label><select class="form-select" id="pStatus"><option value="active">Actif</option><option value="pause">En pause</option><option value="done">Terminé</option></select></div>
+        <div class="form-group full">
+  <label class="form-label">Notes</label>
+  <textarea class="form-textarea" id="pNotes" placeholder="Notes générales sur le patient..."></textarea>
+</div>
+
+        <!-- ✅ APRÈS — deux blocs, affichés alternativement -->
+
+<!-- Affiché uniquement lors de la CRÉATION -->
+<div class="form-group full" id="consentBlock">
+  <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;
+                color:var(--text2);line-height:1.4;text-transform:none;letter-spacing:0">
+    <input type="checkbox" id="pConsent" style="margin-top:2px"/>
+    <span>
+      Le patient a donné son consentement éclairé pour le suivi numérique,
+      le traitement de ses données de santé, l'accès à son programme en ligne
+      et l'utilisation de la messagerie thérapeutique.
+      <a href="/privacy.html" target="_blank" style="color:var(--accent)">
+        Voir la politique de confidentialité
+      </a>
+    </span>
+  </label>
+</div>
+
+<!-- Affiché uniquement lors de la MODIFICATION -->
+<div class="form-group full" id="consentInfo" style="display:none">
+  <div class="rgpd-notice">
+    <i class="fa-solid fa-shield-halved"></i>
+    <span id="consentInfoText"></span>
+  </div>
+</div>
+
+      </div>
+      <div class="rgpd-notice"><i class="fa-solid fa-shield-halved"></i>Ces données sont traitées conformément au RGPD.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modalPatient')">Annuler</button><button class="btn btn-primary" onclick="savePatient()" id="btnSavePat"><i class="fa-solid fa-floppy-disk"></i>Enregistrer</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalProgram">
+  <div class="modal modal-lg">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-clipboard-list" style="color:var(--accent)"></i><span id="modalProgTitle">Créer un programme</span></div><button class="modal-close" onclick="closeModal('modalProgram')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <!-- Sélecteur de modèle pour pré-remplir le programme -->
+<div class="form-group full" style="background:var(--bg); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
+  <label class="form-label">Charger un modèle existant</label>
+  <select class="form-select" id="modelSelector" onchange="loadProgramFromModel(this.value)">
+    <option value="">-- Ou choisir un modèle existant --</option>
+  </select>
+</div>
+      <div class="form-grid" style="margin-bottom:20px">
+        <div class="form-group full">
+  <label class="form-label">Questionnaires à envoyer</label>
+  <div id="progPromsContainer" style="display:flex;flex-direction:column;gap:8px"></div>
+  <button type="button" class="btn btn-secondary btn-sm" style="margin-top:6px"
+          onclick="addPromToProgram()">
+    <i class="fa-solid fa-plus"></i> Ajouter un questionnaire
+  </button>
+  <div style="font-size:11px;color:var(--text3);margin-top:4px">
+    Vous pouvez associer plusieurs questionnaires (début, milieu, fin de programme).
+  </div>
+</div>
+        <div class="form-group"><label class="form-label">Nom du programme <span>*</span></label><input class="form-input" id="progName"/></div>
+        <div class="form-group"><label class="form-label">Patient</label><select class="form-select" id="progPatient"><option value="">— Sélectionner —</option></select></div>
+        <div class="form-group"><label class="form-label">Phase</label><select class="form-select" id="progPhase"><option value="crise">Phase Crise</option><option value="renfo">Renforcement</option><option value="reprise">Reprise sportive</option><option value="prevention">Prévention</option><option value="custom">Personnalisée</option></select></div>
+        <div class="form-group"><label class="form-label">Fréquence</label><input class="form-input" id="progFreq" placeholder="Ex: 2-3 séances/semaine"/></div>
+        <div class="form-group full"><label class="form-label">Description / Consignes</label><textarea class="form-textarea" id="progDesc"></textarea></div>
+      </div>
+      <div class="ex-builder">
+        <div class="ex-builder-hdr"><div class="ex-builder-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i>Exercices</div>
+          <div style="display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="addFromLibrary()"><i class="fa-solid fa-book-medical"></i> Bibliothèque</button><button class="btn btn-primary btn-sm" onclick="addExercise()"><i class="fa-solid fa-plus"></i> Ajouter</button></div>
+        </div>
+        <div id="exercisesContainer"><div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Ajoutez des exercices via les boutons ci-dessus.</div></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="saveProgramAsTemplate()">💾 Enregistrer comme modèle</button><button class="btn btn-secondary" onclick="closeModal('modalProgram')">Annuler</button><button class="btn btn-primary" onclick="saveProgram()" id="btnSaveProgBtn"><i class="fa-solid fa-floppy-disk"></i>Enregistrer programme</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalExercise">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i><span id="modalExTitle">Nouvel exercice</span></div><button class="modal-close" onclick="closeModal('modalExercise')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label class="form-label">Nom <span>*</span></label><input class="form-input" id="exName"/></div>
+        <div class="form-group full"><label class="form-label">Focus / Cue</label><textarea class="form-textarea" id="exFocus" style="min-height:60px"></textarea></div>
+        <div class="form-group"><label class="form-label">Séries</label><input class="form-input" id="exSeries"/></div>
+        <div class="form-group"><label class="form-label">Reps / Durée</label><input class="form-input" id="exReps" placeholder="15 reps ou 45s"/></div>
+        <div class="form-group"><label class="form-label">Récupération</label><input class="form-input" id="exRest" placeholder="60-90s"/></div>
+        <div class="form-group"><label class="form-label">Tempo</label><input class="form-input" id="exTempo" placeholder="3-1-3"/></div>
+        <div class="form-group"><label class="form-label">EVA cible</label><input class="form-input" id="exEVA" placeholder="≤ 4/10"/></div>
+        <div class="form-group"><label class="form-label">Catégorie</label><select class="form-select" id="exCategory"><option value="quadri">Quadriceps</option><option value="fessiers">Fessiers</option><option value="ischio">Ischio</option><option value="gainage">Gainage</option><option value="cardio">Cardio</option><option value="iso">Isométrique</option><option value="autre">Autre</option></select></div><!-- Trouve le div exCategory et ajoute celui-ci juste après -->
+<div class="form-group">
+  <label class="form-label">Région</label>
+  <select class="form-select" id="exRegion">
+  <optgroup label="Membre inférieur">
+    <option value="Pied">Pied</option>
+    <option value="Cheville">Cheville</option>
+    <option value="Genou">Genou</option>
+    <option value="Hanche">Hanche</option>
+  </optgroup>
+  <optgroup label="Membre supérieur">
+    <option value="Épaule">Épaule</option>
+    <option value="Coude">Coude</option>
+    <option value="Poignet">Poignet</option>
+    <option value="Main">Main</option>
+  </optgroup>
+  <optgroup label="Rachis & Tronc">
+    <option value="Cou">Cou</option>
+    <option value="Thorax">Thorax</option>
+    <option value="Lombaires">Lombaires</option>
+    <option value="Abdos">Abdos</option>
+  </optgroup>
+  <option value="Autre">Autre</option>
+</select>
+</div>
+        <div class="form-group full"><label class="form-label">Lien vidéo YouTube</label><input class="form-input" id="exVideo"/></div>
+        <div class="form-group full"><label class="form-label">Régression</label><input class="form-input" id="exRegress"/></div>
+        <div class="form-group full"><label class="form-label">Progression</label><input class="form-input" id="exProgress"/></div>
+        <div class="form-group full"><label class="form-label">Matériel alternatif</label><input class="form-input" id="exAlt"/></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modalExercise')">Annuler</button><button class="btn btn-primary" onclick="saveExercise()"><i class="fa-solid fa-floppy-disk"></i>Sauvegarder</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalLibPicker">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-book-medical" style="color:var(--accent)"></i>Choisir un exercice</div><button class="modal-close" onclick="closeModal('modalLibPicker')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-body">
+      <div class="search-wrap" style="max-width:100%;margin-bottom:14px"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="libPickerSearch" placeholder="Rechercher..." oninput="filterLibPicker()"/></div>
+      <div class="lib-grid" id="libPickerGrid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalPatho">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">
+        <i class="fa-solid fa-book-medical" style="color:var(--accent)"></i>
+        <span id="pathoModalTitle">Nouvelle pathologie</span>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalPatho')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full">
+          <label class="form-label">Nom de la pathologie <span>*</span></label>
+          <input class="form-input" id="pathoName" placeholder="Ex: Lombalgie chronique, Tendinopathie rotulienne..."/>
+        </div>
+        <div class="form-group full">
+          <label class="form-label">Astuce éducative / Le saviez-vous ?</label>
+          <textarea class="form-textarea" id="pathoTip"
+            placeholder="Ex: 80% des lombalgies guérissent en moins de 6 semaines avec une activité physique adaptée."
+            style="min-height:100px"></textarea>
+        </div>
+      </div>
+      <div class="rgpd-notice" style="margin-top:12px">
+        <i class="fa-solid fa-circle-info"></i>
+        Après l'enregistrement, cliquez sur "Voir la frise" pour construire votre protocole de rééducation.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalPatho')">Annuler</button>
+      <button class="btn btn-primary" onclick="savePatho()">
+        <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalAssessment">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title" id="assessmentModalTitle">
+        <i class="fa-solid fa-clipboard-question" style="color:var(--accent)"></i>
+        Bilan privé de la pathologie
+      </div>
+      <button class="modal-close" onclick="closeModal('modalAssessment')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <div class="alert alert-warn">
+        <i class="fa-solid fa-lock"></i>
+        <div>
+          Cette section est privée : elle sert uniquement au kiné et n'est pas visible par le patient.
+        </div>
+      </div>
+
+      <div class="tabs" style="margin-bottom:16px">
+        <div class="tab active" onclick="switchAssessmentTab(0,this)">Modèle de bilan</div>
+        <div class="tab" onclick="switchAssessmentTab(1,this)">Nouveau bilan</div>
+        <div class="tab" onclick="switchAssessmentTab(2,this)">Historique / évolution</div>
+      </div>
+
+      <!-- TAB 0 : MODELE -->
+      <div id="assessmentTab0">
+        <div class="section-hdr">
+          <div class="section-title">
+            <i class="fa-solid fa-sliders"></i>
+            Structure du bilan
+          </div>
+
+          <button class="btn btn-primary btn-sm" onclick="addAssessmentSection()">
+            <i class="fa-solid fa-plus"></i>
+            Ajouter section
+          </button>
+        </div>
+
+        <div id="assessmentTemplateBuilder"></div>
+
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-secondary btn-sm" onclick="loadDefaultAssessmentTemplate()">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Charger modèle de base
+          </button>
+
+          <button class="btn btn-primary btn-sm" onclick="saveAssessmentTemplate()">
+            <i class="fa-solid fa-floppy-disk"></i>
+            Sauvegarder le modèle
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 1 : NOUVEAU BILAN -->
+      <div id="assessmentTab1" style="display:none">
+        <!-- Sélecteur de modèle de bilan sauvegardé -->
+<div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px">
+  <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+    <i class="fa-solid fa-folder-open" style="color:var(--accent)"></i>
+    Charger un bilan sauvegardé comme modèle
+  </div>
+  <div style="display:flex;gap:8px">
+    <select class="form-select" id="assessmentTemplateSelector" style="flex:1">
+      <option value="">— Nouveau bilan vierge —</option>
+    </select>
+    <button class="btn btn-secondary btn-sm" onclick="loadSavedAssessmentAsTemplate()">
+      <i class="fa-solid fa-rotate-left"></i> Charger
+    </button>
+  </div>
+  <div style="font-size:11px;color:var(--text3);margin-top:6px">
+    Pré-remplit le formulaire avec les valeurs d'un bilan précédent.
+  </div>
+</div>
+        <div class="form-grid" style="margin-bottom:16px">
+          <div class="form-group">
+            <div class="form-group">
+  <label class="form-label">Patient concerné <span>*</span></label>
+  <select class="form-select" id="assessmentPatient" onchange="loadAssessmentHistory()"></select>
+</div>
+
+
+          <div class="form-group">
+            <label class="form-label">Date du bilan</label>
+            <input class="form-input" id="assessmentDate" type="date"/>
+          </div>
+
+          <div class="form-group full">
+            <label class="form-label">Titre du bilan</label>
+            <input class="form-input" id="assessmentTitle" placeholder="Ex: Bilan initial, bilan à 6 semaines..."/>
+          </div>
+        </div>
+
+        <div id="assessmentFormContainer"></div>
+
+        <div class="form-group full" style="margin-top:14px">
+          <label class="form-label">Notes privées complémentaires</label>
+          <textarea class="form-textarea" id="assessmentNotes" placeholder="Notes globales du kiné..."></textarea>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:14px">
+          <button class="btn btn-primary" onclick="saveAssessmentEntry()">
+            <i class="fa-solid fa-floppy-disk"></i>
+            Enregistrer ce bilan
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 2 : HISTORIQUE -->
+      <div id="assessmentTab2" style="display:none">
+        <div class="section-hdr">
+          <div class="section-title">
+            <i class="fa-solid fa-chart-line"></i>
+            Historique des bilans
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="loadAssessmentHistory()">
+            <i class="fa-solid fa-rotate"></i>
+            Actualiser
+          </button>
+        </div>
+
+        <div id="assessmentHistory"></div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalAssessment')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalMilestones">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title" id="milestonePathoTitle">
+        <i class="fa-solid fa-timeline" style="color:var(--accent)"></i>
+        Frise de rééducation
+      </div>
+      <button class="modal-close" onclick="closeModal('modalMilestones')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Frise visuelle -->
+      <div id="milestoneTimeline" style="position:relative;padding-left:32px;margin-bottom:20px"></div>
+
+      <!-- Formulaire ajout/édition phase -->
+      <div style="background:var(--bg);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:8px">
+          <i class="fa-solid fa-plus" style="color:var(--accent)"></i>
+          <span id="milestoneFormTitle">Ajouter une phase</span>
+        </div>
+        <input type="hidden" id="milestoneEditIndex" value="-1"/>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Nom de la phase <span>*</span></label>
+            <input class="form-input" id="mPhaseName" placeholder="Ex: Phase aiguë"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Durée estimée</label>
+            <input class="form-input" id="mPhaseDuration" placeholder="Ex: J0–J15"/>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Objectifs de rééducation</label>
+            <textarea class="form-textarea" id="mPhaseObjectives"
+              placeholder="Ex: Diminuer la douleur, récupérer la mobilité passive..."></textarea>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Moyens / Techniques</label>
+            <textarea class="form-textarea" id="mPhaseMeans"
+              placeholder="Ex: Cryothérapie, mobilisations passives, TENS..."></textarea>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Critères de passage à la phase suivante</label>
+            <textarea class="form-textarea" id="mPhaseCriteria"
+              placeholder="Ex: EVA ≤ 3/10, flexion ≥ 90°, appui complet..."></textarea>
+          </div>
+                    <div class="form-group">
+            <label class="form-label">Couleur de la phase</label>
+            <select class="form-select" id="mPhaseColor">
+              <option value="#3b82f6">🔵 Bleu</option>
+              <option value="#10b981">🟢 Vert</option>
+              <option value="#f59e0b">🟠 Orange</option>
+              <option value="#ef4444">🔴 Rouge</option>
+              <option value="#8b5cf6">🟣 Violet</option>
+              <option value="#06b6d4">🩵 Cyan</option>
+              <option value="#ec4899">🩷 Rose</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Programme lié à cette phase</label>
+            <select class="form-select" id="mPhaseProgram">
+              <option value="">— Aucun programme —</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-primary btn-sm" onclick="addOrUpdateMilestone()">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span id="milestoneFormBtn">Ajouter la phase</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="cancelMilestoneEdit()" id="cancelMilestoneBtn" style="display:none">
+            Annuler
+          </button>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalMilestones')">Fermer</button>
+      <button class="btn btn-primary" onclick="saveMilestones()">
+        <i class="fa-solid fa-floppy-disk"></i>
+        Sauvegarder la frise
+      </button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="modalPathologyFlags">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">
+        <i class="fa-solid fa-shield-heart" style="color:var(--accent)"></i>
+        <span id="pathologyFlagsTitle">Questionnaire Red / Yellow Flags</span>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalPathologyFlags')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Barre d'outils modèles -->
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+                  padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:10px;
+                    display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-folder-open" style="color:var(--accent)"></i>
+          Modèles de questionnaires
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <select class="form-select" id="flagTemplateSelector" style="flex:1;min-width:200px">
+            <option value="">— Charger un modèle sauvegardé —</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadFlagTemplate()">
+            <i class="fa-solid fa-rotate-left"></i> Charger
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="openSaveFlagTemplatePanel()">
+            <i class="fa-solid fa-floppy-disk"></i> Sauver comme modèle
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSelectedFlagTemplate()">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+
+        <!-- Panneau de sauvegarde (caché par défaut) -->
+        <div id="saveFlagTemplatePanel" style="display:none;margin-top:12px;
+             padding:12px;background:var(--card);border-radius:var(--radius-sm);
+             border:1px solid var(--border)">
+          <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">
+            Nom du modèle à sauvegarder
+          </div>
+          <div style="display:flex;gap:8px">
+            <input class="form-input" id="flagTemplateName"
+                   placeholder="Ex: Bilan lombaire, Épaule post-op..."
+                   style="flex:1"/>
+            <input class="form-input" id="flagTemplateDesc"
+                   placeholder="Description optionnelle"
+                   style="flex:1"/>
+            <button class="btn btn-primary btn-sm" onclick="saveFlagTemplate()">
+              <i class="fa-solid fa-floppy-disk"></i> Sauvegarder
+            </button>
+            <button class="btn btn-secondary btn-sm"
+                    onclick="document.getElementById('saveFlagTemplatePanel').style.display='none'">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Infos du questionnaire -->
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group">
+          <label class="form-label">Titre</label>
+          <input class="form-input" id="pathologyFlagsQuestionnaireTitle"
+                 value="Questionnaire Red / Yellow Flags"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Version</label>
+          <input class="form-input" id="pathologyFlagsVersion" value="v1"/>
+        </div>
+      </div>
+
+      <input type="hidden" id="pathologyFlagsPathologyId"/>
+
+      <!-- Barre d'ajout -->
+      <div class="flags-toolbar">
+        <button class="btn btn-danger btn-sm" onclick="addPathologyFlagQuestionDraft('red')">
+          <i class="fa-solid fa-triangle-exclamation"></i> Ajouter Red flag
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="addPathologyFlagQuestionDraft('yellow')">
+          <i class="fa-solid fa-circle-exclamation"></i> Ajouter Yellow flag
+        </button>
+      </div>
+
+      <!-- Builder questions -->
+      <div id="pathologyFlagsBuilder" style="margin-top:14px"></div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalPathologyFlags')">Annuler</button>
+      <button class="btn btn-primary" onclick="savePathologyFlagsQuestionnaire()">
+        <i class="fa-solid fa-floppy-disk"></i> Sauvegarder le questionnaire
+      </button>
+    </div>
+  </div>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>
+
