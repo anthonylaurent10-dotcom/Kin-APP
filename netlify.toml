@@ -1,0 +1,58 @@
+# ================================
+# KinéApp - Netlify configuration
+# ================================
+
+[build]
+  publish = "."
+  command = ""
+
+# Page principale kiné
+[[redirects]]
+  from = "/pro"
+  to = "/index.html"
+  status = 200
+
+# Application patient
+[[redirects]]
+  from = "/patient"
+  to = "/patient.html"
+  status = 200
+
+# Dashboard analytique
+[[redirects]]
+  from = "/dashboard"
+  to = "/dashboard.html"
+  status = 200
+
+# Alias optionnels
+[[redirects]]
+  from = "/mon-programme"
+  to = "/patient.html"
+  status = 200
+
+[[redirects]]
+  from = "/suivi"
+  to = "/dashboard.html"
+  status = 200
+
+# Headers de sécurité
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    X-Robots-Tag = "noindex, nofollow"
+
+# Cache léger pour les fichiers HTML
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+# Cache long pour les assets si tu ajoutes plus tard des fichiers CSS/JS/images
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
