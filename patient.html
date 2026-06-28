@@ -293,6 +293,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 .success-sub{font-size:13px;color:var(--text3);line-height:1.5}
 .success-close{margin-top:20px;background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;border:none;border-radius:10px;padding:11px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;z-index:999;box-shadow:var(--shadow2);white-space:nowrap;max-width:90vw}
+
+/* ===== ADVICE BOX TOGGLE ===== */
+#patientAdviceText {
+  display: none;
+}
+#patientAdviceText.open {
+  display: block;
+}
+
+#patientAdviceContent.open {
+  display: block;
+}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
@@ -529,10 +541,43 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 
 <div class="eva-banner"><i class="fa-solid fa-heart-pulse"></i><div class="eva-text">Règle douleur : rester <span class="eva-pill">≤ 3-4/10</span> pendant l'effort. Si douleur > 4 → stopper ou régresser.</div></div>
 <div class="legal-notice"><i class="fa-solid fa-shield-halved"></i><span>Ces exercices sont prescrits par votre kinésithérapeute. Ils ne remplacent pas une consultation. En cas de douleur inhabituelle, contactez votre praticien.</span></div>
-<div id="patientAdviceBox" style="display:none; margin:16px; background:var(--card); padding:16px; border-radius:var(--radius); border: 1px solid var(--border);">
-  <div style="font-weight:800; color:var(--accent); margin-bottom:4px;">💡 Le saviez-vous ?</div>
-  <div id="patientAdviceText" style="font-size: 13px; color: var(--text2);"></div>
+<div id="patientAdviceBox" style="display:none; margin:16px;">
+  <!-- En-tête cliquable -->
+  <div onclick="toggleAdvice()" style="
+    background:var(--card);
+    border:1.5px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    cursor:pointer;
+    user-select:none;
+    box-shadow:var(--shadow);
+  ">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">💡</span>
+      <span style="font-weight:800;color:var(--accent);font-size:14px">Le saviez-vous ?</span>
+    </div>
+    <i class="fa-solid fa-chevron-down" id="adviceChevron"
+       style="color:var(--text3);font-size:13px;transition:transform .3s"></i>
+  </div>
+
+  <!-- Contenu déroulant -->
+  <div id="patientAdviceText"
+    style="
+      background:linear-gradient(135deg,#fffbeb,#fef3c7);
+      border:1.5px solid #f59e0b;
+      border-top:none;
+      border-radius:0 0 var(--radius) var(--radius);
+      padding:14px 16px;
+      font-size:13px;
+      color:#92400e;
+      line-height:1.6;
+    ">
+  </div>
 </div>
+
 <div class="phase-tabs" id="phaseTabs"></div>
 <div class="pat-content" id="patContent"></div>
 <div id="promSection" class="app-hidden">
@@ -858,7 +903,6 @@ console.log('[PROGRAMMES PATIENT CHARGÉS]', progs, progsError);
 if(progsError){
   console.error('Erreur chargement programmes patient:', progsError);
 
-  document.getElementById('loadingScreen').classList.add('app-hidden');
   document.getElementById('errorScreen').querySelector('.fs-title').textContent = 'Erreur de chargement';
   document.getElementById('errorScreen').querySelector('.fs-text').textContent =
     'Impossible de charger votre programme. Contactez votre kinésithérapeute.';
@@ -879,26 +923,50 @@ currentPrograms = progs || [];
     }
 
     renderPatientInfo();
-    buildPhaseTabs();
-    await renderPhase(0);
-    buildBorgGrid();
-    await checkUnreadMessages();
-    setupRealtimeForPatient();
+buildPhaseTabs();
+await renderPhase(0);
+buildBorgGrid();
+await checkUnreadMessages();
+setupRealtimeForPatient();
 
-    flagQuestions = await loadFlagQuestions();
+// ===== CHARGEMENT DES FLAGS =====
+try {
+  flagQuestions = await loadFlagQuestions();
+} catch(e) {
+  console.error('Erreur chargement flags:', e);
+  flagQuestions = [];
+}
 
-const alreadyScreenedToday =
-  currentPatient.last_flag_screened_at &&
-  new Date(currentPatient.last_flag_screened_at).toDateString() === new Date().toDateString();
+// Vérifie si le patient a déjà rempli le questionnaire aujourd'hui
+let alreadyScreened = false;
+try {
+  const today = getTodayLocalDate();
+  const { data: lastScreening } = await db
+    .from('patient_flag_screenings')
+    .select('id, created_at')
+    .eq('patient_id', currentPatient.id)
+    .gte('created_at', today + 'T00:00:00')
+    .maybeSingle();
+  alreadyScreened = !!lastScreening;
+} catch(e) {
+  alreadyScreened = false;
+}
 
-if(flagQuestions.length && !currentPatient.last_flag_screened_at){
-  // Affiche le questionnaire si le patient ne l'a jamais rempli
+// Masque TOUJOURS le loading screen ici
+document.getElementById('loadingScreen').classList.add('app-hidden');
+
+if (!alreadyScreened && flagQuestions.length > 0) {
+  // Affiche le questionnaire flags
+  mustCompleteFlagScreening = true;
   renderFlagScreening();
 } else {
-  // Affiche le programme normal si déjà rempli
-  document.getElementById('loadingScreen').classList.add('app-hidden');
+  // Affiche directement l'app
+  mustCompleteFlagScreening = false;
+  document.getElementById('flagScreeningView').classList.add('app-hidden');
   document.getElementById('appRoot').classList.remove('app-hidden');
 }
+
+    
   } catch(e){
     console.error(e);
     showError();
@@ -944,18 +1012,18 @@ async function findCurrentPatientPathology(){
 
 async function loadPatientPathologyAdvice(){
   const pathology = await findCurrentPatientPathology();
-
-  if(!pathology || !pathology.education_tip){
-    return;
-  }
+  if(!pathology || !pathology.education_tip){ return; }
 
   const box = document.getElementById('patientAdviceBox');
   const text = document.getElementById('patientAdviceText');
-
   if(!box || !text) return;
 
+  text.innerHTML = pathology.education_tip;
+  text.classList.remove('open'); // fermé par défaut
+  const chevron = document.getElementById('adviceChevron');
+  if(chevron) chevron.style.transform = 'rotate(0deg)';
+
   box.style.display = 'block';
-  text.textContent = pathology.education_tip;
 }
 
 function renderPatientInfo(){
@@ -1195,12 +1263,6 @@ async function loadAndRenderPromForProgram(promId){
   const container = document.getElementById('promListContainer');
   if(!container || !promId) return;
 
-  container.innerHTML = `
-    <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">
-      Chargement du questionnaire...
-    </div>
-  `;
-
   try {
     const { data, error } = await db
       .from('prom_templates')
@@ -1245,15 +1307,15 @@ function renderPromFormFromTemplate(template, questions){
   const container = document.getElementById('promListContainer');
 
   if(!questions.length){
-    container.innerHTML = `
+    container.insertAdjacentHTML('beforeend', `
       <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">
         Ce questionnaire ne contient aucune question.
       </div>
-    `;
+    `);
     return;
   }
 
-  container.innerHTML = `
+  container.insertAdjacentHTML('beforeend', `
     <div class="sf-section" style="margin-bottom:10px">
       <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:4px">
         ${escapeHTML(template.title || 'Questionnaire')}
@@ -1266,28 +1328,25 @@ function renderPromFormFromTemplate(template, questions){
     </div>
 
     ${questions.map((q, index) => {
-      const qId = `prom-q-${index}`;
+      const qId = `prom-${template.id}-q-${index}`;
 
       if(q.type === 'scale' || q.type === 'number'){
         return `
           <div class="sf-section" style="margin-bottom:10px">
             <div class="sf-title">${escapeHTML(q.question)}</div>
-            <input class="msg-input"
-              type="number"
-              id="${qId}"
-              min="${q.min ?? 0}"
-              max="${q.max ?? 10}"
+            <input class="msg-input" type="number" id="${qId}"
+              min="${q.min ?? 0}" max="${q.max ?? 10}"
               placeholder="${q.min ?? 0} à ${q.max ?? 10}"
+              data-prom-template="${template.id}"
               data-prom-question-index="${index}"/>
           </div>
         `;
       }
-
       if(q.type === 'yesno'){
         return `
           <div class="sf-section" style="margin-bottom:10px">
             <div class="sf-title">${escapeHTML(q.question)}</div>
-            <select class="msg-input" id="${qId}" data-prom-question-index="${index}">
+            <select class="msg-input" id="${qId}" data-prom-template="${template.id}" data-prom-question-index="${index}">
               <option value="">— Choisir —</option>
               <option value="oui">Oui</option>
               <option value="non">Non</option>
@@ -1295,31 +1354,22 @@ function renderPromFormFromTemplate(template, questions){
           </div>
         `;
       }
-
       if(q.type === 'choice'){
-        const options = String(q.options || '')
-          .split('|')
-          .map(o => o.trim())
-          .filter(Boolean);
-
+        const options = String(q.options || '').split('|').map(o => o.trim()).filter(Boolean);
         return `
           <div class="sf-section" style="margin-bottom:10px">
             <div class="sf-title">${escapeHTML(q.question)}</div>
-            <select class="msg-input" id="${qId}" data-prom-question-index="${index}">
+            <select class="msg-input" id="${qId}" data-prom-template="${template.id}" data-prom-question-index="${index}">
               <option value="">— Choisir —</option>
               ${options.map(o => `<option value="${escapeHTML(o)}">${escapeHTML(o)}</option>`).join('')}
             </select>
           </div>
         `;
       }
-
       return `
         <div class="sf-section" style="margin-bottom:10px">
           <div class="sf-title">${escapeHTML(q.question)}</div>
-          <textarea class="sf-textarea"
-            id="${qId}"
-            data-prom-question-index="${index}"
-            placeholder="Votre réponse..."></textarea>
+          <textarea class="sf-textarea" id="${qId}" data-prom-template="${template.id}" data-prom-question-index="${index}" placeholder="Votre réponse..."></textarea>
         </div>
       `;
     }).join('')}
@@ -1327,37 +1377,29 @@ function renderPromFormFromTemplate(template, questions){
     <button class="btn-submit" onclick="submitPromResponse('${template.id}')">
       Envoyer mes réponses
     </button>
-  `;
+  `);
 }
 
 async function submitPromResponse(templateId){
   const prog = currentPrograms[currentPhaseIdx];
-
-  const inputs = document.querySelectorAll('[data-prom-question-index]');
+  const inputs = document.querySelectorAll(`[data-prom-template="${templateId}"]`);
   const responses = [];
-
   inputs.forEach(input => {
     responses.push({
       question_index: Number(input.dataset.promQuestionIndex),
       value: input.value
     });
   });
-
   try {
-    const { error } = await db
-      .from('prom_responses')
-      .insert({
-        patient_id: currentPatient.id,
-        template_id: templateId,
-        program_id: prog?.id || null,
-        responses: JSON.stringify(responses),
-        timing: 'programme'
-      });
-
+    const { error } = await db.from('prom_responses').insert({
+      patient_id: currentPatient.id,
+      template_id: templateId,
+      program_id: prog?.id || null,
+      responses: JSON.stringify(responses),
+      timing: 'debut'
+    });
     if(error) throw error;
-
     showToast('Questionnaire envoyé !');
-
   } catch(e) {
     console.error('Erreur submitPromResponse:', e);
     showToast('Erreur envoi questionnaire');
@@ -1368,9 +1410,19 @@ async function renderPhase(i){
   const prog = currentPrograms[i];
   const promDiv = document.getElementById('promSection');
 
-if (prog.prom_id) {
+// Récupère la liste des questionnaires (nouveau format prom_ids, ou ancien prom_id)
+const promIds = Array.isArray(prog.prom_ids) && prog.prom_ids.length
+  ? prog.prom_ids
+  : prog.prom_id
+    ? [prog.prom_id]
+    : [];
+
+if (promIds.length) {
   promDiv.classList.remove('app-hidden');
-  await loadAndRenderPromForProgram(prog.prom_id);
+  document.getElementById('promListContainer').innerHTML = '';
+  for (const pid of promIds) {
+    await loadAndRenderPromForProgram(pid);
+  }
 } else {
   promDiv.classList.add('app-hidden');
   document.getElementById('promListContainer').innerHTML = '';
@@ -2220,6 +2272,16 @@ async function registerServiceWorkerForPWA() {
   } catch (e) {
     console.error('[PWA] Erreur Service Worker :', e);
   }
+}
+
+function toggleAdvice() {
+  const content = document.getElementById('patientAdviceText');
+  const chevron = document.getElementById('adviceChevron');
+  if (!content) return;
+
+  const isOpen = content.classList.contains('open');
+  content.classList.toggle('open');
+  chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 registerServiceWorkerForPWA();

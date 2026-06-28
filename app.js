@@ -5,6 +5,25 @@ const SUPABASE_URL = 'https://sdfaoloncvwrximuxcqh.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkZmFvbG9uY3Z3cnhpbXV4Y3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQzMjIsImV4cCI6MjA5NzIwMDMyMn0.H3I7trLzEXNseMTXn8-r8CBAORMgeKf_-xiMTU0txzU';
 
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// ============================================================
+// GÉNÉRATEUR D'IDENTIFIANT UNIQUE (compatible HTTP et HTTPS)
+// ============================================================
+function generateUUID() {
+  // Si crypto.randomUUID existe et fonctionne, on l'utilise
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return generateUUID();
+    } catch (e) {
+      // Si ça plante, on passe à la méthode manuelle ci-dessous
+    }
+  }
+  // Méthode manuelle qui marche partout
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 // ===== STATE =====
 let currentPractitioner = null;
@@ -34,6 +53,13 @@ let pathologyFlagsQuestions = [];
 let currentPathologyFlagsQuestionnaireId = null;
 let pathosList = [];
 let toastTimer;
+const MUSCLES_LIST = [
+  'Quadriceps','Ischio-jambiers','Grand Fessier','Moyen-Fessier','Adducteurs','Intrinsèques du pied','Triceps sural','Tibial ant.','Fibulaires','Long fléchisseur de l hallux','Pectoraux','Deltoïde antérieur','Deltoïde moyen','Deltoïde postérieur','Trapèze supérieur','Fixateurs de la scapula','Coiffe des rotateurs','Grand Rond','Grand dorsal','Biceps brachial','Triceps brachial','Avant-bras','Grands droits de l abdomen','Obliques','Transverse','Spinaux','Muscles cervicaux','Ilio-Psoas','Diaphragme','Extenseurs du poignet','Fléchisseurs du poignet','Abducteurs du poignet','Adducteurs du poignet','Supinateurs','Pronateurs','Muscles intrinsèques de la main'
+];
+
+let selectedMuscles = [];
+let promsCache = [];
+
 
 // ===== AUTH =====
 async function isEmailAuthorized(email){
@@ -233,9 +259,9 @@ const [
   programsQuery.order('created_at', { ascending: false }),
 
   db.from('exercises_library')
-    .select('*')
-    .eq('practitioner_id', pid)
-    .order('created_at', { ascending: false }),
+  .select('*')
+  .or(`practitioner_id.eq.${pid},is_public.eq.true`)
+  .order('created_at', { ascending: false }),
 
   db.from('flag_questions')
     .select('*')
@@ -1300,7 +1326,7 @@ async function savePatient(){
     payload.consent_given_at = new Date().toISOString();
     payload.consent_text_version = 'v1-2026-06';
     payload.practitioner_id = currentPractitioner.id;
-    payload.token = crypto.randomUUID();
+    payload.token = generateUUID();
     payload.token_expires_at = new Date(
       Date.now() + 90 * 24 * 60 * 60 * 1000
     ).toISOString(); // expire dans 90 jours
@@ -1994,6 +2020,7 @@ function renderPatientPrograms(patId){
 }
 
 function phaseLabel(p){return({crise:'Phase Crise',renfo:'Renforcement',reprise:'Reprise sport',prevention:'Prévention',custom:'Personnalisée'}[p]||p)}
+
 async function deleteProgram(id){
   if(!confirm('Supprimer ce programme ?'))return;
   const {error}=await db.from('programs').delete().eq('id',id);
@@ -2001,186 +2028,262 @@ async function deleteProgram(id){
   await loadAllData(); showToast('Supprimé.');
   if(currentPatientId) renderPatientPrograms(currentPatientId);
 }
-function renderPrograms(){
-  const g = document.getElementById('programsGrid');
 
-  if(!programs.length){
-    g.innerHTML = `
-      <div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1">
-        Aucun programme créé.
-      </div>`;
+// ===== LIBRARY =====
+function renderMusclesPicker(selected = []) {
+  selectedMuscles = [...selected];
+  renderMusclesGrid(MUSCLES_LIST);
+  updateMuscleChips();
+}
+
+function renderMusclesGrid(list) {
+  const box = document.getElementById('musclesTargetsContainer');
+  if (!box) return;
+
+  if (!list.length) {
+    box.innerHTML = `<div style="font-size:12px;color:var(--text3);padding:8px">Aucun muscle trouvé.</div>`;
     return;
   }
 
-  g.innerHTML = programs.map(prog => {
-    const pat = patients.find(x => x.id === prog.patient_id);
-    const isTemplate = prog.is_template === true || !prog.patient_id;
-
+  box.innerHTML = list.map(m => {
+    const isSelected = selectedMuscles.includes(m);
     return `
-      <div class="prog-card">
-        <div class="prog-card-header">
-          <div style="display:flex;align-items:flex-start;gap:10px;flex:1">
-            <div class="prog-card-icon" style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">
-              ${isTemplate ? '📚' : '🏋️'}
-            </div>
-            <div>
-              <div class="prog-title">${escapeHTML(prog.name)}</div>
-              <div class="prog-sub">
-                ${
-                  isTemplate
-                    ? 'Modèle réutilisable'
-                    : pat
-                      ? `${escapeHTML(pat.first_name)} ${escapeHTML(pat.last_name)}`
-                      : 'Non assigné'
-                }
-              </div>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openProgramBuilder('${prog.id}')">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProgram('${prog.id}')">
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="prog-card-body">
-          <div style="font-size:12px;color:var(--text3)">
-            ${(prog.exercises || []).length} exercice(s) · ${escapeHTML(prog.frequency || '—')}
-          </div>
-        </div>
-
-        <div class="prog-card-footer">
-          <span class="badge ${isTemplate ? 'badge-purple' : 'badge-blue'}" style="${isTemplate ? 'background:rgba(139,92,246,.15);color:#7c3aed' : ''}">
-            ${isTemplate ? 'Modèle' : escapeHTML(phaseLabel(prog.phase))}
-          </span>
-        </div>
-      </div>`;
+      <button type="button"
+        onclick="toggleMuscle('${m.replace(/'/g, "\\'")}')"
+        style="
+          padding:5px 11px;
+          border-radius:20px;
+          border:1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border)'};
+          background:${isSelected ? 'var(--accent)' : 'var(--card)'};
+          color:${isSelected ? '#fff' : 'var(--text2)'};
+          font-size:11px;
+          font-weight:600;
+          cursor:pointer;
+          transition:all .15s;
+          white-space:nowrap;
+        ">
+        ${isSelected ? '✓ ' : ''}${escapeHTML(m)}
+      </button>
+    `;
   }).join('');
 }
 
-
-// ===== LIBRARY =====
-function openNewExercise(exData = null, idx = null){
-  editingExId = idx;
-
-  const ex = exData || {};
-
-  document.getElementById('modalExTitle').textContent = exData ? 'Modifier exercice' : 'Nouvel exercice';
-
-  [
-    'exName',
-    'exFocus',
-    'exSeries',
-    'exReps',
-    'exRest',
-    'exTempo',
-    'exEVA',
-    'exVideo',
-    'exRegress',
-    'exProgress',
-    'exAlt'
-  ].forEach(id => {
-    const el = document.getElementById(id);
-    if(el) el.value = '';
-  });
-
-  document.getElementById('exName').value = ex.name || '';
-  document.getElementById('exFocus').value = ex.focus || '';
-  document.getElementById('exSeries').value = ex.series || '';
-  document.getElementById('exReps').value = ex.reps || '';
-  document.getElementById('exRest').value = ex.rest || '';
-  document.getElementById('exTempo').value = ex.tempo || '';
-  document.getElementById('exEVA').value = ex.eva_target || '';
-  document.getElementById('exCategory').value = ex.category || 'autre';
-  document.getElementById('exRegion').value = ex.region || 'Autre';
-  document.getElementById('exVideo').value = ex.video || '';
-  document.getElementById('exRegress').value = ex.regression || '';
-  document.getElementById('exProgress').value = ex.progression || '';
-  document.getElementById('exAlt').value = ex.alt_material || '';
-
-  openModal('modalExercise');
+function filterMusclesPicker(query) {
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? MUSCLES_LIST.filter(m => m.toLowerCase().includes(q))
+    : MUSCLES_LIST;
+  renderMusclesGrid(filtered);
 }
 
-async function saveExercise(){
-  const name = document.getElementById('exName').value.trim();
+function updateMuscleChips() {
+  const chips = document.getElementById('selectedMusclesChips');
+  const placeholder = document.getElementById('muscleChipsPlaceholder');
+  if (!chips) return;
 
-  if(!name){
-    showToast('Nom requis', 'red');
+  // Retire les chips existants (sauf le placeholder)
+  Array.from(chips.children).forEach(child => {
+    if (child.id !== 'muscleChipsPlaceholder') child.remove();
+  });
+
+  if (!selectedMuscles.length) {
+    if (placeholder) placeholder.style.display = 'inline';
     return;
   }
 
-  const btn = document.querySelector('#modalExercise .btn-primary');
-  const oldHtml = btn ? btn.innerHTML : '';
+  if (placeholder) placeholder.style.display = 'none';
 
-  if(btn){
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner" style="border-top-color:#fff"></span> Sauvegarde...';
+  selectedMuscles.forEach(m => {
+    const chip = document.createElement('span');
+    chip.style.cssText = `
+      display:inline-flex;align-items:center;gap:5px;
+      background:var(--accent);color:#fff;
+      border-radius:20px;padding:3px 10px;
+      font-size:11px;font-weight:700;
+    `;
+    chip.innerHTML = `
+      ${escapeHTML(m)}
+      <i class="fa-solid fa-xmark" style="cursor:pointer;font-size:10px"
+         onclick="toggleMuscle('${m.replace(/'/g, "\\'")}')"></i>
+    `;
+    chips.appendChild(chip);
+  });
+}
+
+function toggleMuscle(name) {
+  if (selectedMuscles.includes(name)) {
+    selectedMuscles = selectedMuscles.filter(m => m !== name);
+  } else {
+    selectedMuscles.push(name);
   }
+  // Maintient le filtre de recherche actif
+  const searchInput = document.getElementById('muscleSearchInput');
+  const q = searchInput ? searchInput.value : '';
+  filterMusclesPicker(q);
+  updateMuscleChips();
+}
 
-  const payload = {
-    practitioner_id: currentPractitioner.id,
-    name,
-    focus: document.getElementById('exFocus').value.trim(),
-    series: document.getElementById('exSeries').value.trim(),
-    reps: document.getElementById('exReps').value.trim(),
-    rest: document.getElementById('exRest').value.trim(),
-    tempo: document.getElementById('exTempo').value.trim(),
-    eva_target: document.getElementById('exEVA').value.trim(),
-    category: document.getElementById('exCategory').value || 'autre',
-    region: document.getElementById('exRegion').value || 'Autre',
-    video: document.getElementById('exVideo').value.trim(),
-    regression: document.getElementById('exRegress').value.trim(),
-    progression: document.getElementById('exProgress').value.trim(),
-    alt_material: document.getElementById('exAlt').value.trim(),
-    updated_at: new Date().toISOString()
-  };
-
+function openNewExercise(exData = null, idx = null) {
   try {
-    if(editingExId !== null && library[editingExId]){
+    editingExId = idx;
+    const ex = exData || {};
+
+    const titleEl = document.getElementById('modalExTitle');
+    if (titleEl) titleEl.textContent = exData ? 'Modifier exercice' : 'Nouvel exercice';
+
+    // Vide tous les champs
+    const fields = ['exName','exFocus','exSeries','exReps','exRest','exTempo','exEVA','exVideo','exRegress','exProgress','exAlt'];
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.value = '';
+    });
+
+    // Remplit avec les données existantes (si modification)
+    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
+    setVal('exName', ex.name);
+    setVal('exFocus', ex.focus);
+    setVal('exSeries', ex.series);
+    setVal('exReps', ex.reps);
+    setVal('exRest', ex.rest);
+    setVal('exTempo', ex.tempo);
+    setVal('exEVA', ex.eva_target);
+    setVal('exRegion', ex.region || 'Autre');
+    setVal('exVideo', ex.video);
+    setVal('exRegress', ex.regression);
+    setVal('exProgress', ex.progression);
+    setVal('exAlt', ex.alt_material);
+
+    renderMusclesPicker(ex.muscles_targets || []);
+    openModal('modalExercise');
+  } catch (error) {
+    alert("Erreur d'ouverture Exercice : " + error.message);
+  }
+}
+
+async function saveExercise() {
+  try {
+    const nameInput = document.getElementById('exName');
+    const name = nameInput ? nameInput.value.trim() : '';
+
+    if (!name) {
+      showToast('Le nom de l\'exercice est requis', 'red');
+      return;
+    }
+
+    // On récupère le bouton pour le désactiver pendant le chargement
+    const btn = document.querySelector('#modalExercise .btn-primary');
+    const oldHtml = btn ? btn.innerHTML : '<i class="fa-solid fa-floppy-disk"></i> Sauvegarder';
+
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner" style="border-top-color:#fff"></span> Sauvegarde...';
+    }
+
+    // Création de l'objet avec sécurisation de tous les champs (évite les crashs si un champ manque)
+    const payload = {
+      practitioner_id: currentPractitioner.id,
+      name: name,
+      focus: document.getElementById('exFocus')?.value.trim() || '',
+      series: document.getElementById('exSeries')?.value.trim() || '',
+      reps: document.getElementById('exReps')?.value.trim() || '',
+      rest: document.getElementById('exRest')?.value.trim() || '',
+      tempo: document.getElementById('exTempo')?.value.trim() || '',
+      eva_target: document.getElementById('exEVA')?.value.trim() || '',
+      category: 'autre',
+      region: document.getElementById('exRegion')?.value || 'Autre',
+      muscles_targets: selectedMuscles || [],
+      video: document.getElementById('exVideo')?.value.trim() || '',
+      regression: document.getElementById('exRegress')?.value.trim() || '',
+      progression: document.getElementById('exProgress')?.value.trim() || '',
+      alt_material: document.getElementById('exAlt')?.value.trim() || '',
+      updated_at: new Date().toISOString()
+    };
+
+    if (editingExId !== null && library[editingExId]) {
+      // MODE MODIFICATION
       const { error } = await db
         .from('exercises_library')
         .update(payload)
         .eq('id', library[editingExId].id)
         .eq('practitioner_id', currentPractitioner.id);
 
-      if(error) throw error;
-
+      if (error) throw error;
+      showToast('Exercice modifié avec succès !', 'green');
     } else {
+      // MODE AJOUT
       const { error } = await db
         .from('exercises_library')
         .insert(payload);
 
-      if(error) throw error;
+      if (error) throw error;
+      showToast('Nouvel exercice ajouté !', 'green');
     }
 
+    // Réinitialisation et fermeture
     editingExId = null;
-
     await loadAllData();
-
     closeModal('modalExercise');
-    showToast('Exercice sauvegardé !', 'green');
 
-  } catch(e) {
-    console.error('Erreur saveExercise:', e);
-    showToast('Erreur sauvegarde exercice : ' + e.message, 'red');
-  } finally {
-    if(btn){
+    // Réactivation du bouton
+    if (btn) {
       btn.disabled = false;
       btn.innerHTML = oldHtml;
+    }
+
+  } catch (e) {
+    console.error('Erreur détaillée saveExercise:', e);
+    showToast('Erreur : ' + (e.message || 'Impossible de sauvegarder'), 'red');
+    
+    // En cas d'erreur, on réactive le bouton pour ne pas bloquer l'utilisateur
+    const btn = document.querySelector('#modalExercise .btn-primary');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Sauvegarder';
     }
   }
 }
 
 function renderLibrary(){
   const g = document.getElementById('libraryGrid');
+  if (!g) {
+    console.warn('[renderLibrary] #libraryGrid introuvable');
+    return;
+  }
+
+  const statExos = document.getElementById('statExos');
+  if (statExos) {
+    statExos.textContent = library.length;
+  }
+
   const filterEl = document.getElementById('regionFilter');
   const filter = filterEl ? filterEl.value : 'all';
 
-  const filtered = library.filter(ex => filter === 'all' || ex.region === filter);
+  const muscleFilterEl = document.getElementById('muscleFilter');
+  const muscleFilter = muscleFilterEl ? muscleFilterEl.value : 'all';
+
+  if (muscleFilterEl) {
+    const currentVal = muscleFilterEl.value;
+
+    const allMuscles = [...new Set(
+      library.flatMap(ex =>
+        Array.isArray(ex.muscles_targets) ? ex.muscles_targets : []
+      )
+    )].filter(Boolean).sort();
+
+    muscleFilterEl.innerHTML =
+      '<option value="all">Tous les muscles</option>' +
+      allMuscles.map(m =>
+        `<option value="${escapeHTML(m)}" ${m === currentVal ? 'selected' : ''}>${escapeHTML(m)}</option>`
+      ).join('');
+  }
+
+  const filtered = library.filter(ex => {
+    const regionOk = filter === 'all' || ex.region === filter;
+    const muscleOk = muscleFilter === 'all' ||
+      (Array.isArray(ex.muscles_targets) && ex.muscles_targets.includes(muscleFilter));
+
+    return regionOk && muscleOk;
+  });
 
   const catLabels = {
     quadri: 'Quadriceps',
@@ -2191,8 +2294,6 @@ function renderLibrary(){
     iso: 'Isométrique',
     autre: 'Autre'
   };
-
-  document.getElementById('statExos').textContent = library.length;
 
   if(!filtered.length){
     g.innerHTML = `
@@ -2209,7 +2310,17 @@ function renderLibrary(){
       <div class="lib-card">
         <div class="lib-card-name">${escapeHTML(ex.name)}</div>
 
+        ${ex.is_public ? '<span class="badge badge-green" style="font-size:9px">🌐 Partagé</span>' : ''}
+
         <div class="lib-card-meta">
+          ${Array.isArray(ex.muscles_targets) && ex.muscles_targets.length
+            ? `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">
+                ${ex.muscles_targets.map(m => `
+                  <span class="badge badge-blue" style="font-size:9px">${escapeHTML(m)}</span>
+                `).join('')}
+              </div>`
+            : ''}
+
           <span class="badge badge-blue">${escapeHTML(ex.region || 'Autre')}</span>
           <span class="badge badge-gray">${escapeHTML(catLabels[ex.category] || ex.category || 'Autre')}</span>
         </div>
@@ -2247,22 +2358,127 @@ async function deleteExercise(i){
   if(error){showToast('Erreur','red');return;}
   await loadAllData(); showToast('Supprimé.');
 }
-function addFromLibrary(){ renderLibPicker(); openModal('modalLibPicker'); }
-function renderLibPicker(q=''){
-  const g=document.getElementById('libPickerGrid');
-  const filtered=library.filter(ex=>ex.name.toLowerCase().includes(q.toLowerCase()));
-  if(!filtered.length){g.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);grid-column:1/-1">Aucun exercice en bibliothèque.</div>`;return;}
-  // ✅ APRÈS
-g.innerHTML = filtered.map((ex) => 
-  `<div class="lib-card" onclick='addExFromLib(${JSON.stringify(ex).replace(/'/g,"&#39;")})'>`
-  + `<div class="lib-card-name">${escapeHTML(ex.name)}</div>`
-  + `<div class="lib-card-meta"><span>${escapeHTML(ex.series||'?')}×${escapeHTML(ex.reps||'?')}</span></div>`
-  + `<div style="font-size:11px;color:var(--accent);margin-top:6px;font-weight:600">+ Ajouter</div>`
-  + `</div>`
-).join('');
+function addFromLibrary(){
+  // Réinitialise les filtres à l'ouverture
+  const regionEl = document.getElementById('libPickerRegion');
+  const muscleEl = document.getElementById('libPickerMuscle');
+  const searchEl = document.getElementById('libPickerSearch');
 
+  if(regionEl) regionEl.value = 'all';
+  if(searchEl) searchEl.value = '';
+
+  // Peuple le sélecteur de muscles avec ceux présents en bibliothèque
+  if(muscleEl){
+    const allMuscles = [...new Set(
+      library.flatMap(ex =>
+        Array.isArray(ex.muscles_targets) ? ex.muscles_targets : []
+      )
+    )].filter(Boolean).sort();
+
+    muscleEl.innerHTML =
+      '<option value="all">Tous les muscles</option>' +
+      allMuscles.map(m =>
+        `<option value="${escapeHTML(m)}">${escapeHTML(m)}</option>`
+      ).join('');
+  }
+
+  renderLibPicker();
+  openModal('modalLibPicker');
 }
-function filterLibPicker(){renderLibPicker(document.getElementById('libPickerSearch').value)}
+
+function renderLibPicker(){
+  const g = document.getElementById('libPickerGrid');
+  const countEl = document.getElementById('libPickerCount');
+
+  const q       = (document.getElementById('libPickerSearch')?.value  || '').toLowerCase().trim();
+  const region  =  document.getElementById('libPickerRegion')?.value  || 'all';
+  const muscle  =  document.getElementById('libPickerMuscle')?.value  || 'all';
+
+  const filtered = library.filter(ex => {
+    // Filtre texte
+    const textOk = !q || (ex.name || '').toLowerCase().includes(q);
+
+    // Filtre région
+    const regionOk = region === 'all' || ex.region === region;
+
+    // Filtre muscle
+    const muscleOk = muscle === 'all' ||
+      (Array.isArray(ex.muscles_targets) && ex.muscles_targets.includes(muscle));
+
+    return textOk && regionOk && muscleOk;
+  });
+
+  // Compteur
+  if(countEl){
+    countEl.textContent = filtered.length
+      ? `${filtered.length} exercice(s) trouvé(s)`
+      : '';
+  }
+
+  if(!filtered.length){
+    g.innerHTML = `
+      <div style="text-align:center;padding:32px;color:var(--text3);
+                  grid-column:1/-1;font-size:13px">
+        <i class="fa-solid fa-magnifying-glass"
+           style="font-size:24px;margin-bottom:8px;display:block;opacity:.3"></i>
+        Aucun exercice trouvé.<br>
+        <span style="font-size:11px">Modifiez vos filtres ou ajoutez des exercices à la bibliothèque.</span>
+      </div>`;
+    return;
+  }
+
+  g.innerHTML = filtered.map(ex => {
+    // Encode proprement pour l'onclick
+    const exJson = JSON.stringify(ex).replace(/'/g, "&#39;").replace(/"/g, '&quot;');
+
+    const musclesHtml = Array.isArray(ex.muscles_targets) && ex.muscles_targets.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px">
+          ${ex.muscles_targets.slice(0,3).map(m =>
+            `<span class="badge badge-blue" style="font-size:9px">${escapeHTML(m)}</span>`
+          ).join('')}
+          ${ex.muscles_targets.length > 3
+            ? `<span class="badge badge-gray" style="font-size:9px">+${ex.muscles_targets.length - 3}</span>`
+            : ''}
+        </div>`
+      : '';
+
+    return `
+      <div class="lib-card" onclick='addExFromLib(JSON.parse(this.dataset.ex))'
+           data-ex='${JSON.stringify(ex).replace(/'/g, "&#39;")}'>
+        <div class="lib-card-name">${escapeHTML(ex.name)}</div>
+
+        <div class="lib-card-meta" style="margin-top:4px">
+          ${ex.region
+            ? `<span class="badge badge-blue" style="font-size:9px">${escapeHTML(ex.region)}</span>`
+            : ''}
+        </div>
+
+        ${musclesHtml}
+
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">
+          ${escapeHTML(ex.series || '?')} × ${escapeHTML(ex.reps || '?')}
+          ${ex.rest ? ` · ${escapeHTML(ex.rest)}` : ''}
+        </div>
+
+        ${ex.focus ? `
+          <div style="font-size:11px;color:var(--text2);margin-top:4px;
+                      line-height:1.3;overflow:hidden;
+                      display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">
+            ${escapeHTML(ex.focus)}
+          </div>
+        ` : ''}
+
+        <div style="font-size:11px;color:var(--accent);margin-top:8px;
+                    font-weight:700;display:flex;align-items:center;gap:4px">
+          <i class="fa-solid fa-plus"></i> Ajouter au programme
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterLibPicker(){ renderLibPicker(); }
+
 function addExFromLib(ex){
   if (ex.alt_material && ex.alt_material.startsWith('[')) {
     try {
@@ -2601,6 +2817,102 @@ async function renderPatientAssessments(patientId){
     `;
   }
 }
+async function renderPromResponses(patientId){
+  const box = document.getElementById('promResponsesContainer');
+  if(!box) return;
+
+  box.innerHTML = `
+    <div class="full-loader">
+      <span class="loading-spinner" style="border-top-color:var(--accent);border-color:var(--border)"></span>
+      Chargement des questionnaires...
+    </div>`;
+
+  try {
+    // 1) On récupère les réponses du patient
+    const { data: responses, error } = await db
+      .from('prom_responses')
+      .select('*')
+      .eq('patient_id', patientId)
+      .order('created_at', { ascending: false });
+
+    if(error) throw error;
+
+    if(!responses || !responses.length){
+      box.innerHTML = `
+        <div style="text-align:center;padding:24px;color:var(--text3)">
+          Aucune réponse de questionnaire.
+        </div>`;
+      return;
+    }
+
+    // 2) On charge les modèles (titres + intitulés des questions)
+    const templateIds = [...new Set(responses.map(r => r.template_id).filter(Boolean))];
+
+    let templatesById = {};
+    if(templateIds.length){
+      const { data: templates } = await db
+        .from('prom_templates')
+        .select('*')
+        .in('id', templateIds);
+
+      (templates || []).forEach(t => {
+        let questions = [];
+        try {
+          questions = typeof t.questions === 'string'
+            ? JSON.parse(t.questions || '[]')
+            : (t.questions || []);
+        } catch(e) { questions = []; }
+        templatesById[t.id] = { title: t.title || 'Questionnaire', questions };
+      });
+    }
+
+    // 3) On affiche chaque réponse
+    box.innerHTML = responses.map(resp => {
+      const template = templatesById[resp.template_id] || { title: 'Questionnaire', questions: [] };
+
+      let answers = [];
+      try {
+        answers = typeof resp.responses === 'string'
+          ? JSON.parse(resp.responses || '[]')
+          : (resp.responses || []);
+      } catch(e) { answers = []; }
+
+      const answersHtml = answers.map(a => {
+        const q = template.questions[a.question_index];
+        const label = q ? (q.question || `Question ${a.question_index + 1}`) : `Question ${a.question_index + 1}`;
+        const value = (a.value === '' || a.value === null || a.value === undefined)
+          ? '<span style="color:var(--text3)">— non renseigné</span>'
+          : escapeHTML(String(a.value));
+        return `
+          <div class="info-row">
+            <span class="info-row-label">${escapeHTML(label)}</span>
+            <span class="info-row-val">${value}</span>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="info-card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:8px">
+            <div style="font-size:15px;font-weight:800;color:var(--text)">
+              ${escapeHTML(template.title)}
+            </div>
+            <span class="badge badge-blue">
+              ${new Date(resp.created_at).toLocaleDateString('fr-FR')}
+            </span>
+          </div>
+          ${answersHtml || '<div style="font-size:12px;color:var(--text3)">Aucune réponse.</div>'}
+        </div>`;
+    }).join('');
+
+  } catch(e) {
+    console.error('Erreur renderPromResponses:', e);
+    box.innerHTML = `
+      <div class="alert alert-red">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>Erreur chargement questionnaires : ${escapeHTML(e.message)}</div>
+      </div>`;
+  }
+}
 
 function switchTab(n,el){
   [0,1,2,3].forEach(i => {
@@ -2618,7 +2930,7 @@ function switchTab(n,el){
 
   if(el) el.classList.add('active');
 
-  if(n === 1 && currentPatientId) renderSuivi(currentPatientId);
+    if(n === 1 && currentPatientId){ renderSuivi(currentPatientId); renderPromResponses(currentPatientId); }
   if(n === 2 && currentPatientId) renderMessages(currentPatientId);
   if(n === 3 && currentPatientId) renderPatientAssessments(currentPatientId);
 }
@@ -2800,33 +3112,47 @@ function showLogin(){
   document.getElementById('appScreen').style.display = 'none';
 }
 
-function showView(v){
-  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
-  document.getElementById('view-'+v)?.classList.add('active');
-  document.getElementById('nav-'+v)?.classList.add('active');
-  const titles={
-    dashboard:'Tableau de bord',
-    patients:'Patients',
-    programs:'Programmes',
-    library:'Bibliothèque d\'exercices',
-    'patho-lib':'Bibliothèque de pathologies',
-    proms:'Questionnaires (PROMs)',
-    settings:'Paramètres'
-  };
-  document.getElementById('topbarTitle').textContent = titles[v] || '';
-  if (v === 'proms') loadPromList();
-}
-
 function toggleTheme(){
   const d=document.documentElement;const dark=d.getAttribute('data-theme')==='dark';
   d.setAttribute('data-theme',dark?'light':'dark');
   document.getElementById('themeBtn').innerHTML=dark?'<i class="fa-solid fa-moon"></i>':'<i class="fa-solid fa-sun"></i>';
 }
-function openModal(id){document.getElementById(id).classList.add('open')}
-function closeModal(id){document.getElementById(id).classList.remove('open')}
-document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
-document.addEventListener('keydown',e=>{if(e.key==='Escape')document.querySelectorAll('.modal-overlay.open').forEach(o=>o.classList.remove('open'))});
+
+function openModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.add('open');
+    // Sécurité : On force l'affichage directement en JS
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('pointer-events', 'auto', 'important');
+    modal.style.setProperty('z-index', '9999', 'important');
+  } else {
+    alert("Erreur: Impossible de trouver la fenêtre : " + id);
+  }
+}
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.remove('open');
+    modal.style.setProperty('display', 'none', 'important');
+    modal.style.setProperty('pointer-events', 'none', 'important');
+  }
+}
+
+// Fermer quand on clique à côté
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => {
+    if(e.target === o) closeModal(o.id);
+  });
+});
+
+// Fermer avec la touche Echap
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(o => closeModal(o.id));
+  }
+});
 
 function escapeHTML(value){
   return String(value ?? '')
@@ -2916,15 +3242,23 @@ function showToast(msg, type = 'green') {
 const VAPID_PUBLIC_KEY = 'BIa3yXKkjyMj_yhnTPPh4lYscuUNlCcD7uC3ytXy1jgc8JuoM2ktUkSlleFgIyZaoYeg0KgBZksJ3kGv2qBqPP4';
 
 // ===== ENREGISTREMENT DU SERVICE WORKER =====
+
 async function registerServiceWorker() {
-  // Vérifie que le navigateur supporte les Service Workers
   if (!('serviceWorker' in navigator)) {
-    console.log('Service Workers non supportés par ce navigateur');
+    console.log('[Notif] Service Workers non supportés');
+    return null;
+  }
+
+  const isHttp =
+    window.location.protocol === 'http:' ||
+    window.location.protocol === 'https:';
+
+  if (!isHttp) {
+    console.warn('[Notif] Service Worker ignoré : l’app n’est pas servie en HTTP/HTTPS');
     return null;
   }
 
   try {
-    // Enregistre le fichier sw.js qu'on a créé sur GitHub
     const registration = await navigator.serviceWorker.register('./sw.js');
     console.log('[Notif] Service Worker enregistré:', registration.scope);
     return registration;
@@ -3239,10 +3573,10 @@ async function loadPathos() {
   if (!currentPractitioner) return;
 
   const { data, error } = await db
-    .from('pathologies_library')
-    .select('*')
-    .eq('practitioner_id', currentPractitioner.id)
-    .order('created_at', { ascending: false });
+  .from('pathologies_library')
+  .select('*')
+  .or(`practitioner_id.eq.${currentPractitioner.id},is_public.eq.true`)
+  .order('created_at', { ascending: false });
 
   if (error) {
     console.error('Erreur chargement pathologies:', error);
@@ -3307,22 +3641,19 @@ function renderPathos() {
 
 function openMilestonesById(pathologyId){
   const p = pathosList.find(x => x.id === pathologyId);
-  if(!p) return;
-
+  if(!p) { alert("Erreur : Pathologie introuvable pour la frise."); return; }
   openMilestones(p.id, p.name || 'Pathologie');
 }
 
 function openAssessmentModalById(pathologyId){
   const p = pathosList.find(x => x.id === pathologyId);
-  if(!p) return;
-
+  if(!p) { alert("Erreur : Pathologie introuvable pour le bilan."); return; }
   openAssessmentModal(p.id, p.name || 'Pathologie');
 }
 
 function openPathologyFlagsModalById(pathologyId){
   const p = pathosList.find(x => x.id === pathologyId);
-  if(!p) return;
-
+  if(!p) { alert("Erreur : Pathologie introuvable pour les Red Flags."); return; }
   openPathologyFlagsModal(p.id, p.name || 'Pathologie');
 }
 
@@ -3405,11 +3736,19 @@ async function addTypedPathologyFromPatientForm(){
 let editingPathoId = null;
 
 function openNewPatho() {
-  editingPathoId = null;
-  document.getElementById('pathoModalTitle').textContent = 'Nouvelle pathologie';
-  document.getElementById('pathoName').value = '';
-  document.getElementById('pathoTip').value = '';
-  openModal('modalPatho');
+  try {
+    editingPathoId = null;
+    const titleEl = document.getElementById('pathoModalTitle');
+    if (titleEl) titleEl.textContent = 'Nouvelle pathologie';
+    
+    const nameEl = document.getElementById('pathoName');
+    if (nameEl) nameEl.value = '';
+    
+    setPathoTipValue('');
+    openModal('modalPatho');
+  } catch (error) {
+    alert("Erreur d'ouverture Pathologie : " + error.message);
+  }
 }
 
 function editPatho(id) {
@@ -3418,44 +3757,78 @@ function editPatho(id) {
   editingPathoId = id;
   document.getElementById('pathoModalTitle').textContent = 'Modifier la pathologie';
   document.getElementById('pathoName').value = p.name || '';
-  document.getElementById('pathoTip').value = p.education_tip || '';
+  setPathoTipValue(p.education_tip || '');
   openModal('modalPatho');
 }
 
 async function savePatho() {
-  const name = document.getElementById('pathoName').value.trim();
-  const tip  = document.getElementById('pathoTip').value.trim();
-
-  if (!name) { showToast('Nom requis', 'red'); return; }
-
-  const btn = document.querySelector('#modalPatho .btn-primary');
-  btn.disabled = true;
-
   try {
+    const nameInput = document.getElementById('pathoName');
+    const name = nameInput ? nameInput.value.trim() : '';
+    const tip = getPathoTipValue().trim();
+
+    if (!name) { 
+      showToast('Le nom de la pathologie est requis', 'red'); 
+      return; 
+    }
+
+    const btn = document.querySelector('#modalPatho .btn-primary');
+    const oldHtml = btn ? btn.innerHTML : '<i class="fa-solid fa-floppy-disk"></i> Enregistrer';
+    
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loading-spinner" style="border-top-color:#fff"></span> Enregistrement...';
+    }
+
     if (editingPathoId) {
+      // MODE MODIFICATION
       const { error } = await db
         .from('pathologies_library')
-        .update({ name, education_tip: tip, updated_at: new Date().toISOString() })
+        .update({ 
+          name: name, 
+          education_tip: tip,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', editingPathoId)
         .eq('practitioner_id', currentPractitioner.id);
+        
       if (error) throw error;
       showToast('Pathologie modifiée !', 'green');
     } else {
+      // MODE AJOUT
       const { error } = await db
         .from('pathologies_library')
-        .insert({ practitioner_id: currentPractitioner.id, name, education_tip: tip });
+        .insert({ 
+          practitioner_id: currentPractitioner.id, 
+          name: name, 
+          education_tip: tip 
+        });
+        
       if (error) throw error;
       showToast('Pathologie ajoutée !', 'green');
     }
+
+    // On ferme et on recharge
     closeModal('modalPatho');
     await loadPathos();
+
+    // Réactivation du bouton
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+
   } catch(e) {
-    showToast('Erreur : ' + e.message, 'red');
-  } finally {
-    btn.disabled = false;
+    console.error('Erreur détaillée savePatho:', e);
+    showToast('Erreur : ' + (e.message || 'Impossible de sauvegarder'), 'red');
+    
+    const btn = document.querySelector('#modalPatho .btn-primary');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Enregistrer';
+    }
   }
 }
-
 async function deletePatho(id) {
   if (!confirm('Supprimer cette pathologie et sa frise ?')) return;
   const { error } = await db
@@ -4087,7 +4460,12 @@ async function loadPromList() {
     .eq('practitioner_id', currentPractitioner.id)
     .order('created_at', { ascending: false });
 
+  // ← AJOUTE cette ligne
+  promsCache = data || [];
+
   const box = document.getElementById('promList');
+  // ... reste inchangé
+
   if (!box) return;
 
   if (error || !data || !data.length) {
@@ -4252,54 +4630,54 @@ async function loadAssessmentTemplate(){
 function loadDefaultAssessmentTemplate(){
   assessmentTemplate.sections = [
     {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: 'Anamnèse',
       icon: 'fa-comments',
       fields: [
-        { id: crypto.randomUUID(), label: 'Motif de consultation', type: 'textarea' },
-        { id: crypto.randomUUID(), label: 'Mode d’apparition', type: 'textarea' },
-        { id: crypto.randomUUID(), label: 'Antécédents pertinents', type: 'textarea' }
+        { id: generateUUID(), label: 'Motif de consultation', type: 'textarea' },
+        { id: generateUUID(), label: 'Mode d’apparition', type: 'textarea' },
+        { id: generateUUID(), label: 'Antécédents pertinents', type: 'textarea' }
       ]
     },
     {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: 'Douleur',
       icon: 'fa-heart-pulse',
       fields: [
-        { id: crypto.randomUUID(), label: 'EVA repos', type: 'number', min: 0, max: 10 },
-        { id: crypto.randomUUID(), label: 'EVA effort', type: 'number', min: 0, max: 10 },
-        { id: crypto.randomUUID(), label: 'Localisation', type: 'text' },
-        { id: crypto.randomUUID(), label: 'Facteurs aggravants / soulageants', type: 'textarea' }
+        { id: generateUUID(), label: 'EVA repos', type: 'number', min: 0, max: 10 },
+        { id: generateUUID(), label: 'EVA effort', type: 'number', min: 0, max: 10 },
+        { id: generateUUID(), label: 'Localisation', type: 'text' },
+        { id: generateUUID(), label: 'Facteurs aggravants / soulageants', type: 'textarea' }
       ]
     },
     {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: 'Bilan articulaire',
       icon: 'fa-arrows-left-right',
       fields: [
-        { id: crypto.randomUUID(), label: 'Mobilité active', type: 'textarea' },
-        { id: crypto.randomUUID(), label: 'Mobilité passive', type: 'textarea' },
-        { id: crypto.randomUUID(), label: 'Limitations principales', type: 'textarea' }
+        { id: generateUUID(), label: 'Mobilité active', type: 'textarea' },
+        { id: generateUUID(), label: 'Mobilité passive', type: 'textarea' },
+        { id: generateUUID(), label: 'Limitations principales', type: 'textarea' }
       ]
     },
     {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: 'Bilan musculaire',
       icon: 'fa-dumbbell',
       fields: [
-        { id: crypto.randomUUID(), label: 'Force globale', type: 'textarea' },
-        { id: crypto.randomUUID(), label: 'Groupes déficitaires', type: 'textarea' },
-        { id: crypto.randomUUID(), label: 'Endurance / fatigabilité', type: 'textarea' }
+        { id: generateUUID(), label: 'Force globale', type: 'textarea' },
+        { id: generateUUID(), label: 'Groupes déficitaires', type: 'textarea' },
+        { id: generateUUID(), label: 'Endurance / fatigabilité', type: 'textarea' }
       ]
     },
     {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: 'Tests spécifiques',
       icon: 'fa-vial-circle-check',
       fields: [
-        { id: crypto.randomUUID(), label: 'Test 1 - nom', type: 'text' },
-        { id: crypto.randomUUID(), label: 'Test 1 - résultat', type: 'choice', options: 'Négatif|Positif|Douteux' },
-        { id: crypto.randomUUID(), label: 'Commentaires tests', type: 'textarea' }
+        { id: generateUUID(), label: 'Test 1 - nom', type: 'text' },
+        { id: generateUUID(), label: 'Test 1 - résultat', type: 'choice', options: 'Négatif|Positif|Douteux' },
+        { id: generateUUID(), label: 'Commentaires tests', type: 'textarea' }
       ]
     }
   ];
@@ -4427,7 +4805,7 @@ function renderAssessmentFieldBuilder(section, sIndex, field, fIndex){
 
 function addAssessmentSection(){
   assessmentTemplate.sections.push({
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     title: 'Nouvelle section',
     icon: 'fa-folder',
     fields: []
@@ -4454,7 +4832,7 @@ function addAssessmentField(sectionIndex){
   }
 
   assessmentTemplate.sections[sectionIndex].fields.push({
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     label: 'Nouveau champ',
     type: 'text'
   });
@@ -4485,12 +4863,12 @@ async function saveAssessmentTemplate(){
   console.log('[SAVE TEMPLATE] sections:', assessmentTemplate.sections);
 
   const cleanedSections = (assessmentTemplate.sections || []).map(section => ({
-    id: section.id || crypto.randomUUID(),
+    id: section.id || generateUUID(),
     title: String(section.title || '').trim() || 'Section',
     icon: String(section.icon || 'fa-folder').trim() || 'fa-folder',
     fields: Array.isArray(section.fields)
       ? section.fields.map(field => ({
-          id: field.id || crypto.randomUUID(),
+          id: field.id || generateUUID(),
           label: String(field.label || '').trim() || 'Champ',
           type: field.type || 'text',
           options: field.options || '',
@@ -5038,7 +5416,9 @@ function closeSidebar() {
 
 // Affiche le burger sur mobile, ferme la sidebar en changeant de vue sur mobile
 function initMobileUI() {
+  loadSavedAccentColor();
   const burger = document.getElementById('burgerBtn');
+
   if (window.innerWidth <= 768) {
     if (burger) burger.style.display = 'flex';
   }
@@ -5205,6 +5585,820 @@ async function deleteSelectedFlagTemplate() {
     console.error('Erreur suppression modèle flags:', e);
     showToast('Erreur : ' + e.message, 'red');
   }
+}
+// ============================================================
+// PERSONNALISATION COMPLÈTE DE L'INTERFACE
+// ============================================================
+
+const COLOR_THEMES = [
+  {
+    id: 'ocean',
+    name: 'Océan',
+    accent: '#3b82f6',
+    sidebar: '#1e293b',
+    preview: ['#1e293b','#3b82f6','#f0f4f8']
+  },
+  {
+    id: 'forest',
+    name: 'Forêt',
+    accent: '#10b981',
+    sidebar: '#064e3b',
+    preview: ['#064e3b','#10b981','#f0fdf4']
+  },
+  {
+    id: 'royal',
+    name: 'Royal',
+    accent: '#8b5cf6',
+    sidebar: '#2e1065',
+    preview: ['#2e1065','#8b5cf6','#faf5ff']
+  },
+  {
+    id: 'ruby',
+    name: 'Rubis',
+    accent: '#ef4444',
+    sidebar: '#1f0000',
+    preview: ['#1f0000','#ef4444','#fff5f5']
+  },
+  {
+    id: 'slate',
+    name: 'Ardoise',
+    accent: '#64748b',
+    sidebar: '#0f172a',
+    preview: ['#0f172a','#64748b','#f1f5f9']
+  },
+  {
+    id: 'rose',
+    name: 'Rose',
+    accent: '#ec4899',
+    sidebar: '#1f0a18',
+    preview: ['#1f0a18','#ec4899','#fdf2f8']
+  },
+  {
+    id: 'teal',
+    name: 'Teal',
+    accent: '#0d9488',
+    sidebar: '#042f2e',
+    preview: ['#042f2e','#0d9488','#f0fdfa']
+  },
+];
+
+const BG_STYLES = [
+  { id: 'default', name: 'Défaut',  color: '#f0f4f8' },
+  { id: 'white',   name: 'Blanc',   color: '#ffffff' },
+  { id: 'cool',    name: 'Bleu',    color: '#eff6ff' },
+  { id: 'green',   name: 'Vert',    color: '#f0fdf4' },
+  { id: 'purple',  name: 'Violet',  color: '#faf5ff' },
+  { id: 'warm',    name: 'Chaud',   color: '#fefce8' },
+  { id: 'gray',    name: 'Gris',    color: '#f1f5f9' },
+];
+
+const FONT_SIZES = [
+  { id: 'small',  name: 'Petite',  size: '13px' },
+  { id: 'normal', name: 'Normal',  size: '14px' },
+  { id: 'large',  name: 'Grande',  size: '15px' },
+  { id: 'xlarge', name: 'XL',      size: '16px' },
+];
+
+function renderAccentColorPicker() {
+  renderColorThemePicker();
+  renderBgStylePicker();
+  renderFontSizePicker();
+}
+
+function renderColorThemePicker() {
+  const box = document.getElementById('colorThemePicker');
+  if (!box) return;
+
+  const current = localStorage.getItem('colorTheme') || 'ocean';
+
+  box.innerHTML = COLOR_THEMES.map(t => {
+    const isActive = t.id === current;
+    return `
+      <button type="button"
+        onclick="applyColorTheme('${t.id}')"
+        style="
+          border: 2px solid ${isActive ? t.accent : 'var(--border)'};
+          border-radius: 12px;
+          background: var(--card);
+          padding: 10px;
+          cursor: pointer;
+          transition: all .2s;
+          box-shadow: ${isActive ? `0 0 0 3px ${t.accent}44` : 'none'};
+          position: relative;
+        ">
+        <!-- Mini preview sidebar + accent -->
+        <div style="display:flex;gap:4px;margin-bottom:7px;border-radius:7px;overflow:hidden;height:30px">
+          <div style="width:28%;background:${t.preview[0]};border-radius:5px 0 0 5px"></div>
+          <div style="flex:1;background:${t.preview[2]};display:flex;align-items:center;justify-content:center">
+            <div style="width:60%;height:6px;border-radius:3px;background:${t.preview[1]}"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:var(--text);text-align:center">
+          ${t.name}
+        </div>
+        ${isActive ? `
+          <div style="
+            position:absolute;top:5px;right:5px;
+            width:16px;height:16px;
+            background:${t.accent};
+            border-radius:50%;
+            display:flex;align-items:center;justify-content:center;
+          ">
+            <i class="fa-solid fa-check" style="color:#fff;font-size:8px"></i>
+          </div>
+        ` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // Met à jour le label du thème actuel
+  const label = document.getElementById('currentThemeLabel');
+  if (label) {
+    const theme = COLOR_THEMES.find(t => t.id === current) || COLOR_THEMES[0];
+    label.textContent = theme.name;
+    label.style.color = theme.accent;
+  }
+}
+
+function renderBgStylePicker() {
+  const box = document.getElementById('bgStylePicker');
+  if (!box) return;
+
+  const current = localStorage.getItem('bgStyle') || 'default';
+
+  box.innerHTML = BG_STYLES.map(b => {
+    const isActive = b.id === current;
+    return `
+      <button type="button"
+        onclick="applyBgStyle('${b.id}')"
+        title="${b.name}"
+        style="
+          display:flex;flex-direction:column;align-items:center;gap:4px;
+          border:none;background:transparent;cursor:pointer;
+        ">
+        <div style="
+          width:38px;height:38px;
+          border-radius:10px;
+          background:${b.color};
+          border: 2px solid ${isActive ? 'var(--accent)' : 'var(--border)'};
+          box-shadow: ${isActive ? '0 0 0 2px var(--accent)44' : 'none'};
+          display:flex;align-items:center;justify-content:center;
+          transition:all .2s;
+        ">
+          ${isActive ? `<i class="fa-solid fa-check" style="color:#1e293b;font-size:12px"></i>` : ''}
+        </div>
+        <span style="font-size:10px;color:var(--text3);font-weight:600">${b.name}</span>
+      </button>
+    `;
+  }).join('');
+}
+
+function renderFontSizePicker() {
+  const box = document.getElementById('fontSizePicker');
+  if (!box) return;
+
+  const current = localStorage.getItem('fontSize') || 'normal';
+
+  box.innerHTML = FONT_SIZES.map(f => {
+    const isActive = f.id === current;
+    return `
+      <button type="button"
+        onclick="applyFontSize('${f.id}')"
+        style="
+          padding: 8px 16px;
+          border-radius: 9px;
+          border: 2px solid ${isActive ? 'var(--accent)' : 'var(--border)'};
+          background: ${isActive ? 'var(--accent)' : 'var(--card)'};
+          color: ${isActive ? '#fff' : 'var(--text2)'};
+          font-size: ${f.size};
+          font-weight: 700;
+          cursor: pointer;
+          transition: all .2s;
+        ">
+        ${f.name}
+      </button>
+    `;
+  }).join('');
+}
+
+function applyColorTheme(themeId) {
+  const theme = COLOR_THEMES.find(t => t.id === themeId);
+  if (!theme) return;
+
+  document.documentElement.setAttribute('data-color-theme', themeId);
+  localStorage.setItem('colorTheme', themeId);
+
+  renderColorThemePicker();
+  showToast(`Thème "${theme.name}" appliqué !`, 'green');
+}
+
+function applyBgStyle(styleId) {
+  if (styleId === 'default') {
+    document.documentElement.removeAttribute('data-bg-style');
+  } else {
+    document.documentElement.setAttribute('data-bg-style', styleId);
+  }
+  localStorage.setItem('bgStyle', styleId);
+  renderBgStylePicker();
+  showToast('Fond appliqué !', 'green');
+}
+
+function applyFontSize(sizeId) {
+  document.documentElement.setAttribute('data-font-size', sizeId);
+  localStorage.setItem('fontSize', sizeId);
+  renderFontSizePicker();
+  showToast('Taille de police modifiée !', 'green');
+}
+
+function resetAllTheme() {
+  applyColorTheme('ocean');
+  applyBgStyle('default');
+  applyFontSize('normal');
+  localStorage.removeItem('colorTheme');
+  localStorage.removeItem('bgStyle');
+  localStorage.removeItem('fontSize');
+  // Nettoie les anciens localStorage
+  localStorage.removeItem('accentColor');
+  localStorage.removeItem('bgColor');
+  showToast('Thème réinitialisé', 'green');
+}
+
+// Alias pour compatibilité avec resetColors() si encore appelé ailleurs
+function resetColors() { resetAllTheme(); }
+
+function applyAccentColor() {} // vide pour compatibilité
+function applyBgColor()    {} // vide pour compatibilité
+
+function loadSavedAccentColor() {
+  // Charge le thème complet
+  const savedTheme = localStorage.getItem('colorTheme') || 'ocean';
+  document.documentElement.setAttribute('data-color-theme', savedTheme);
+
+  // Charge le style de fond
+  const savedBg = localStorage.getItem('bgStyle') || 'default';
+  if (savedBg !== 'default') {
+    document.documentElement.setAttribute('data-bg-style', savedBg);
+  }
+
+  // Charge la taille de police
+  const savedFont = localStorage.getItem('fontSize') || 'normal';
+  document.documentElement.setAttribute('data-font-size', savedFont);
+}
+
+// ============================================================
+// EXPORT RGPD
+// ============================================================
+async function exportAllDataRGPD(format = 'json') {
+  if (!currentPractitioner) return;
+
+  showToast('Préparation de l\'export...', 'blue');
+
+  try {
+    const pid = currentPractitioner.id;
+
+    const { data: pats, error: patsError } = await db
+      .from('patients')
+      .select('*')
+      .eq('practitioner_id', pid);
+
+    if (patsError) throw patsError;
+
+    const patientIds = (pats || []).map(p => p.id);
+
+    const [
+      { data: progs, error: progsError },
+      { data: lib, error: libError },
+      { data: sessions, error: sessionsError },
+      { data: messages, error: messagesError },
+      { data: pathos, error: pathosError }
+    ] = await Promise.all([
+      db.from('programs').select('*').eq('practitioner_id', pid),
+      db.from('exercises_library').select('*').eq('practitioner_id', pid),
+      patientIds.length
+        ? db.from('sessions').select('*').in('patient_id', patientIds)
+        : Promise.resolve({ data: [], error: null }),
+      patientIds.length
+        ? db.from('messages').select('*').in('patient_id', patientIds)
+        : Promise.resolve({ data: [], error: null }),
+      db.from('pathologies_library').select('*').eq('practitioner_id', pid)
+    ]);
+
+    if (progsError) throw progsError;
+    if (libError) throw libError;
+    if (sessionsError) throw sessionsError;
+    if (messagesError) throw messagesError;
+    if (pathosError) throw pathosError;
+
+    const exportDate = new Date().toISOString().slice(0, 10);
+
+    if (format === 'json') {
+      const payload = {
+        export_date: exportDate,
+        practitioner: {
+          id: currentPractitioner.id,
+          email: currentPractitioner.email,
+          first_name: currentPractitioner.first_name,
+          last_name: currentPractitioner.last_name,
+          speciality: currentPractitioner.speciality,
+          cabinet: currentPractitioner.cabinet
+        },
+        patients: pats || [],
+        programs: progs || [],
+        exercises_library: lib || [],
+        sessions: sessions || [],
+        messages: messages || [],
+        pathologies: pathos || []
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(payload, null, 2)],
+        { type: 'application/json;charset=utf-8;' }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `alyzio-export-rgpd-${exportDate}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+    } else {
+      const safeCSV = v => {
+        const s = String(v ?? '');
+        return '"' + s.replace(/"/g, '""') + '"';
+      };
+
+      const rows = [
+        [
+          'Prénom',
+          'Nom',
+          'Âge',
+          'Pathologie',
+          'Statut',
+          'Début',
+          'Email',
+          'Téléphone',
+          'Date séance',
+          'EVA',
+          'Borg',
+          'Note'
+        ]
+      ];
+
+      (pats || []).forEach(p => {
+        const patSessions = (sessions || []).filter(s => s.patient_id === p.id);
+
+        if (!patSessions.length) {
+          rows.push([
+            p.first_name,
+            p.last_name,
+            p.age || '',
+            p.pathology || '',
+            p.status || '',
+            p.start_date || '',
+            p.email || '',
+            p.phone || '',
+            '',
+            '',
+            '',
+            ''
+          ]);
+        } else {
+          patSessions.forEach(s => {
+            rows.push([
+              p.first_name,
+              p.last_name,
+              p.age || '',
+              p.pathology || '',
+              p.status || '',
+              p.start_date || '',
+              p.email || '',
+              p.phone || '',
+              new Date(s.created_at).toLocaleString('fr-FR'),
+              s.eva ?? '',
+              s.borg ?? '',
+              s.note || ''
+            ]);
+          });
+        }
+      });
+
+      const csv = rows.map(r => r.map(safeCSV).join(';')).join('\n');
+      const blob = new Blob(['\uFEFF' + csv], {
+        type: 'text/csv;charset=utf-8;'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `alyzio-export-rgpd-${exportDate}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    showToast('Export téléchargé !', 'green');
+
+  } catch (e) {
+    console.error('Erreur export RGPD:', e);
+    showToast('Erreur export : ' + e.message, 'red');
+  }
+}
+
+// ============================================================
+// CHANGEMENT DE MOT DE PASSE
+// ============================================================
+async function changePassword() {
+  const newPwd = document.getElementById('settNewPwd').value;
+  const confirmPwd = document.getElementById('settNewPwdConfirm').value;
+  const msgEl = document.getElementById('pwdChangeMsg');
+
+  // Reset
+  msgEl.style.display = 'none';
+  msgEl.textContent = '';
+
+  if (newPwd.length < 8) {
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '❌ Le mot de passe doit faire au moins 8 caractères.';
+    return;
+  }
+
+  if (newPwd !== confirmPwd) {
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '❌ Les deux mots de passe ne correspondent pas.';
+    return;
+  }
+
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="loading-spinner" style="border-top-color:#fff"></span> Mise à jour...';
+
+  try {
+    const { error } = await db.auth.updateUser({ password: newPwd });
+
+    if (error) throw error;
+
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--green)';
+    msgEl.textContent = '✅ Mot de passe mis à jour avec succès !';
+
+    // Vide les champs
+    document.getElementById('settNewPwd').value = '';
+    document.getElementById('settNewPwdConfirm').value = '';
+
+    showToast('Mot de passe modifié !', 'green');
+
+  } catch (e) {
+    msgEl.style.display = 'block';
+    msgEl.style.color = 'var(--red)';
+    msgEl.textContent = '❌ Erreur : ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+// ============================================================
+// ÉDITEUR RICHE PATHO TIP
+// ============================================================
+function fmtTip(cmd) {
+  const editor = document.getElementById('pathoTipEditor');
+  if (!editor) return;
+  editor.focus();
+  document.execCommand(cmd, false, null);
+}
+
+function fmtTipInsert(html) {
+  const editor = document.getElementById('pathoTipEditor');
+  if (!editor) return;
+  editor.focus();
+  document.execCommand('insertHTML', false, html);
+}
+
+function getPathoTipValue() {
+  const editor = document.getElementById('pathoTipEditor');
+  return editor ? editor.innerHTML : '';
+}
+
+function setPathoTipValue(html) {
+  const editor = document.getElementById('pathoTipEditor');
+  if (editor) editor.innerHTML = html || '';
+}
+
+// ============================================================
+// RECHERCHE PROGRAMMES
+// ============================================================
+
+function renderPrograms() {
+  const searchEl = document.getElementById('programSearch');
+  const phaseEl  = document.getElementById('programPhaseFilter');
+  if (searchEl) searchEl.value = '';
+  if (phaseEl)  phaseEl.value  = 'all';
+  renderProgramsFiltered(programs);
+}
+
+function filterPrograms() {
+  const q     = (document.getElementById('programSearch')?.value || '').toLowerCase().trim();
+  const phase =  document.getElementById('programPhaseFilter')?.value || 'all';
+
+  const filtered = programs.filter(prog => {
+    const nameOk = !q || (prog.name || '').toLowerCase().includes(q);
+    let phaseOk = true;
+    if (phase === 'template') {
+      phaseOk = prog.is_template === true || !prog.patient_id;
+    } else if (phase !== 'all') {
+      phaseOk = prog.phase === phase;
+    }
+    return nameOk && phaseOk;
+  });
+
+  renderProgramsFiltered(filtered);
+}
+
+function renderProgramsFiltered(list) {
+  const g = document.getElementById('programsGrid');
+
+  if (!list || !list.length) {
+    g.innerHTML = `
+      <div style="text-align:center;padding:32px;color:var(--text3);grid-column:1/-1">
+        <i class="fa-solid fa-magnifying-glass"
+           style="font-size:28px;margin-bottom:10px;display:block;opacity:.3"></i>
+        Aucun programme trouvé.
+      </div>`;
+    return;
+  }
+
+  g.innerHTML = list.map(prog => {
+    const pat = patients.find(x => x.id === prog.patient_id);
+    const isTemplate = prog.is_template === true || !prog.patient_id;
+
+    return `
+      <div class="prog-card">
+        <div class="prog-card-header">
+          <div style="display:flex;align-items:flex-start;gap:10px;flex:1">
+            <div class="prog-card-icon"
+                 style="background:linear-gradient(135deg,#dbeafe,#bfdbfe)">
+              ${isTemplate ? '📚' : '🏋️'}
+            </div>
+            <div>
+              <div class="prog-title">${escapeHTML(prog.name)}</div>
+              <div class="prog-sub">
+                ${isTemplate
+                  ? 'Modèle réutilisable'
+                  : pat
+                    ? `${escapeHTML(pat.first_name)} ${escapeHTML(pat.last_name)}`
+                    : 'Non assigné'}
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-secondary btn-sm btn-icon-only"
+                    onclick="openProgramBuilder('${prog.id}')">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="btn btn-danger btn-sm btn-icon-only"
+                    onclick="deleteProgram('${prog.id}')">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="prog-card-body">
+          <div style="font-size:12px;color:var(--text3)">
+            ${(prog.exercises || []).length} exercice(s) · ${escapeHTML(prog.frequency || '—')}
+          </div>
+        </div>
+        <div class="prog-card-footer">
+          <span class="badge ${isTemplate ? 'badge-purple' : 'badge-blue'}"
+            style="${isTemplate ? 'background:rgba(139,92,246,.15);color:#7c3aed' : ''}">
+            ${isTemplate ? 'Modèle' : escapeHTML(phaseLabel(prog.phase))}
+          </span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ============================================================
+// RECHERCHE PROMs
+// ============================================================
+
+async function filterPromList() {
+  const q = (document.getElementById('promSearch')?.value || '').toLowerCase().trim();
+  const filtered = promsCache.filter(p =>
+    !q || (p.title || '').toLowerCase().includes(q)
+  );
+  renderPromListFiltered(filtered);
+}
+
+function renderPromListFiltered(list) {
+  const box = document.getElementById('promList');
+  if (!box) return;
+
+  if (!list.length) {
+    box.innerHTML = `
+      <div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">
+        <i class="fa-solid fa-magnifying-glass"
+           style="font-size:28px;margin-bottom:10px;display:block;opacity:.3"></i>
+        Aucun questionnaire trouvé.
+      </div>`;
+    return;
+  }
+
+  const scoreModeLabel = {
+    sum:     'Somme',
+    average: 'Moyenne',
+    percent: 'Pourcentage'
+  };
+
+  box.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Titre</th>
+          <th>Questions</th>
+          <th>Calcul</th>
+          <th>Créé le</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${list.map(p => {
+          let questions = [];
+          try { questions = JSON.parse(p.questions || '[]'); } catch(e) {}
+          return `
+            <tr>
+              <td>
+                <div style="font-weight:700;color:var(--text)">${escapeHTML(p.title)}</div>
+                ${p.description
+                  ? `<div style="font-size:11px;color:var(--text3)">
+                      ${escapeHTML(p.description.slice(0,60))}${p.description.length>60?'…':''}
+                     </div>`
+                  : ''}
+              </td>
+              <td><span class="badge badge-blue">${questions.length} q.</span></td>
+              <td><span class="badge badge-gray">${scoreModeLabel[p.score_mode] || 'Somme'}</span></td>
+              <td style="font-size:11px;color:var(--text3)">
+                ${new Date(p.created_at).toLocaleDateString('fr-FR')}
+              </td>
+              <td>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-secondary btn-sm btn-icon-only"
+                          onclick="editProm('${p.id}')" title="Modifier">
+                    <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button class="btn btn-danger btn-sm btn-icon-only"
+                          onclick="deleteProm('${p.id}')" title="Supprimer">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ============================================================
+// RECHERCHE MODÈLE PROGRAMME dans le builder
+// ============================================================
+
+function filterModelSelector() {
+  const q = (document.getElementById('modelSearch')?.value || '').toLowerCase().trim();
+  const sel = document.getElementById('modelSelector');
+  if (!sel) return;
+
+  const models = programs.filter(p => p.is_template === true || !p.patient_id);
+
+  const filtered = models.filter(m =>
+    !q ||
+    (m.name || '').toLowerCase().includes(q) ||
+    (m.phase || '').toLowerCase().includes(q) ||
+    (m.description || '').toLowerCase().includes(q)
+  );
+
+  sel.innerHTML = '<option value="">-- Sélectionner un modèle --</option>' +
+    filtered.map(m => {
+      const pat = patients.find(x => x.id === m.patient_id);
+      const label = pat
+        ? `${m.name} — ${pat.first_name} ${pat.last_name}`
+        : m.name;
+      return `<option value="${m.id}">${escapeHTML(label)} (${escapeHTML(phaseLabel(m.phase))})</option>`;
+    }).join('');
+}
+
+// ============================================================
+// RECHERCHE PROM dans le sélecteur du programme
+// ============================================================
+
+function filterPromPicker() {
+  const q = (document.getElementById('promPickerSearch')?.value || '').toLowerCase().trim();
+  const resultsBox = document.getElementById('promPickerResults');
+  if (!resultsBox) return;
+
+  if (!q) {
+    resultsBox.style.display = 'none';
+    resultsBox.innerHTML = '';
+    return;
+  }
+
+  const filtered = availableProms.filter(p =>
+    (p.title || '').toLowerCase().includes(q)
+  );
+
+  if (!filtered.length) {
+    resultsBox.style.display = 'block';
+    resultsBox.innerHTML = `
+      <div style="padding:12px;text-align:center;color:var(--text3);font-size:12px">
+        Aucun questionnaire trouvé
+      </div>`;
+    return;
+  }
+
+  resultsBox.style.display = 'block';
+  resultsBox.innerHTML = filtered.map(p => `
+    <div onclick="addPromFromPicker('${p.id}','${escapeHTML(p.title)}')"
+         style="
+           padding:10px 14px;
+           cursor:pointer;
+           border-bottom:1px solid var(--border);
+           font-size:13px;
+           display:flex;
+           align-items:center;
+           gap:8px;
+           transition:background .15s;
+         "
+         onmouseover="this.style.background='var(--bg)'"
+         onmouseout="this.style.background=''">
+      <i class="fa-solid fa-file-signature"
+         style="color:var(--accent);font-size:12px"></i>
+      <span style="font-weight:600;color:var(--text)">${escapeHTML(p.title)}</span>
+      <span style="margin-left:auto;font-size:11px;color:var(--accent);font-weight:700">
+        + Ajouter
+      </span>
+    </div>
+  `).join('');
+}
+
+function addPromFromPicker(promId, promTitle) {
+  const existing = getSelectedPromIds();
+
+  if (existing.includes(promId)) {
+    showToast('Ce questionnaire est déjà ajouté', 'blue');
+    return;
+  }
+
+  renderProgPromsContainer([...existing, promId]);
+
+  const searchEl = document.getElementById('promPickerSearch');
+  const resultsEl = document.getElementById('promPickerResults');
+  if (searchEl) searchEl.value = '';
+  if (resultsEl) {
+    resultsEl.style.display = 'none';
+    resultsEl.innerHTML = '';
+  }
+
+  showToast(`"${promTitle}" ajouté`, 'green');
+}
+
+function showView(v){
+  closeSidebar();
+
+  document.querySelectorAll('.view').forEach(el => {
+    el.classList.remove('active');
+  });
+
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.remove('active');
+  });
+
+  const view = document.getElementById('view-' + v);
+  const nav  = document.getElementById('nav-' + v);
+
+  if (!view) {
+    console.error('[showView] Vue introuvable:', 'view-' + v);
+    return;
+  }
+
+  view.classList.add('active');
+  if (nav) nav.classList.add('active');
+
+  const titles = {
+    dashboard:    'Tableau de bord',
+    patients:     'Patients',
+    programs:     'Programmes',
+    library:      'Bibliothèque d\'exercices',
+    'patho-lib':  'Bibliothèque de pathologies',
+    proms:        'Questionnaires (PROMs)',
+    settings:     'Paramètres'
+  };
+
+  const titleEl = document.getElementById('topbarTitle');
+  if (titleEl) titleEl.textContent = titles[v] || '';
+
+  if (v === 'library')    renderLibrary();
+  if (v === 'patho-lib')  renderPathos();
+  if (v === 'proms')      loadPromList();
+  if (v === 'settings')   renderAccentColorPicker();
 }
 
 tryAutoLogin();

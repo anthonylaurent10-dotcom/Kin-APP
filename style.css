@@ -810,3 +810,194 @@ tr:hover td{background:var(--bg)}
   }
 }
 
+/* ============================================================
+   THÈMES DE COULEURS COMPLETS
+   ============================================================ */
+
+/* Thème Océan (défaut) */
+[data-color-theme="ocean"] {
+  --accent:#3b82f6; --accent2:#1d4ed8;
+  --sidebar:#1e293b; --sidebar-text:#94a3b8; --sidebar-active:#3b82f6;
+  --sidebar-border:rgba(255,255,255,.06);
+  --sidebar-hover:rgba(255,255,255,.06);
+  --sidebar-active-bg:rgba(59,130,246,.2);
+}
+[data-color-theme="ocean"][data-theme="dark"] {
+  --sidebar:#0f172a;
+}
+
+/* Thème Forêt */
+[data-color-theme="forest"] {
+  --accent:#10b981; --accent2:#059669;
+  --sidebar:#064e3b; --sidebar-text:#6ee7b7; --sidebar-active:#10b981;
+  --sidebar-border:rgba(255,255,255,.07);
+  --sidebar-hover:rgba(16,185,129,.1);
+  --sidebar-active-bg:rgba(16,185,129,.2);
+}
+[data-color-theme="forest"][data-theme="dark"] {
+  --sidebar:#022c1f;
+}
+
+/* Thème Violet Royal */
+[data-color-theme="royal"] {
+  --accent:#8b5cf6; --accent2:#6d28d9;
+  --sidebar:#2e1065; --sidebar-text:#c4b5fd; --sidebar-active:#a78bfa;
+  --sidebar-border:rgba(255,255,255,.07);
+  --sidebar-hover:rgba(139,92,246,.1);
+  --sidebar-active-bg:rgba(139,92,246,.2);
+}
+[data-color-theme="royal"][data-theme="dark"] {
+  --sidebar:#1a0a3d;
+}
+
+/* Thème Rubis */
+[data-color-theme="ruby"] {
+  --accent:#ef4444; --accent2:#b91c1c;
+  --sidebar:#1f0000; --sidebar-text:#fca5a5; --sidebar-active:#f87171;
+  --sidebar-border:rgba(255,255,255,.07);
+  --sidebar-hover:rgba(239,68,68,.1);
+  --sidebar-active-bg:rgba(239,68,68,.2);
+}
+[data-color-theme="ruby"][data-theme="dark"] {
+  --sidebar:#120000;
+}
+
+/* Thème Ardoise */
+[data-color-theme="slate"] {
+  --accent:#64748b; --accent2:#475569;
+  --sidebar:#0f172a; --sidebar-text:#94a3b8; --sidebar-active:#cbd5e1;
+  --sidebar-border:rgba(255,255,255,.06);
+  --sidebar-hover:rgba(255,255,255,.05);
+  --sidebar-active-bg:rgba(100,116,139,.2);
+}
+[data-color-theme="slate"][data-theme="dark"] {
+  --sidebar:#020617;
+}
+
+/* Thème Rose Poudré */
+[data-color-theme="rose"] {
+  --accent:#ec4899; --accent2:#be185d;
+  --sidebar:#1f0a18; --sidebar-text:#f9a8d4; --sidebar-active:#f472b6;
+  --sidebar-border:rgba(255,255,255,.07);
+  --sidebar-hover:rgba(236,72,153,.1);
+  --sidebar-active-bg:rgba(236,72,153,.2);
+}
+[data-color-theme="rose"][data-theme="dark"] {
+  --sidebar:#12000d;
+}
+
+/* Thème Teal */
+[data-color-theme="teal"] {
+  --accent:#0d9488; --accent2:#0f766e;
+  --sidebar:#042f2e; --sidebar-text:#5eead4; --sidebar-active:#2dd4bf;
+  --sidebar-border:rgba(255,255,255,.07);
+  --sidebar-hover:rgba(13,148,136,.1);
+  --sidebar-active-bg:rgba(13,148,136,.2);
+}
+[data-color-theme="teal"][data-theme="dark"] {
+  --sidebar:#011716;
+}
+
+/* Application des variables sidebar */
+.sidebar {
+  background: var(--sidebar) !important;
+  border-right: 1px solid var(--sidebar-border, rgba(255,255,255,.06));
+}
+.sidebar-logo,
+.sidebar-user {
+  border-bottom-color: var(--sidebar-border, rgba(255,255,255,.06)) !important;
+}
+.nav-item {
+  color: var(--sidebar-text) !important;
+}
+.nav-item:hover {
+  background: var(--sidebar-hover, rgba(255,255,255,.06)) !important;
+  color: #e2e8f0 !important;
+}
+.nav-item.active {
+  background: var(--sidebar-active-bg, rgba(59,130,246,.2)) !important;
+  color: var(--sidebar-active) !important;
+}
+.sidebar-bottom {
+  border-top-color: var(--sidebar-border, rgba(255,255,255,.06)) !important;
+}
+.sidebar-logo-text,
+.sidebar-user-name {
+  color: #fff !important;
+}
+
+/* ---- Fond de page (modes clairs différents) ---- */
+[data-bg-style="white"]  { --bg:#ffffff; --card:#f8fafc; }
+[data-bg-style="warm"]   { --bg:#fefce8; --card:#fff; }
+[data-bg-style="cool"]   { --bg:#eff6ff; --card:#fff; }
+[data-bg-style="gray"]   { --bg:#f1f5f9; --card:#fff; }
+[data-bg-style="green"]  { --bg:#f0fdf4; --card:#fff; }
+[data-bg-style="purple"] { --bg:#faf5ff; --card:#fff; }
+
+/* En dark, le fond reste sombre quel que soit le bg-style */
+[data-theme="dark"][data-bg-style] {
+  --bg:#0f172a; --card:#1e293b;
+}
+
+/* ---- Taille de police ---- */
+[data-font-size="small"]  { font-size: 13px; }
+[data-font-size="normal"] { font-size: 14px; }
+[data-font-size="large"]  { font-size: 15px; }
+[data-font-size="xlarge"] { font-size: 16px; }
+
+.sidebar-overlay {
+  display: none;
+  pointer-events: none;
+}
+
+.sidebar-overlay.visible {
+  display: block;
+  pointer-events: auto;
+}
+
+/* ============================================
+   PATCH FINAL — VUES ET MODALES
+   ============================================ */
+
+/* Toutes les vues cachées par défaut */
+.view {
+  display: none !important;
+}
+
+/* Vue active visible et entièrement cliquable */
+.view.active {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
+}
+
+/* Tous les enfants d'une vue active sont cliquables */
+.view.active * {
+  pointer-events: auto !important;
+}
+
+/* Modales cachées */
+.modal-overlay {
+  display: none !important;
+  pointer-events: none !important;
+}
+
+/* Modales ouvertes */
+.modal-overlay.open {
+  display: flex !important;
+  pointer-events: auto !important;
+}
+
+/* Contenu modal cliquable */
+.modal-overlay.open * {
+  pointer-events: auto !important;
+}
+
+/* Contenu principal toujours cliquable */
+.page-content,
+.main,
+.topbar,
+.sidebar {
+  pointer-events: auto !important;
+}

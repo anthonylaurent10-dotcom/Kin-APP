@@ -279,7 +279,12 @@
                 </div>
                 <div class="table-wrap"><div class="table-header"><div class="section-title"><i class="fa-solid fa-list"></i>Historique séances</div></div>
                   <table><thead><tr><th>Date</th><th>Satisfaction</th><th>Borg</th><th>Body Chart & Sensations</th><th>Note patient</th></tr></thead>
-                  <tbody id="sessionHistoryBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucune séance enregistrée</td></tr></tbody></table>
+                                    <tbody id="sessionHistoryBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text3)">Aucune séance enregistrée</td></tr></tbody></table>
+                </div>
+
+                <div class="section-title" style="margin:24px 0 12px"><i class="fa-solid fa-file-signature"></i>Réponses aux questionnaires (PROMs)</div>
+                <div id="promResponsesContainer">
+                  <div style="text-align:center;padding:24px;color:var(--text3)">Aucune réponse de questionnaire.</div>
                 </div>
               </div>
               <div id="tabContent2" style="display:none">
@@ -304,6 +309,7 @@
       Nouveau bilan
     </button>
   </div>
+
   <div id="patientAssessmentsContainer">
     <div style="text-align:center;padding:24px;color:var(--text3)">
       Aucun bilan enregistré.
@@ -311,17 +317,42 @@
   </div>
 </div>
 
-
-              </div>
             </div>
           </div>
         </div>
 
+
         <!-- PROGRAMS -->
-        <div class="view fade-in" id="view-programs">
-          <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Tous les programmes</div><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer un programme</button></div>
-          <div class="cards-grid" id="programsGrid"></div>
-        </div>
+<div class="view fade-in" id="view-programs">
+  <div class="section-hdr">
+    <div class="section-title">
+      <i class="fa-solid fa-clipboard-list"></i>Tous les programmes
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <div class="search-wrap" style="max-width:220px">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input class="search-input" id="programSearch"
+               placeholder="Rechercher..."
+               oninput="filterPrograms()"/>
+      </div>
+      <select class="form-select" id="programPhaseFilter"
+              onchange="filterPrograms()"
+              style="max-width:160px">
+        <option value="all">Toutes les phases</option>
+        <option value="crise">Phase Crise</option>
+        <option value="renfo">Renforcement</option>
+        <option value="reprise">Reprise sportive</option>
+        <option value="prevention">Prévention</option>
+        <option value="custom">Personnalisée</option>
+        <option value="template">Modèles</option>
+      </select>
+      <button class="btn btn-primary" onclick="openProgramBuilder()">
+        <i class="fa-solid fa-plus"></i>Créer un programme
+      </button>
+    </div>
+  </div>
+  <div class="cards-grid" id="programsGrid"></div>
+</div>
 
         <!-- LIBRARY -->
 <div class="view fade-in" id="view-library">
@@ -352,6 +383,9 @@
     <option value="Abdos">Abdos</option>
   </optgroup>
   <option value="Autre">Autre</option>
+</select>
+<select class="form-select" id="muscleFilter" onchange="renderLibrary()">
+  <option value="all">Tous les muscles</option>
 </select>
     <button class="btn btn-primary" onclick="openNewExercise()"><i class="fa-solid fa-plus"></i>Ajouter exercice</button>
   </div>
@@ -458,12 +492,19 @@
           </div>
 
           <!-- Liste -->
-          <div class="section-hdr" style="margin-top:4px">
-            <div class="section-title">
-              <i class="fa-solid fa-list"></i>Mes modèles de questionnaires
-            </div>
-          </div>
-          <div class="table-wrap" id="promList">
+          <!-- Liste -->
+<div class="section-hdr" style="margin-top:4px">
+  <div class="section-title">
+    <i class="fa-solid fa-list"></i>Mes modèles de questionnaires
+  </div>
+  <div class="search-wrap" style="max-width:260px">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input class="search-input" id="promSearch"
+           placeholder="Rechercher un questionnaire..."
+           oninput="filterPromList()"/>
+  </div>
+</div>
+<div class="table-wrap" id="promList">
             <div style="text-align:center;padding:32px;color:var(--text3);font-size:13px">
               Aucun questionnaire créé.
             </div>
@@ -472,21 +513,154 @@
 
 
         <!-- SETTINGS -->
-        <div class="view fade-in" id="view-settings">
-          <div class="section-title" style="margin-bottom:20px"><i class="fa-solid fa-gear"></i>Paramètres du compte</div>
-          <div style="max-width:100%">
-            <div class="info-card">
-              <div class="info-card-title"><i class="fa-solid fa-user"></i>Profil professionnel</div>
-              <div class="form-grid" style="margin-top:12px">
-                <div class="form-group"><label class="form-label">Prénom</label><input class="form-input" id="settFirstName"/></div>
-                <div class="form-group"><label class="form-label">Nom</label><input class="form-input" id="settLastName"/></div>
-                <div class="form-group full"><label class="form-label">Spécialité</label><input class="form-input" id="settSpeciality"/></div>
-                <div class="form-group full"><label class="form-label">Cabinet</label><input class="form-input" id="settCabinet"/></div>
-                <div class="form-group full"><button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-floppy-disk"></i>Sauvegarder</button></div>
-              </div>
-            </div>
-          </div>
-        </div>
+<div class="view fade-in" id="view-settings">
+  <div class="section-title" style="margin-bottom:20px">
+    <i class="fa-solid fa-gear"></i>Paramètres du compte
+  </div>
+
+  <!-- CARTE 1 : Profil -->
+  <div class="info-card" style="width:100%;margin-bottom:20px">
+    <div class="info-card-title">
+      <i class="fa-solid fa-user"></i>Profil professionnel
+    </div>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group">
+        <label class="form-label">Prénom</label>
+        <input class="form-input" id="settFirstName"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nom</label>
+        <input class="form-input" id="settLastName"/>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Spécialité</label>
+        <input class="form-input" id="settSpeciality"/>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Cabinet</label>
+        <input class="form-input" id="settCabinet"/>
+      </div>
+      <div class="form-group full">
+        <button class="btn btn-primary" onclick="saveSettings()">
+          <i class="fa-solid fa-floppy-disk"></i>Sauvegarder le profil
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CARTE 2 : Mot de passe -->
+  <div class="info-card" style="width:100%;margin-bottom:20px">
+    <div class="info-card-title">
+      <i class="fa-solid fa-lock"></i>Changer le mot de passe
+    </div>
+    <div class="form-grid" style="margin-top:12px">
+      <div class="form-group full">
+        <label class="form-label">Nouveau mot de passe</label>
+        <input class="form-input" type="password" id="settNewPwd"
+          placeholder="8 caractères minimum"/>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Confirmer le nouveau mot de passe</label>
+        <input class="form-input" type="password" id="settNewPwdConfirm"
+          placeholder="Répétez le mot de passe"/>
+      </div>
+      <div class="form-group full" id="pwdChangeMsg" style="display:none"></div>
+      <div class="form-group full">
+        <button class="btn btn-primary" onclick="changePassword()">
+          <i class="fa-solid fa-key"></i>Mettre à jour le mot de passe
+        </button>
+      </div>
+    </div>
+  </div>
+
+ <!-- CARTE 3 : Personnalisation de l'interface -->
+<div class="info-card" style="width:100%;margin-bottom:20px">
+  <div class="info-card-title">
+    <i class="fa-solid fa-palette"></i>Personnalisation de l'interface
+  </div>
+
+  <!-- THÈME COMPLET -->
+  <div style="margin-bottom:24px">
+    <div style="font-size:12px;font-weight:700;color:var(--text2);
+                margin-bottom:12px;display:flex;align-items:center;gap:6px">
+      <i class="fa-solid fa-swatchbook" style="color:var(--accent)"></i>
+      Thème de couleurs (sidebar + accents)
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px"
+         id="colorThemePicker">
+      <!-- généré par JS -->
+    </div>
+  </div>
+
+  <!-- FOND DE PAGE -->
+  <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:24px">
+    <div style="font-size:12px;font-weight:700;color:var(--text2);
+                margin-bottom:12px;display:flex;align-items:center;gap:6px">
+      <i class="fa-solid fa-fill-drip" style="color:var(--accent)"></i>
+      Couleur de fond (mode clair uniquement)
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="bgStylePicker">
+      <!-- généré par JS -->
+    </div>
+  </div>
+
+  <!-- TAILLE DE POLICE -->
+  <div style="border-top:1px solid var(--border);padding-top:20px;margin-bottom:20px">
+    <div style="font-size:12px;font-weight:700;color:var(--text2);
+                margin-bottom:12px;display:flex;align-items:center;gap:6px">
+      <i class="fa-solid fa-text-height" style="color:var(--accent)"></i>
+      Taille de la police
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" id="fontSizePicker">
+      <!-- généré par JS -->
+    </div>
+  </div>
+
+  <!-- RESET -->
+  <div style="border-top:1px solid var(--border);padding-top:16px;
+              display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <button class="btn btn-secondary btn-sm" onclick="resetAllTheme()">
+      <i class="fa-solid fa-rotate-left"></i> Tout réinitialiser
+    </button>
+    <span style="font-size:11px;color:var(--text3)">
+      Thème actuel :
+      <strong id="currentThemeLabel" style="color:var(--accent)">Océan</strong>
+    </span>
+  </div>
+
+  <div class="rgpd-notice" style="margin-top:12px">
+    <i class="fa-solid fa-circle-info"></i>
+    Les préférences sont sauvegardées localement sur cet appareil.
+  </div>
+</div>
+
+  <!-- CARTE 4 : Export RGPD -->
+  <div class="info-card" style="width:100%;margin-bottom:20px">
+    <div class="info-card-title">
+      <i class="fa-solid fa-file-export"></i>Export RGPD
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.5">
+      Exportez l'intégralité de vos données (patients, programmes, exercices)
+      au format JSON ou CSV. Conformément au RGPD, vous avez le droit
+      à la portabilité de vos données.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="exportAllDataRGPD('json')">
+        <i class="fa-solid fa-file-code"></i> Export JSON
+      </button>
+      <button class="btn btn-secondary" onclick="exportAllDataRGPD('csv')">
+        <i class="fa-solid fa-file-csv"></i> Export CSV
+      </button>
+    </div>
+    <div class="rgpd-notice" style="margin-top:10px">
+      <i class="fa-solid fa-shield-halved"></i>
+      Le fichier est généré localement dans votre navigateur
+      et n'est pas envoyé à des tiers.
+    </div>
+  </div>
+
+</div>
+</div>
 
       </div>
     </main>
@@ -577,22 +751,72 @@
     <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-clipboard-list" style="color:var(--accent)"></i><span id="modalProgTitle">Créer un programme</span></div><button class="modal-close" onclick="closeModal('modalProgram')"><i class="fa-solid fa-xmark"></i></button></div>
     <div class="modal-body">
       <!-- Sélecteur de modèle pour pré-remplir le programme -->
-<div class="form-group full" style="background:var(--bg); padding:10px; border-radius:var(--radius-sm); border:1px solid var(--border);">
-  <label class="form-label">Charger un modèle existant</label>
-  <select class="form-select" id="modelSelector" onchange="loadProgramFromModel(this.value)">
-    <option value="">-- Ou choisir un modèle existant --</option>
+<div class="form-group full" style="background:var(--bg);padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+  <label class="form-label">
+    <i class="fa-solid fa-folder-open" style="color:var(--accent)"></i>
+    Charger un modèle existant
+  </label>
+
+  <!-- Recherche dans les modèles -->
+  <div class="search-wrap" style="max-width:100%;margin-bottom:8px">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input class="search-input" id="modelSearch"
+           placeholder="Rechercher un modèle par nom ou phase..."
+           oninput="filterModelSelector()"/>
+  </div>
+
+  <!-- Liste déroulante filtrée -->
+  <select class="form-select" id="modelSelector"
+          onchange="loadProgramFromModel(this.value)"
+          size="4"
+          style="height:auto;min-height:90px">
+    <option value="">-- Sélectionner un modèle --</option>
   </select>
+
+  <div style="font-size:11px;color:var(--text3);margin-top:5px">
+    Tapez pour filtrer · Cliquez sur un modèle pour le charger
+  </div>
 </div>
+
       <div class="form-grid" style="margin-bottom:20px">
-        <div class="form-group full">
-  <label class="form-label">Questionnaires à envoyer</label>
-  <div id="progPromsContainer" style="display:flex;flex-direction:column;gap:8px"></div>
-  <button type="button" class="btn btn-secondary btn-sm" style="margin-top:6px"
+  <div class="form-group full">
+  <label class="form-label">
+    <i class="fa-solid fa-file-signature" style="color:var(--accent)"></i>
+    Questionnaires à envoyer
+  </label>
+
+  <!-- Recherche rapide dans les PROMs -->
+  <div class="search-wrap" style="max-width:100%;margin-bottom:8px">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input class="search-input" id="promPickerSearch"
+           placeholder="Rechercher un questionnaire à ajouter..."
+           oninput="filterPromPicker()"/>
+  </div>
+
+  <!-- Résultats de recherche (apparaît pendant la frappe) -->
+  <div id="promPickerResults" style="
+    display:none;
+    background:var(--card);
+    border:1.5px solid var(--accent);
+    border-radius:var(--radius-sm);
+    max-height:160px;
+    overflow-y:auto;
+    margin-bottom:8px;
+    box-shadow:var(--shadow2);
+  "></div>
+
+  <!-- Questionnaires sélectionnés -->
+  <div id="progPromsContainer"
+       style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+  </div>
+
+  <button type="button" class="btn btn-secondary btn-sm"
           onclick="addPromToProgram()">
     <i class="fa-solid fa-plus"></i> Ajouter un questionnaire
   </button>
+
   <div style="font-size:11px;color:var(--text3);margin-top:4px">
-    Vous pouvez associer plusieurs questionnaires (début, milieu, fin de programme).
+    Recherchez ou cliquez sur "Ajouter" pour associer des questionnaires.
   </div>
 </div>
         <div class="form-group"><label class="form-label">Nom du programme <span>*</span></label><input class="form-input" id="progName"/></div>
@@ -614,60 +838,235 @@
 
 <div class="modal-overlay" id="modalExercise">
   <div class="modal">
-    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i><span id="modalExTitle">Nouvel exercice</span></div><button class="modal-close" onclick="closeModal('modalExercise')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">
+        <i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i>
+        <span id="modalExTitle">Nouvel exercice</span>
+      </div>
+      <button class="modal-close" onclick="editingExId = null; closeModal('modalExercise')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group full"><label class="form-label">Nom <span>*</span></label><input class="form-input" id="exName"/></div>
-        <div class="form-group full"><label class="form-label">Focus / Cue</label><textarea class="form-textarea" id="exFocus" style="min-height:60px"></textarea></div>
-        <div class="form-group"><label class="form-label">Séries</label><input class="form-input" id="exSeries"/></div>
-        <div class="form-group"><label class="form-label">Reps / Durée</label><input class="form-input" id="exReps" placeholder="15 reps ou 45s"/></div>
-        <div class="form-group"><label class="form-label">Récupération</label><input class="form-input" id="exRest" placeholder="60-90s"/></div>
-        <div class="form-group"><label class="form-label">Tempo</label><input class="form-input" id="exTempo" placeholder="3-1-3"/></div>
-        <div class="form-group"><label class="form-label">EVA cible</label><input class="form-input" id="exEVA" placeholder="≤ 4/10"/></div>
-        <div class="form-group"><label class="form-label">Catégorie</label><select class="form-select" id="exCategory"><option value="quadri">Quadriceps</option><option value="fessiers">Fessiers</option><option value="ischio">Ischio</option><option value="gainage">Gainage</option><option value="cardio">Cardio</option><option value="iso">Isométrique</option><option value="autre">Autre</option></select></div><!-- Trouve le div exCategory et ajoute celui-ci juste après -->
-<div class="form-group">
-  <label class="form-label">Région</label>
-  <select class="form-select" id="exRegion">
-  <optgroup label="Membre inférieur">
-    <option value="Pied">Pied</option>
-    <option value="Cheville">Cheville</option>
-    <option value="Genou">Genou</option>
-    <option value="Hanche">Hanche</option>
-  </optgroup>
-  <optgroup label="Membre supérieur">
-    <option value="Épaule">Épaule</option>
-    <option value="Coude">Coude</option>
-    <option value="Poignet">Poignet</option>
-    <option value="Main">Main</option>
-  </optgroup>
-  <optgroup label="Rachis & Tronc">
-    <option value="Cou">Cou</option>
-    <option value="Thorax">Thorax</option>
-    <option value="Lombaires">Lombaires</option>
-    <option value="Abdos">Abdos</option>
-  </optgroup>
-  <option value="Autre">Autre</option>
-</select>
-</div>
-        <div class="form-group full"><label class="form-label">Lien vidéo YouTube</label><input class="form-input" id="exVideo"/></div>
-        <div class="form-group full"><label class="form-label">Régression</label><input class="form-input" id="exRegress"/></div>
-        <div class="form-group full"><label class="form-label">Progression</label><input class="form-input" id="exProgress"/></div>
-        <div class="form-group full"><label class="form-label">Matériel alternatif</label><input class="form-input" id="exAlt"/></div>
+
+        <div class="form-group full">
+          <label class="form-label">Nom <span>*</span></label>
+          <input class="form-input" id="exName"/>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Focus / Cue</label>
+          <textarea class="form-textarea" id="exFocus" style="min-height:60px"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Séries</label>
+          <input class="form-input" id="exSeries"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Reps / Durée</label>
+          <input class="form-input" id="exReps" placeholder="15 reps ou 45s"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Récupération</label>
+          <input class="form-input" id="exRest" placeholder="60-90s"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Tempo</label>
+          <input class="form-input" id="exTempo" placeholder="3-1-3"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">EVA cible</label>
+          <input class="form-input" id="exEVA" placeholder="≤ 4/10"/>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Région anatomique</label>
+          <select class="form-select" id="exRegion">
+            <optgroup label="Membre inférieur">
+              <option value="Pied">Pied</option>
+              <option value="Cheville">Cheville</option>
+              <option value="Genou">Genou</option>
+              <option value="Hanche">Hanche</option>
+            </optgroup>
+            <optgroup label="Membre supérieur">
+              <option value="Épaule">Épaule</option>
+              <option value="Coude">Coude</option>
+              <option value="Poignet">Poignet</option>
+              <option value="Main">Main</option>
+            </optgroup>
+            <optgroup label="Rachis & Tronc">
+              <option value="Cou">Cou</option>
+              <option value="Thorax">Thorax</option>
+              <option value="Lombaires">Lombaires</option>
+              <option value="Abdos">Abdos</option>
+            </optgroup>
+            <option value="Autre">Autre</option>
+          </select>
+        </div>
+
+        <!-- MUSCLES CIBLES -->
+        <div class="form-group full">
+          <label class="form-label">
+            Muscles cibles
+            <span style="color:var(--text3); font-weight:400; font-size:11px">
+              (cliquez pour sélectionner, plusieurs possibles)
+            </span>
+          </label>
+
+          <!-- Chips des muscles sélectionnés -->
+          <div id="selectedMusclesChips" style="
+            display:flex; flex-wrap:wrap; gap:5px;
+            min-height:36px; padding:6px;
+            background:var(--bg);
+            border:1.5px solid var(--accent);
+            border-bottom:none;
+            border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+          ">
+            <span id="muscleChipsPlaceholder"
+              style="font-size:11px; color:var(--text3); align-self:center;">
+              Aucun muscle sélectionné
+            </span>
+          </div>
+
+          <!-- Barre de recherche -->
+          <div style="position:relative;">
+            <i class="fa-solid fa-magnifying-glass" style="
+              position:absolute; left:10px; top:50%;
+              transform:translateY(-50%);
+              color:var(--text3); font-size:12px; z-index:1;
+            "></i>
+            <input class="form-input" id="muscleSearchInput"
+              placeholder="Rechercher un muscle..."
+              oninput="filterMusclesPicker(this.value)"
+              style="
+                padding-left:32px;
+                border-radius:0;
+                border-top:1px solid var(--border);
+                border-bottom:1px solid var(--border);
+              "/>
+          </div>
+
+          <!-- Grille de sélection -->
+          <div id="musclesTargetsContainer" style="
+            display:flex; flex-wrap:wrap; gap:5px;
+            padding:10px;
+            background:var(--card);
+            border:1.5px solid var(--border);
+            border-top:none;
+            border-radius:0 0 var(--radius-sm) var(--radius-sm);
+            max-height:180px;
+            overflow-y:auto;
+          ">
+            <!-- généré par JS -->
+          </div>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Lien vidéo YouTube</label>
+          <input class="form-input" id="exVideo"/>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Régression</label>
+          <input class="form-input" id="exRegress"/>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Progression</label>
+          <input class="form-input" id="exProgress"/>
+        </div>
+
+        <div class="form-group full">
+          <label class="form-label">Matériel alternatif</label>
+          <input class="form-input" id="exAlt"/>
+        </div>
+
       </div>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modalExercise')">Annuler</button><button class="btn btn-primary" onclick="saveExercise()"><i class="fa-solid fa-floppy-disk"></i>Sauvegarder</button></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="editingExId = null; closeModal('modalExercise')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveExercise()">
+        <i class="fa-solid fa-floppy-disk"></i>Sauvegarder
+      </button>
+    </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="modalLibPicker">
   <div class="modal">
-    <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-book-medical" style="color:var(--accent)"></i>Choisir un exercice</div><button class="modal-close" onclick="closeModal('modalLibPicker')"><i class="fa-solid fa-xmark"></i></button></div>
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">
+        <i class="fa-solid fa-book-medical" style="color:var(--accent)"></i>
+        Choisir un exercice
+      </div>
+      <button class="modal-close" onclick="closeModal('modalLibPicker')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
     <div class="modal-body">
-      <div class="search-wrap" style="max-width:100%;margin-bottom:14px"><i class="fa-solid fa-magnifying-glass"></i><input class="search-input" id="libPickerSearch" placeholder="Rechercher..." oninput="filterLibPicker()"/></div>
-      <div class="lib-grid" id="libPickerGrid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))"></div>
+
+      <!-- Barre de recherche texte -->
+      <div class="search-wrap" style="max-width:100%;margin-bottom:10px">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input class="search-input" id="libPickerSearch"
+               placeholder="Rechercher un exercice..."
+               oninput="filterLibPicker()"/>
+      </div>
+
+      <!-- Filtres région + muscle -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <select class="form-select" id="libPickerRegion"
+                onchange="filterLibPicker()"
+                style="flex:1;min-width:140px">
+          <option value="all">Toutes régions</option>
+          <optgroup label="Membre inférieur">
+            <option value="Pied">Pied</option>
+            <option value="Cheville">Cheville</option>
+            <option value="Genou">Genou</option>
+            <option value="Hanche">Hanche</option>
+          </optgroup>
+          <optgroup label="Membre supérieur">
+            <option value="Épaule">Épaule</option>
+            <option value="Coude">Coude</option>
+            <option value="Poignet">Poignet</option>
+            <option value="Main">Main</option>
+          </optgroup>
+          <optgroup label="Rachis & Tronc">
+            <option value="Cou">Cou</option>
+            <option value="Thorax">Thorax</option>
+            <option value="Lombaires">Lombaires</option>
+            <option value="Abdos">Abdos</option>
+          </optgroup>
+          <option value="Autre">Autre</option>
+        </select>
+
+        <select class="form-select" id="libPickerMuscle"
+                onchange="filterLibPicker()"
+                style="flex:1;min-width:140px">
+          <option value="all">Tous les muscles</option>
+        </select>
+      </div>
+
+      <!-- Compteur de résultats -->
+      <div id="libPickerCount"
+           style="font-size:11px;color:var(--text3);margin-bottom:10px">
+      </div>
+
+      <!-- Grille d'exercices -->
+      <div class="lib-grid" id="libPickerGrid"
+           style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr))">
+      </div>
+
     </div>
   </div>
 </div>
+
 <div class="modal-overlay" id="modalPatho">
   <div class="modal">
     <div class="modal-hdr">
@@ -686,11 +1085,68 @@
           <input class="form-input" id="pathoName" placeholder="Ex: Lombalgie chronique, Tendinopathie rotulienne..."/>
         </div>
         <div class="form-group full">
-          <label class="form-label">Astuce éducative / Le saviez-vous ?</label>
-          <textarea class="form-textarea" id="pathoTip"
-            placeholder="Ex: 80% des lombalgies guérissent en moins de 6 semaines avec une activité physique adaptée."
-            style="min-height:100px"></textarea>
-        </div>
+  <label class="form-label">Astuce éducative / Le saviez-vous ?</label>
+
+  <!-- Barre d'outils -->
+  <div id="pathoTipToolbar" style="
+    display:flex; gap:4px; flex-wrap:wrap;
+    padding:8px;
+    background:var(--bg);
+    border:1.5px solid var(--border);
+    border-bottom:none;
+    border-radius:var(--radius-sm) var(--radius-sm) 0 0;
+  ">
+    <button type="button" onclick="fmtTip('bold')" title="Gras" style="
+      background:var(--card); border:1px solid var(--border);
+      border-radius:6px; padding:4px 12px; cursor:pointer;
+      font-weight:900; font-size:14px; color:var(--text);">B</button>
+
+    <button type="button" onclick="fmtTip('italic')" title="Italique" style="
+      background:var(--card); border:1px solid var(--border);
+      border-radius:6px; padding:4px 12px; cursor:pointer;
+      font-style:italic; font-size:14px; color:var(--text);">I</button>
+
+    <button type="button" onclick="fmtTip('underline')" title="Souligné" style="
+      background:var(--card); border:1px solid var(--border);
+      border-radius:6px; padding:4px 12px; cursor:pointer;
+      text-decoration:underline; font-size:14px; color:var(--text);">S</button>
+
+    <div style="width:1px; background:var(--border); margin:0 4px;"></div>
+
+    <button type="button" onclick="fmtTipInsert('• ')" title="Puce" style="
+      background:var(--card); border:1px solid var(--border);
+      border-radius:6px; padding:4px 10px; cursor:pointer;
+      font-size:14px; color:var(--text);">• Liste</button>
+
+    <button type="button" onclick="fmtTipInsert('<br>')" title="Saut de ligne" style="
+      background:var(--card); border:1px solid var(--border);
+      border-radius:6px; padding:4px 10px; cursor:pointer;
+      font-size:12px; color:var(--text2);">↵ Ligne</button>
+  </div>
+
+  <!-- Éditeur -->
+  <div
+    id="pathoTipEditor"
+    contenteditable="true"
+    style="
+      min-height:110px;
+      padding:12px;
+      background:var(--card);
+      border:1.5px solid var(--border);
+      border-radius:0 0 var(--radius-sm) var(--radius-sm);
+      font-size:13px;
+      color:var(--text);
+      line-height:1.7;
+      outline:none;
+      cursor:text;
+    "
+  ></div>
+
+  <div style="font-size:11px; color:var(--text3); margin-top:5px;">
+    Sélectionnez du texte puis cliquez sur B / I / S pour le formater.
+  </div>
+</div>
+
       </div>
       <div class="rgpd-notice" style="margin-top:12px">
         <i class="fa-solid fa-circle-info"></i>
