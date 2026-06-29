@@ -8,11 +8,12 @@ const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ============================================================
 // GÉNÉRATEUR D'IDENTIFIANT UNIQUE (compatible HTTP et HTTPS)
 // ============================================================
+
 function generateUUID() {
   // Si crypto.randomUUID existe et fonctionne, on l'utilise
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     try {
-      return generateUUID();
+      return crypto.randomUUID();
     } catch (e) {
       // Si ça plante, on passe à la méthode manuelle ci-dessous
     }
@@ -245,10 +246,12 @@ let programsQuery = db
 
 if(patientIds.length){
   programsQuery = programsQuery.or(
-    `practitioner_id.eq.${pid},patient_id.in.(${patientIds.join(',')})`
+    `practitioner_id.eq.${pid},patient_id.in.(${patientIds.join(',')}),and(is_public.eq.true,is_template.eq.true)`
   );
 } else {
-  programsQuery = programsQuery.eq('practitioner_id', pid);
+  programsQuery = programsQuery.or(
+    `practitioner_id.eq.${pid},and(is_public.eq.true,is_template.eq.true)`
+  );
 }
 
 const [
@@ -693,7 +696,6 @@ async function openPathologyFlagsModal(pathologyId, pathologyName){
     const { data, error } = await db
       .from('pathology_flag_questionnaires')
       .select('*')
-      .eq('practitioner_id', currentPractitioner.id)
       .eq('pathology_id', pathologyId)
       .eq('is_active', true)
       .order('created_at', { ascending:false })
@@ -1656,10 +1658,10 @@ function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast('Li
 let availableProms = [];
 
 async function loadAvailableProms(){
-  const { data, error } = await db
+    const { data, error } = await db
     .from('prom_templates')
     .select('id,title')
-    .eq('practitioner_id', currentPractitioner.id)
+    .or(`practitioner_id.eq.${currentPractitioner.id},is_public.eq.true`)
     .order('created_at', { ascending: false });
 
   if(error){ console.error(error); return; }
@@ -2021,6 +2023,49 @@ function renderPatientPrograms(patId){
 
 function phaseLabel(p){return({crise:'Phase Crise',renfo:'Renforcement',reprise:'Reprise sport',prevention:'Prévention',custom:'Personnalisée'}[p]||p)}
 
+async function toggleProgramPublic(id){
+  const prog = programs.find(x => x.id === id);
+  if(!prog) return;
+
+  // GARDE-FOU 1 : uniquement mes propres programmes
+  if(prog.practitioner_id !== currentPractitioner.id){
+    showToast('Vous ne pouvez partager que vos propres modèles', 'red');
+    return;
+  }
+
+  // GARDE-FOU 2 : uniquement les MODÈLES, jamais un programme patient
+  const isTemplate = prog.is_template === true || !prog.patient_id;
+  if(!isTemplate || prog.patient_id){
+    showToast('Seuls les programmes modèles (sans patient) peuvent être partagés', 'red');
+    return;
+  }
+
+  const newValue = !prog.is_public;
+
+  try {
+    const { error } = await db
+      .from('programs')
+      .update({ is_public: newValue })
+      .eq('id', id)
+      .eq('practitioner_id', currentPractitioner.id);
+
+    if(error) throw error;
+
+    showToast(
+      newValue
+        ? 'Modèle partagé avec les autres praticiens 🌐'
+        : 'Modèle redevenu privé 🔒',
+      'green'
+    );
+
+    await loadAllData();
+
+  } catch(e) {
+    console.error('Erreur toggleProgramPublic:', e);
+    showToast('Erreur : ' + e.message, 'red');
+  }
+}
+
 async function deleteProgram(id){
   if(!confirm('Supprimer ce programme ?'))return;
   const {error}=await db.from('programs').delete().eq('id',id);
@@ -2336,20 +2381,68 @@ function renderLibrary(){
           ${ex.rest ? ` · récup. ${escapeHTML(ex.rest)}` : ''}
         </div>
 
-        <div style="display:flex;gap:6px;margin-top:12px">
-          <button class="btn btn-secondary btn-sm" onclick="openNewExercise(library[${originalIndex}], ${originalIndex})">
-            <i class="fa-solid fa-pen"></i>
-            Modifier
-          </button>
+        <div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">
+          ${ex.practitioner_id === currentPractitioner.id ? `
+            <button class="btn btn-secondary btn-sm" onclick="openNewExercise(library[${originalIndex}], ${originalIndex})">
+              <i class="fa-solid fa-pen"></i>
+              Modifier
+            </button>
 
-          <button class="btn btn-danger btn-sm" onclick="deleteExercise(${originalIndex})">
-            <i class="fa-solid fa-trash"></i>
-            Supprimer
-          </button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleExercisePublic(${originalIndex})"
+              style="${ex.is_public ? 'border-color:var(--green);color:var(--green)' : ''}">
+              <i class="fa-solid fa-${ex.is_public ? 'lock' : 'share-nodes'}"></i>
+              ${ex.is_public ? 'Rendre privé' : 'Partager'}
+            </button>
+
+            <button class="btn btn-danger btn-sm" onclick="deleteExercise(${originalIndex})">
+              <i class="fa-solid fa-trash"></i>
+              Supprimer
+            </button>
+          ` : `
+            <span class="badge badge-blue" style="font-size:10px">
+              <i class="fa-solid fa-user-group"></i> Partagé par un confrère
+            </span>
+          `}
         </div>
       </div>
     `;
   }).join('');
+}
+
+async function toggleExercisePublic(i){
+  const ex = library[i];
+  if(!ex) return;
+
+  // Sécurité : on ne partage que ses PROPRES exercices, jamais ceux des autres
+  if(ex.practitioner_id !== currentPractitioner.id){
+    showToast('Vous ne pouvez partager que vos propres exercices', 'red');
+    return;
+  }
+
+  const newValue = !ex.is_public;
+
+  try {
+    const { error } = await db
+      .from('exercises_library')
+      .update({ is_public: newValue })
+      .eq('id', ex.id)
+      .eq('practitioner_id', currentPractitioner.id);
+
+    if(error) throw error;
+
+    showToast(
+      newValue
+        ? 'Exercice partagé avec les autres praticiens 🌐'
+        : 'Exercice redevenu privé 🔒',
+      'green'
+    );
+
+    await loadAllData();
+
+  } catch(e) {
+    console.error('Erreur toggleExercisePublic:', e);
+    showToast('Erreur : ' + e.message, 'red');
+  }
 }
 
 async function deleteExercise(i){
@@ -3603,40 +3696,62 @@ function renderPathos() {
     return;
   }
 
-  body.innerHTML = pathosList.map(p => `
+    body.innerHTML = pathosList.map(p => {
+    const isMine = p.practitioner_id === currentPractitioner.id;
+
+    return `
     <tr>
       <td>
-        <div style="font-weight:700;color:var(--text)">${escapeHTML(p.name)}</div>
+        <div style="font-weight:700;color:var(--text)">${escapeHTML(p.name)}
+          ${p.is_public && isMine ? '<span class="badge badge-green" style="font-size:9px;margin-left:6px">🌐 Partagé</span>' : ''}
+          ${!isMine ? '<span class="badge badge-blue" style="font-size:9px;margin-left:6px"><i class="fa-solid fa-user-group"></i> Confrère</span>' : ''}
+        </div>
         ${p.education_tip
           ? `<div style="font-size:11px;color:var(--text3);margin-top:2px">${escapeHTML(p.education_tip.slice(0, 80))}${p.education_tip.length > 80 ? '…' : ''}</div>`
           : ''}
       </td>
       <td>
-  <div style="display:flex;gap:6px;flex-wrap:wrap">
-    <button class="btn btn-primary btn-sm" onclick="openMilestonesById('${p.id}')">
-  <i class="fa-solid fa-timeline"></i> Frise
-</button>
-
-<button class="btn btn-secondary btn-sm" onclick="openAssessmentModalById('${p.id}')">
-  <i class="fa-solid fa-clipboard-question"></i> Bilan privé
-</button>
-<button class="btn btn-secondary btn-sm" onclick="openPathologyFlagsModalById('${p.id}')">
-  <i class="fa-solid fa-shield-heart"></i> Red Flags
-</button>
-
-  </div>
-</td>
-<td>
+        ${isMine ? `
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="openMilestonesById('${p.id}')">
+            <i class="fa-solid fa-timeline"></i> Frise
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="openAssessmentModalById('${p.id}')">
+            <i class="fa-solid fa-clipboard-question"></i> Bilan privé
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="openPathologyFlagsModalById('${p.id}')">
+            <i class="fa-solid fa-shield-heart"></i> Red Flags
+          </button>
+        </div>
+        ` : `
+        <span style="font-size:11px;color:var(--text3)">
+          Dupliquez cette pathologie pour voir et adapter son protocole.
+        </span>
+        `}
+      </td>
+      <td>
+        ${isMine ? `
         <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm btn-icon-only" onclick="editPatho('${p.id}')">
+          <button class="btn btn-secondary btn-sm btn-icon-only" onclick="editPatho('${p.id}')" title="Modifier">
             <i class="fa-solid fa-pen"></i>
           </button>
-          <button class="btn btn-danger btn-sm btn-icon-only" onclick="deletePatho('${p.id}')">
+          <button class="btn btn-secondary btn-sm btn-icon-only" onclick="togglePathoPublic('${p.id}')"
+            title="${p.is_public ? 'Rendre privé' : 'Partager'}"
+            style="${p.is_public ? 'border-color:var(--green);color:var(--green)' : ''}">
+            <i class="fa-solid fa-${p.is_public ? 'lock' : 'share-nodes'}"></i>
+          </button>
+          <button class="btn btn-danger btn-sm btn-icon-only" onclick="deletePatho('${p.id}')" title="Supprimer">
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
+        ` : `
+        <button class="btn btn-primary btn-sm" onclick="duplicatePathology('${p.id}')" title="Dupliquer chez moi">
+          <i class="fa-solid fa-copy"></i> Dupliquer chez moi
+        </button>
+        `}
       </td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 function openMilestonesById(pathologyId){
@@ -3829,6 +3944,249 @@ async function savePatho() {
     }
   }
 }
+
+async function duplicatePathology(sourceId){
+  const source = pathosList.find(x => x.id === sourceId);
+  if(!source){ showToast('Pathologie introuvable', 'red'); return; }
+
+  if(!confirm(`Dupliquer "${source.name}" et tout son protocole (frise, bilan, red flags) dans VOTRE bibliothèque ?`)) return;
+
+  showToast('Duplication en cours...', 'blue');
+
+  try {
+    // 1) On crée la nouvelle pathologie À MON NOM (privée par défaut)
+    const { data: newPatho, error: e1 } = await db
+      .from('pathologies_library')
+      .insert({
+        practitioner_id: currentPractitioner.id,
+        name: source.name,
+        education_tip: source.education_tip || '',
+        is_public: false
+      })
+      .select()
+      .single();
+
+    if(e1) throw e1;
+
+    const newId = newPatho.id;
+
+    // 2) On copie la FRISE (pathology_milestones)
+    const { data: milestones } = await db
+      .from('pathology_milestones')
+      .select('*')
+      .eq('pathology_id', sourceId)
+      .order('position', { ascending: true });
+
+    if(milestones && milestones.length){
+      const rows = milestones.map(m => ({
+        pathology_id:    newId,
+        practitioner_id: currentPractitioner.id,
+        name:            m.name || '',
+        duration:        m.duration || null,
+        objectives:      m.objectives || null,
+        means:           m.means || null,
+        criteria:        m.criteria || null,
+        color:           m.color || '#3b82f6',
+        position:        m.position || 1,
+        week_number:     m.week_number || m.position || 1
+      }));
+      const { error: e2 } = await db.from('pathology_milestones').insert(rows);
+      if(e2) throw e2;
+    }
+
+    // 3) On copie le BILAN MODÈLE (pathology_assessment_templates)
+    const { data: tpl } = await db
+      .from('pathology_assessment_templates')
+      .select('*')
+      .eq('pathology_id', sourceId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if(tpl){
+      const { error: e3 } = await db
+        .from('pathology_assessment_templates')
+        .insert({
+          practitioner_id: currentPractitioner.id,
+          pathology_id:    newId,
+          title:           tpl.title || 'Bilan de la pathologie',
+          sections:        tpl.sections || []
+        });
+      if(e3) throw e3;
+    }
+
+    // 4) On copie les RED / YELLOW FLAGS (pathology_flag_questionnaires)
+    const { data: flagQ } = await db
+      .from('pathology_flag_questionnaires')
+      .select('*')
+      .eq('pathology_id', sourceId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if(flagQ){
+      const { error: e4 } = await db
+        .from('pathology_flag_questionnaires')
+        .insert({
+          practitioner_id: currentPractitioner.id,
+          pathology_id:    newId,
+          title:           flagQ.title || 'Questionnaire Red / Yellow Flags',
+          version:         flagQ.version || 'v1',
+          questions:       flagQ.questions || [],
+          is_active:       true
+        });
+      if(e4) throw e4;
+    }
+
+    showToast('Pathologie dupliquée dans votre bibliothèque 🎉', 'green');
+    await loadPathos();
+
+  } catch(e) {
+    console.error('Erreur duplicatePathology:', e);
+    showToast('Erreur duplication : ' + e.message, 'red');
+  }
+}
+
+async function duplicatePathology(sourceId){
+  const source = pathosList.find(x => x.id === sourceId);
+  if(!source){ showToast('Pathologie introuvable', 'red'); return; }
+
+  if(!confirm(`Dupliquer "${source.name}" et tout son protocole (frise, bilan, red flags) dans VOTRE bibliothèque ?`)) return;
+
+  showToast('Duplication en cours...', 'blue');
+
+  try {
+    // 1) On crée la nouvelle pathologie À MON NOM (privée par défaut)
+    const { data: newPatho, error: e1 } = await db
+      .from('pathologies_library')
+      .insert({
+        practitioner_id: currentPractitioner.id,
+        name: source.name,
+        education_tip: source.education_tip || '',
+        is_public: false
+      })
+      .select()
+      .single();
+
+    if(e1) throw e1;
+
+    const newId = newPatho.id;
+
+    // 2) On copie la FRISE (pathology_milestones)
+    const { data: milestones } = await db
+      .from('pathology_milestones')
+      .select('*')
+      .eq('pathology_id', sourceId)
+      .order('position', { ascending: true });
+
+    if(milestones && milestones.length){
+      const rows = milestones.map(m => ({
+        pathology_id:    newId,
+        practitioner_id: currentPractitioner.id,
+        name:            m.name || '',
+        duration:        m.duration || null,
+        objectives:      m.objectives || null,
+        means:           m.means || null,
+        criteria:        m.criteria || null,
+        color:           m.color || '#3b82f6',
+        position:        m.position || 1,
+        week_number:     m.week_number || m.position || 1
+      }));
+      const { error: e2 } = await db.from('pathology_milestones').insert(rows);
+      if(e2) throw e2;
+    }
+
+    // 3) On copie le BILAN MODÈLE (pathology_assessment_templates)
+    const { data: tpl } = await db
+      .from('pathology_assessment_templates')
+      .select('*')
+      .eq('pathology_id', sourceId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if(tpl){
+      const { error: e3 } = await db
+        .from('pathology_assessment_templates')
+        .insert({
+          practitioner_id: currentPractitioner.id,
+          pathology_id:    newId,
+          title:           tpl.title || 'Bilan de la pathologie',
+          sections:        tpl.sections || []
+        });
+      if(e3) throw e3;
+    }
+
+    // 4) On copie les RED / YELLOW FLAGS (pathology_flag_questionnaires)
+    const { data: flagQ } = await db
+      .from('pathology_flag_questionnaires')
+      .select('*')
+      .eq('pathology_id', sourceId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if(flagQ){
+      const { error: e4 } = await db
+        .from('pathology_flag_questionnaires')
+        .insert({
+          practitioner_id: currentPractitioner.id,
+          pathology_id:    newId,
+          title:           flagQ.title || 'Questionnaire Red / Yellow Flags',
+          version:         flagQ.version || 'v1',
+          questions:       flagQ.questions || [],
+          is_active:       true
+        });
+      if(e4) throw e4;
+    }
+
+    showToast('Pathologie dupliquée dans votre bibliothèque 🎉', 'green');
+    await loadPathos();
+
+  } catch(e) {
+    console.error('Erreur duplicatePathology:', e);
+    showToast('Erreur duplication : ' + e.message, 'red');
+  }
+}
+
+async function togglePathoPublic(id){
+  const p = pathosList.find(x => x.id === id);
+  if(!p) return;
+
+  // Sécurité : on ne partage que ses PROPRES pathologies
+  if(p.practitioner_id !== currentPractitioner.id){
+    showToast('Vous ne pouvez partager que vos propres pathologies', 'red');
+    return;
+  }
+
+  const newValue = !p.is_public;
+
+  try {
+    const { error } = await db
+      .from('pathologies_library')
+      .update({ is_public: newValue })
+      .eq('id', id)
+      .eq('practitioner_id', currentPractitioner.id);
+
+    if(error) throw error;
+
+    showToast(
+      newValue
+        ? 'Pathologie partagée avec les autres praticiens 🌐'
+        : 'Pathologie redevenue privée 🔒',
+      'green'
+    );
+
+    await loadPathos();
+
+  } catch(e) {
+    console.error('Erreur togglePathoPublic:', e);
+    showToast('Erreur : ' + e.message, 'red');
+  }
+}
+
 async function deletePatho(id) {
   if (!confirm('Supprimer cette pathologie et sa frise ?')) return;
   const { error } = await db
@@ -4441,6 +4799,42 @@ async function editProm(id) {
   document.getElementById('promTitle').scrollIntoView({ behavior: 'smooth' });
 }
 
+async function togglePromPublic(id){
+  const p = promsCache.find(x => x.id === id);
+  if(!p) return;
+
+  // Sécurité : on ne partage que ses PROPRES questionnaires
+  if(p.practitioner_id !== currentPractitioner.id){
+    showToast('Vous ne pouvez partager que vos propres questionnaires', 'red');
+    return;
+  }
+
+  const newValue = !p.is_public;
+
+  try {
+    const { error } = await db
+      .from('prom_templates')
+      .update({ is_public: newValue })
+      .eq('id', id)
+      .eq('practitioner_id', currentPractitioner.id);
+
+    if(error) throw error;
+
+    showToast(
+      newValue
+        ? 'Questionnaire partagé avec les autres praticiens 🌐'
+        : 'Questionnaire redevenu privé 🔒',
+      'green'
+    );
+
+    await loadPromList();
+
+  } catch(e) {
+    console.error('Erreur togglePromPublic:', e);
+    showToast('Erreur : ' + e.message, 'red');
+  }
+}
+
 async function deleteProm(id) {
   if (!confirm('Supprimer ce questionnaire ?')) return;
   const { error } = await db
@@ -4454,10 +4848,10 @@ async function deleteProm(id) {
 }
 
 async function loadPromList() {
-  const { data, error } = await db
+    const { data, error } = await db
     .from('prom_templates')
     .select('*')
-    .eq('practitioner_id', currentPractitioner.id)
+    .or(`practitioner_id.eq.${currentPractitioner.id},is_public.eq.true`)
     .order('created_at', { ascending: false });
 
   // ← AJOUTE cette ligne
@@ -4516,15 +4910,26 @@ async function loadPromList() {
               <td><span class="badge badge-gray">${scoreModeLabel[p.score_mode] || 'Somme'}</span></td>
               <td>${p.score_max ? `<span class="badge badge-purple" style="background:rgba(139,92,246,.15);color:#7c3aed">${p.score_max} pts</span>` : '<span style="color:var(--text3);font-size:12px">Auto</span>'}</td>
               <td style="font-size:11px;color:var(--text3)">${new Date(p.created_at).toLocaleDateString('fr-FR')}</td>
-              <td>
+                            <td>
+                ${p.practitioner_id === currentPractitioner.id ? `
                 <div style="display:flex;gap:6px">
                   <button class="btn btn-secondary btn-sm btn-icon-only" onclick="editProm('${p.id}')" title="Modifier">
                     <i class="fa-solid fa-pen"></i>
+                  </button>
+                  <button class="btn btn-secondary btn-sm btn-icon-only" onclick="togglePromPublic('${p.id}')"
+                    title="${p.is_public ? 'Rendre privé' : 'Partager'}"
+                    style="${p.is_public ? 'border-color:var(--green);color:var(--green)' : ''}">
+                    <i class="fa-solid fa-${p.is_public ? 'lock' : 'share-nodes'}"></i>
                   </button>
                   <button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProm('${p.id}')" title="Supprimer">
                     <i class="fa-solid fa-trash"></i>
                   </button>
                 </div>
+                ` : `
+                  <span class="badge badge-blue" style="font-size:10px">
+                    <i class="fa-solid fa-user-group"></i> Confrère
+                  </span>
+                `}
               </td>
             </tr>`;
         }).join('')}
@@ -4599,11 +5004,12 @@ function switchAssessmentTab(n, el){
 }
 
 async function loadAssessmentTemplate(){
-  const { data, error } = await db
+    const { data, error } = await db
     .from('pathology_assessment_templates')
     .select('*')
     .eq('pathology_id', currentAssessmentPathologyId)
-    .eq('practitioner_id', currentPractitioner.id)
+    .order('updated_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if(error){
@@ -4911,12 +5317,13 @@ async function saveAssessmentTemplate(){
     if(existing){
       console.log('[SAVE TEMPLATE] → UPDATE id:', existing.id);
 
-      const { data, error } = await db
+            const { data, error } = await db
         .from('pathology_assessment_templates')
         .update(payload)
         .eq('id', existing.id)
+        .eq('practitioner_id', currentPractitioner.id)
         .select()
-        .single();
+        .maybeSingle();
 
       console.log('[SAVE TEMPLATE] UPDATE result:', data);
       console.log('[SAVE TEMPLATE] UPDATE error:', error);
@@ -4946,9 +5353,9 @@ async function saveAssessmentTemplate(){
       sections: Array.isArray(savedData.sections) ? savedData.sections : []
     };
 
-    renderAssessmentTemplateBuilder();
+        renderAssessmentTemplateBuilder();
     renderAssessmentForm();
-    showToast('Modèle de bilan sauvegardé ✓', 'green');
+    showToast('Modèle enregistré (1 modèle par pathologie : il remplace le précédent)', 'green');
 
   } catch(e) {
     console.error('[SAVE TEMPLATE] ERREUR COMPLÈTE:', e);
@@ -5865,29 +6272,54 @@ async function exportAllDataRGPD(format = 'json') {
 
     const patientIds = (pats || []).map(p => p.id);
 
+    const noRows = Promise.resolve({ data: [], error: null });
+
     const [
-      { data: progs, error: progsError },
-      { data: lib, error: libError },
-      { data: sessions, error: sessionsError },
-      { data: messages, error: messagesError },
-      { data: pathos, error: pathosError }
+      { data: progs,      error: progsError },
+      { data: lib,        error: libError },
+      { data: sessions,   error: sessionsError },
+      { data: messages,   error: messagesError },
+      { data: pathos,     error: pathosError },
+      { data: proms,      error: promsError },
+      { data: promResp,   error: promRespError },
+      { data: milestones, error: milestonesError },
+      { data: assessTpl,  error: assessTplError },
+      { data: assessEnt,  error: assessEntError },
+      { data: flagQ,      error: flagQError },
+      { data: flagTpl,    error: flagTplError },
+      { data: pathoFlags, error: pathoFlagsError },
+      { data: flagScreen, error: flagScreenError }
     ] = await Promise.all([
       db.from('programs').select('*').eq('practitioner_id', pid),
       db.from('exercises_library').select('*').eq('practitioner_id', pid),
-      patientIds.length
-        ? db.from('sessions').select('*').in('patient_id', patientIds)
-        : Promise.resolve({ data: [], error: null }),
-      patientIds.length
-        ? db.from('messages').select('*').in('patient_id', patientIds)
-        : Promise.resolve({ data: [], error: null }),
-      db.from('pathologies_library').select('*').eq('practitioner_id', pid)
+      patientIds.length ? db.from('sessions').select('*').in('patient_id', patientIds) : noRows,
+      patientIds.length ? db.from('messages').select('*').in('patient_id', patientIds) : noRows,
+      db.from('pathologies_library').select('*').eq('practitioner_id', pid),
+      db.from('prom_templates').select('*').eq('practitioner_id', pid),
+      patientIds.length ? db.from('prom_responses').select('*').in('patient_id', patientIds) : noRows,
+      db.from('pathology_milestones').select('*').eq('practitioner_id', pid),
+      db.from('pathology_assessment_templates').select('*').eq('practitioner_id', pid),
+      db.from('pathology_assessment_entries').select('*').eq('practitioner_id', pid),
+      db.from('flag_questions').select('*').eq('practitioner_id', pid),
+      db.from('flag_questionnaire_templates').select('*').eq('practitioner_id', pid),
+      db.from('pathology_flag_questionnaires').select('*').eq('practitioner_id', pid),
+      patientIds.length ? db.from('patient_flag_screenings').select('*').in('patient_id', patientIds) : noRows
     ]);
 
-    if (progsError) throw progsError;
-    if (libError) throw libError;
-    if (sessionsError) throw sessionsError;
-    if (messagesError) throw messagesError;
-    if (pathosError) throw pathosError;
+    if (progsError)      throw progsError;
+    if (libError)        throw libError;
+    if (sessionsError)   throw sessionsError;
+    if (messagesError)   throw messagesError;
+    if (pathosError)     throw pathosError;
+    if (promsError)      throw promsError;
+    if (promRespError)   throw promRespError;
+    if (milestonesError) throw milestonesError;
+    if (assessTplError)  throw assessTplError;
+    if (assessEntError)  throw assessEntError;
+    if (flagQError)      throw flagQError;
+    if (flagTplError)    throw flagTplError;
+    if (pathoFlagsError) throw pathoFlagsError;
+    if (flagScreenError) throw flagScreenError;
 
     const exportDate = new Date().toISOString().slice(0, 10);
 
@@ -5907,7 +6339,16 @@ async function exportAllDataRGPD(format = 'json') {
         exercises_library: lib || [],
         sessions: sessions || [],
         messages: messages || [],
-        pathologies: pathos || []
+        pathologies: pathos || [],
+        prom_templates: proms || [],
+        prom_responses: promResp || [],
+        pathology_milestones: milestones || [],
+        pathology_assessment_templates: assessTpl || [],
+        pathology_assessment_entries: assessEnt || [],
+        flag_questions: flagQ || [],
+        flag_questionnaire_templates: flagTpl || [],
+        pathology_flag_questionnaires: pathoFlags || [],
+        patient_flag_screenings: flagScreen || []
       };
 
       const blob = new Blob(
@@ -5918,7 +6359,7 @@ async function exportAllDataRGPD(format = 'json') {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `alyzio-export-rgpd-${exportDate}.json`;
+      a.download = `alyzio-export-complet-${exportDate}.json`;
       a.click();
       URL.revokeObjectURL(url);
 
@@ -5929,20 +6370,8 @@ async function exportAllDataRGPD(format = 'json') {
       };
 
       const rows = [
-        [
-          'Prénom',
-          'Nom',
-          'Âge',
-          'Pathologie',
-          'Statut',
-          'Début',
-          'Email',
-          'Téléphone',
-          'Date séance',
-          'EVA',
-          'Borg',
-          'Note'
-        ]
+        ['Prénom','Nom','Âge','Pathologie','Statut','Début','Email','Téléphone',
+         'Date séance','EVA','Borg','Note']
       ];
 
       (pats || []).forEach(p => {
@@ -5950,43 +6379,24 @@ async function exportAllDataRGPD(format = 'json') {
 
         if (!patSessions.length) {
           rows.push([
-            p.first_name,
-            p.last_name,
-            p.age || '',
-            p.pathology || '',
-            p.status || '',
-            p.start_date || '',
-            p.email || '',
-            p.phone || '',
-            '',
-            '',
-            '',
-            ''
+            p.first_name, p.last_name, p.age || '', p.pathology || '',
+            p.status || '', p.start_date || '', p.email || '', p.phone || '',
+            '', '', '', ''
           ]);
         } else {
           patSessions.forEach(s => {
             rows.push([
-              p.first_name,
-              p.last_name,
-              p.age || '',
-              p.pathology || '',
-              p.status || '',
-              p.start_date || '',
-              p.email || '',
-              p.phone || '',
+              p.first_name, p.last_name, p.age || '', p.pathology || '',
+              p.status || '', p.start_date || '', p.email || '', p.phone || '',
               new Date(s.created_at).toLocaleString('fr-FR'),
-              s.eva ?? '',
-              s.borg ?? '',
-              s.note || ''
+              s.eva ?? '', s.borg ?? '', s.note || ''
             ]);
           });
         }
       });
 
       const csv = rows.map(r => r.map(safeCSV).join(';')).join('\n');
-      const blob = new Blob(['\uFEFF' + csv], {
-        type: 'text/csv;charset=utf-8;'
-      });
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
 
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -6152,16 +6562,31 @@ function renderProgramsFiltered(list) {
               </div>
             </div>
           </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-secondary btn-sm btn-icon-only"
-                    onclick="openProgramBuilder('${prog.id}')">
-              <i class="fa-solid fa-pen"></i>
-            </button>
-            <button class="btn btn-danger btn-sm btn-icon-only"
-                    onclick="deleteProgram('${prog.id}')">
-              <i class="fa-solid fa-trash"></i>
-            </button>
+                    <div style="display:flex;gap:6px">
+            ${prog.practitioner_id === currentPractitioner.id ? `
+              <button class="btn btn-secondary btn-sm btn-icon-only"
+                      onclick="openProgramBuilder('${prog.id}')" title="Modifier">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              ${isTemplate ? `
+                <button class="btn btn-secondary btn-sm btn-icon-only"
+                        onclick="toggleProgramPublic('${prog.id}')"
+                        title="${prog.is_public ? 'Rendre privé' : 'Partager ce modèle'}"
+                        style="${prog.is_public ? 'border-color:var(--green);color:var(--green)' : ''}">
+                  <i class="fa-solid fa-${prog.is_public ? 'lock' : 'share-nodes'}"></i>
+                </button>
+              ` : ''}
+              <button class="btn btn-danger btn-sm btn-icon-only"
+                      onclick="deleteProgram('${prog.id}')" title="Supprimer">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            ` : `
+              <span class="badge badge-blue" style="font-size:10px">
+                <i class="fa-solid fa-user-group"></i> Confrère
+              </span>
+            `}
           </div>
+
         </div>
         <div class="prog-card-body">
           <div style="font-size:12px;color:var(--text3)">
@@ -6169,10 +6594,11 @@ function renderProgramsFiltered(list) {
           </div>
         </div>
         <div class="prog-card-footer">
-          <span class="badge ${isTemplate ? 'badge-purple' : 'badge-blue'}"
+                    <span class="badge ${isTemplate ? 'badge-purple' : 'badge-blue'}"
             style="${isTemplate ? 'background:rgba(139,92,246,.15);color:#7c3aed' : ''}">
             ${isTemplate ? 'Modèle' : escapeHTML(phaseLabel(prog.phase))}
           </span>
+          ${prog.is_public && isTemplate ? '<span class="badge badge-green" style="font-size:9px">🌐 Partagé</span>' : ''}
         </div>
       </div>`;
   }).join('');
@@ -6228,7 +6654,10 @@ function renderPromListFiltered(list) {
           return `
             <tr>
               <td>
-                <div style="font-weight:700;color:var(--text)">${escapeHTML(p.title)}</div>
+                                <div style="font-weight:700;color:var(--text)">${escapeHTML(p.title)}
+                  ${p.is_public ? '<span class="badge badge-green" style="font-size:9px;margin-left:6px">🌐 Partagé</span>' : ''}
+                </div>
+
                 ${p.description
                   ? `<div style="font-size:11px;color:var(--text3)">
                       ${escapeHTML(p.description.slice(0,60))}${p.description.length>60?'…':''}

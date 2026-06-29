@@ -580,7 +580,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
 
 <div class="phase-tabs" id="phaseTabs"></div>
 <div class="pat-content" id="patContent"></div>
-<div id="promSection" class="app-hidden">
+<div id="promSection" class="app-hidden" style="padding-bottom:140px">
   <div class="sec-title"><i class="fa-solid fa-file-signature"></i>Questionnaires à remplir</div>
   <div id="promListContainer"></div>
 </div>
@@ -872,11 +872,10 @@ async function init(){
     showError(); return;
   }
   try{
-    const { data: patient, error } = await db
-  .from('patients')
-  .select('*')
-  .eq('token', patientToken)
-  .maybeSingle();
+        const { data: patientRows, error } = await db
+      .rpc('get_patient_by_token', { p_token: patientToken });
+
+    const patient = (patientRows && patientRows.length) ? patientRows[0] : null;
 
 if(error || !patient){
   showError();
@@ -959,12 +958,15 @@ if (!alreadyScreened && flagQuestions.length > 0) {
   // Affiche le questionnaire flags
   mustCompleteFlagScreening = true;
   renderFlagScreening();
+
 } else {
-  // Affiche directement l'app
   mustCompleteFlagScreening = false;
   document.getElementById('flagScreeningView').classList.add('app-hidden');
   document.getElementById('appRoot').classList.remove('app-hidden');
 }
+
+// Rafraîchit le badge des messages non lus une fois l'app affichée
+await checkUnreadMessages();
 
     
   } catch(e){
@@ -996,18 +998,17 @@ async function findCurrentPatientPathology(){
   }
 
   const { data, error } = await db
-    .from('pathologies_library')
-    .select('*')
-    .eq('practitioner_id', currentPatient.practitioner_id)
-    .ilike('name', pathologyName)
-    .maybeSingle();
+    .rpc('get_pathology_by_token', {
+      p_token: patientToken,
+      p_pathology_name: pathologyName
+    });
 
   if(error){
     console.error('Erreur recherche pathologie:', error);
     return null;
   }
 
-  return data || null;
+  return (data && data.length) ? data[0] : null;
 }
 
 async function loadPatientPathologyAdvice(){
@@ -1178,11 +1179,7 @@ function setupRealtimeForPatient(){
         if(modalOpen){
           renderMessages();
 
-          db.from('messages')
-            .update({read:true})
-            .eq('patient_id', currentPatient.id)
-            .eq('sender', 'kine')
-            .eq('read', false)
+                    db.rpc('mark_kine_messages_read_by_token', { p_token: patientToken })
             .then(({error}) => {
               if(error) console.error('Erreur read auto:', error);
             });
@@ -1264,15 +1261,18 @@ async function loadAndRenderPromForProgram(promId){
   if(!container || !promId) return;
 
   try {
-    const { data, error } = await db
-      .from('prom_templates')
-      .select('*')
-      .eq('id', promId)
-      .maybeSingle();
+       const { data: tplRows, error } = await db
+      .rpc('get_prom_template_by_token', {
+        p_token: patientToken,
+        p_template_id: promId
+      });
 
     if(error) throw error;
 
+    const data = (tplRows && tplRows.length) ? tplRows[0] : null;
+
     if(!data){
+
       container.innerHTML = `
         <div style="padding:16px;text-align:center;color:var(--text3);font-size:13px">
           Questionnaire introuvable.
@@ -1390,17 +1390,18 @@ async function submitPromResponse(templateId){
       value: input.value
     });
   });
-  try {
-    const { error } = await db.from('prom_responses').insert({
-      patient_id: currentPatient.id,
-      template_id: templateId,
-      program_id: prog?.id || null,
-      responses: JSON.stringify(responses),
-      timing: 'debut'
+    try {
+    const { error } = await db.rpc('submit_prom_response_by_token', {
+      p_token: patientToken,
+      p_template_id: templateId,
+      p_program_id: prog?.id || null,
+      p_responses: responses,
+      p_timing: 'debut'
     });
     if(error) throw error;
     showToast('Questionnaire envoyé !');
   } catch(e) {
+
     console.error('Erreur submitPromResponse:', e);
     showToast('Erreur envoi questionnaire');
   }
@@ -1469,15 +1470,14 @@ async function loadFlagQuestions(){
     const pathology = await findCurrentPatientPathology();
 
     if(pathology){
-      const { data: specificQuestionnaire, error: specificError } = await db
-        .from('pathology_flag_questionnaires')
-        .select('*')
-        .eq('practitioner_id', currentPatient.practitioner_id)
-        .eq('pathology_id', pathology.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending:false })
-        .limit(1)
-        .maybeSingle();
+            const { data: specificData, error: specificError } = await db
+        .rpc('get_pathology_flag_questionnaire_by_token', {
+          p_token: patientToken,
+          p_pathology_id: pathology.id
+        });
+
+      const specificQuestionnaire = (specificData && specificData.length) ? specificData[0] : null;
+
 
       if(specificError){
         console.error('Erreur chargement questionnaire spécifique:', specificError);
@@ -1506,12 +1506,10 @@ async function loadFlagQuestions(){
       }
     }
 
-    const { data: globalQuestions, error: globalError } = await db
-      .from('flag_questions')
-      .select('*')
-      .eq('practitioner_id', currentPatient.practitioner_id)
-      .eq('is_active', true)
-      .order('position', { ascending:true });
+        const { data: globalQuestions, error: globalError } = await db
+      .rpc('get_flag_questions_by_token', {
+        p_token: patientToken
+      });
 
     if(globalError){
       console.error('Erreur chargement flag questions globales:', globalError);
@@ -1683,6 +1681,9 @@ async function submitFlagScreening(){
 
     document.getElementById('flagScreeningView').classList.add('app-hidden');
     document.getElementById('appRoot').classList.remove('app-hidden');
+
+    await checkUnreadMessages();
+
 
   } catch(e){
     console.error('Erreur submitFlagScreening:', e);
@@ -2094,20 +2095,23 @@ async function submitSession(){
   const note=document.getElementById('sessionNote').value;
   const prog=currentPrograms[currentPhaseIdx];
 
-  try{
-    const {error} = await db.from('sessions').insert({
-      patient_id: currentPatient.id,
-      program_id: prog.id,
-      eva, borg: selectedBorg,
-      symptoms        : JSON.stringify([...selectedSymptoms]),
-      exercises_done  : JSON.stringify([...checkedExercises]),
-      body_chart      : bodyChartData, // <-- AJOUT ICI !
-      note, phase: prog.phase
+    try{
+    const {error} = await db.rpc('insert_session_by_token', {
+      p_token: patientToken,
+      p_program_id: prog.id,
+      p_eva: eva,
+      p_borg: selectedBorg,
+      p_symptoms: [...selectedSymptoms],
+      p_exercises_done: [...checkedExercises],
+      p_body_chart: bodyChartData,
+      p_note: note,
+      p_phase: prog.phase
     });
     if(error) throw error;
     closeModal('sessionModal');
     showSuccess();
   } catch(e){
+
     showToast("Erreur lors de l'envoi. Réessayez.");
     console.error(e);
   } finally {
@@ -2117,19 +2121,17 @@ async function submitSession(){
 
 // ===== MESSAGES =====
 async function checkUnreadMessages(){
-  const {data, error} = await db
-    .from('messages')
-    .select('id')
-    .eq('patient_id', currentPatient.id)
-    .eq('sender', 'kine')
-    .eq('read', false);
+  
+
+    const {data, error} = await db
+    .rpc('get_patient_messages_by_token', { p_token: patientToken });
 
   if(error){
     console.error('Erreur checkUnreadMessages:', error);
     return;
   }
 
-  unreadCount = data ? data.length : 0;
+  unreadCount = (data || []).filter(m => m.sender === 'kine' && m.read === false).length;
   updateMessageBadges();
 }
 
@@ -2143,12 +2145,8 @@ async function openMessages(){
 
   await renderMessages();
 
-  const {error} = await db
-    .from('messages')
-    .update({read:true})
-    .eq('patient_id', currentPatient.id)
-    .eq('sender', 'kine')
-    .eq('read', false);
+    const {error} = await db
+    .rpc('mark_kine_messages_read_by_token', { p_token: patientToken });
 
   if(error){
     console.error('Erreur marquage messages lus:', error);
@@ -2157,11 +2155,8 @@ async function openMessages(){
   openModal('messagesModal');
 }
 async function renderMessages(){
-  const {data, error} = await db
-    .from('messages')
-    .select('*')
-    .eq('patient_id', currentPatient.id)
-    .order('created_at', {ascending:true});
+    const {data, error} = await db
+    .rpc('get_patient_messages_by_token', { p_token: patientToken });
 
   const list = document.getElementById('messagesList');
 
@@ -2214,13 +2209,10 @@ async function sendPatientMessage(){
   input.disabled = true;
 
   try{
-    const {error} = await db
-      .from('messages')
-      .insert({
-        patient_id: currentPatient.id,
-        sender: 'patient',
-        text,
-        read: false
+        const {error} = await db
+      .rpc('send_patient_message_by_token', {
+        p_token: patientToken,
+        p_text: text
       });
 
     if(error) throw error;
