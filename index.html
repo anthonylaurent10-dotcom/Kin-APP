@@ -267,7 +267,7 @@
 </div>
               <div id="tabContent0">
                 <div id="flagScreeningDetail"></div>
-                <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Programme actif</div><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer programme</button></div>
+                <div class="section-hdr"><div class="section-title"><i class="fa-solid fa-clipboard-list"></i>Programme actif</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary" onclick="openRunningBuilder()"><i class="fa-solid fa-person-running"></i>Course à pied</button><button class="btn btn-primary" onclick="openProgramBuilder()"><i class="fa-solid fa-plus"></i>Créer programme</button></div></div>
                 <div id="patientProgramContainer"><div style="text-align:center;padding:32px;color:var(--text3)">Aucun programme assigné.</div></div>
               </div>
               <div id="tabContent1" style="display:none">
@@ -346,6 +346,9 @@
         <option value="custom">Personnalisée</option>
         <option value="template">Modèles</option>
       </select>
+            <button class="btn btn-secondary" onclick="openRunningBuilder()">
+        <i class="fa-solid fa-person-running"></i>Course à pied
+      </button>
       <button class="btn btn-primary" onclick="openProgramBuilder()">
         <i class="fa-solid fa-plus"></i>Créer un programme
       </button>
@@ -424,9 +427,14 @@
             <div class="section-title">
               <i class="fa-solid fa-file-signature"></i>Questionnaires (PROMs)
             </div>
-            <button class="btn btn-primary" onclick="openNewProm()">
-              <i class="fa-solid fa-plus"></i>Nouveau questionnaire
-            </button>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" onclick="openImportProm()">
+                <i class="fa-solid fa-file-import"></i>Importer (JSON)
+              </button>
+              <button class="btn btn-primary" onclick="openNewProm()">
+                <i class="fa-solid fa-plus"></i>Nouveau questionnaire
+              </button>
+            </div>
           </div>
 
           <!-- Constructeur (masqué par défaut) -->
@@ -668,6 +676,193 @@
 </div>
 
 <!-- MODALS -->
+<!-- MODAL PROGRAMME COURSE À PIED -->
+<div class="modal-overlay" id="modalRunning">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">
+        <i class="fa-solid fa-person-running" style="color:var(--accent)"></i>
+        <span id="modalRunningTitle">Programme reprise course à pied</span>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalRunning')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <div class="modal-body">
+
+      <!-- Sélecteur de modèle course -->
+      <div class="form-group full" style="background:var(--bg);padding:12px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:16px">
+        <label class="form-label">
+          <i class="fa-solid fa-folder-open" style="color:var(--accent)"></i>
+          Charger un modèle de course existant
+        </label>
+        <select class="form-select" id="runModelSelector" onchange="loadRunningFromModel(this.value)">
+          <option value="">-- Partir de zéro --</option>
+        </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:5px">
+          Sélectionnez un modèle pour pré-remplir tous les champs.
+        </div>
+      </div>
+
+      <!-- Infos de base -->
+      <div class="form-grid" style="margin-bottom:20px">
+        <div class="form-group">
+          <label class="form-label">Nom du programme <span>*</span></label>
+          <input class="form-input" id="runName" placeholder="Ex: Reprise course - tendinopathie"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Patient</label>
+          <select class="form-select" id="runPatient"><option value="">— Sélectionner —</option></select>
+        </div>
+      </div>
+
+      <!-- 1. CADRE GÉNÉRAL -->
+      <div class="run-section">
+        <div class="run-section-title"><i class="fa-solid fa-flag-checkered" style="color:var(--accent)"></i> 1. Cadre général</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Objectif final</label>
+            <input class="form-input" id="runObjectif" placeholder="Ex: Atteindre 30 min de course continue"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fréquence hebdomadaire</label>
+            <input class="form-input" id="runFrequence" placeholder="Ex: 2 à 3 séances/semaine"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Jours de repos obligatoires</label>
+            <input class="form-input" id="runRepos" placeholder="Ex: 48h entre 2 séances"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. CONTRAT DE RÉÉDUCATION -->
+      <div class="run-section">
+        <div class="run-section-title"><i class="fa-solid fa-file-signature" style="color:var(--accent)"></i> 2. Contrat de rééducation</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Gestion de la douleur</label>
+            <textarea class="form-textarea" id="runDouleur" style="min-height:55px" placeholder="Ex: Arrêt immédiat si douleur > 3/10. Douleur post-effort doit disparaître avant le lendemain matin."></textarea>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Règle de progression</label>
+            <textarea class="form-textarea" id="runProgression" style="min-height:55px" placeholder="Ex: Validation sans douleur = palier suivant. Douleur pendant/après = on recule d'un palier."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. CONTENU DE LA SÉANCE -->
+      <div class="run-section">
+        <div class="run-section-title"><i class="fa-solid fa-dumbbell" style="color:var(--accent)"></i> 3. Contenu de la séance</div>
+        <div class="form-grid">
+          <div class="form-group full">
+            <label class="form-label">Échauffement</label>
+            <input class="form-input" id="runEchauffement" placeholder="Ex: 5 à 10 min de marche dynamique"/>
+          </div>
+        </div>
+
+        <!-- PALIERS -->
+        <div style="font-size:12px;font-weight:700;color:var(--text2);margin:14px 0 8px;display:flex;align-items:center;gap:6px">
+          <i class="fa-solid fa-stairs" style="color:var(--accent)"></i> Paliers (fractionné course / marche)
+        </div>
+        <div id="runPaliersContainer" style="display:flex;flex-direction:column;gap:10px;margin-bottom:10px"></div>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="addRunningPalier()">
+          <i class="fa-solid fa-plus"></i> Ajouter un palier
+        </button>
+
+        <div class="form-grid" style="margin-top:16px">
+          <div class="form-group full">
+            <label class="form-label">Intensité / Allure</label>
+            <input class="form-input" id="runIntensite" placeholder="Ex: Allure conversationnelle, RPE 4-5/10, footing lent"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Terrain</label>
+            <input class="form-input" id="runTerrain" placeholder="Ex: Plat, souple, sans dénivelé"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Retour au calme</label>
+            <input class="form-input" id="runRetourCalme" placeholder="Ex: 5 min de marche"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. CONSIGNES TECHNIQUES -->
+      <div class="run-section">
+        <div class="run-section-title"><i class="fa-solid fa-person-walking" style="color:var(--accent)"></i> 4. Consignes techniques</div>
+        <div class="form-group full">
+          <label class="form-label">Conseils de foulée / cues</label>
+          <textarea class="form-textarea" id="runFoulee" style="min-height:55px" placeholder="Ex: Augmenter la cadence, courir sans faire de bruit, élargir le polygone..."></textarea>
+        </div>
+      </div>
+
+      <!-- 5. À-CÔTÉS THÉRAPEUTIQUES -->
+      <div class="run-section">
+        <div class="run-section-title"><i class="fa-solid fa-shoe-prints" style="color:var(--accent)"></i> 5. À-côtés thérapeutiques</div>
+        <div class="form-group full">
+          <label class="form-label">Matériel / Chaussures</label>
+          <textarea class="form-textarea" id="runMateriel" style="min-height:55px" placeholder="Ex: Ne pas changer de modèle de chaussures pendant la phase de reprise."></textarea>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="saveRunningAsTemplate()">💾 Enregistrer comme modèle</button>
+      <button class="btn btn-secondary" onclick="closeModal('modalRunning')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveRunning()" id="btnSaveRunning">
+        <i class="fa-solid fa-floppy-disk"></i> Enregistrer programme
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORT PROM (JSON) -->
+<div class="modal-overlay" id="modalImportProm">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-hdr-title">
+        <i class="fa-solid fa-file-import" style="color:var(--accent)"></i>
+        Importer un questionnaire (JSON)
+      </div>
+      <button class="modal-close" onclick="closeModal('modalImportProm')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="alert alert-warn" style="margin-bottom:14px">
+        <i class="fa-solid fa-circle-info"></i>
+        <div>
+          Collez ci-dessous un questionnaire au format JSON (généré par une IA, par exemple).
+          Il sera ajouté à vos questionnaires <strong>en privé</strong>. Vous pourrez ensuite le partager
+          ou le charger dans un programme comme n'importe quel autre.
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px">
+        <button class="btn btn-secondary btn-sm" onclick="fillImportExample()">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Voir un exemple de format
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="copyImportPrompt()">
+          <i class="fa-solid fa-copy"></i> Copier le "prompt IA"
+        </button>
+      </div>
+
+      <textarea id="importPromJson"
+        class="form-textarea"
+        style="min-height:260px;font-family:monospace;font-size:12px"
+        placeholder='Collez ici le JSON du questionnaire...'></textarea>
+
+      <div id="importPromFeedback" style="margin-top:10px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modalImportProm')">Annuler</button>
+      <button class="btn btn-primary" onclick="importPromFromJson()" id="btnImportProm">
+        <i class="fa-solid fa-file-import"></i> Importer le questionnaire
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalPatient">
   <div class="modal">
     <div class="modal-hdr"><div class="modal-hdr-title"><i class="fa-solid fa-user-plus" style="color:var(--accent)"></i><span id="modalPatientTitle">Nouveau patient</span></div><button class="modal-close" onclick="closeModal('modalPatient')"><i class="fa-solid fa-xmark"></i></button></div>

@@ -1653,6 +1653,305 @@ async function saveNotes(){
 }
 function copyLink(url){navigator.clipboard.writeText(url).then(()=>showToast('Lien copié !','green'))}
 
+// ============================================================
+// PROGRAMME COURSE À PIED (running)
+// ============================================================
+let runningPaliers = [];      // les paliers en cours d'édition
+let editingRunningId = null;  // id du programme course en cours de modif
+
+function openRunningBuilder(progId = null){
+  editingRunningId = progId;
+  runningPaliers = [];
+
+  // Remplit le sélecteur de modèles course (modèles = is_template OU sans patient)
+  const modelSel = document.getElementById('runModelSelector');
+  const runningModels = programs.filter(p =>
+    p.program_type === 'running' && (p.is_template === true || !p.patient_id)
+  );
+  modelSel.innerHTML = '<option value="">-- Partir de zéro --</option>' +
+    runningModels.map(m => `<option value="${m.id}">${escapeHTML(m.name)}</option>`).join('');
+
+  // Remplit le sélecteur de patients
+  const sel = document.getElementById('runPatient');
+  sel.innerHTML = '<option value="">— Sélectionner —</option>' +
+    patients.map(p => `
+      <option value="${p.id}">
+        ${escapeHTML(p.first_name)} ${escapeHTML(p.last_name)}
+      </option>
+    `).join('');
+
+  // Liste des champs texte de la modale (id du champ → clé dans running_plan)
+  const fields = {
+    runObjectif: 'objectif',
+    runFrequence: 'frequence',
+    runRepos: 'repos',
+    runDouleur: 'douleur',
+    runProgression: 'regle_progression',
+    runEchauffement: 'echauffement',
+    runIntensite: 'intensite',
+    runTerrain: 'terrain',
+    runRetourCalme: 'retour_calme',
+    runFoulee: 'foulee',
+    runMateriel: 'materiel'
+  };
+
+  if(progId){
+    // MODE MODIFICATION : on remplit avec les données existantes
+    const prog = programs.find(x => x.id === progId);
+    if(prog){
+      document.getElementById('runName').value = prog.name || '';
+      document.getElementById('runPatient').value = prog.patient_id || '';
+
+      const plan = prog.running_plan || {};
+      Object.entries(fields).forEach(([elId, key]) => {
+        const el = document.getElementById(elId);
+        if(el) el.value = plan[key] || '';
+      });
+
+      runningPaliers = Array.isArray(plan.paliers)
+        ? JSON.parse(JSON.stringify(plan.paliers))
+        : [];
+    }
+  } else {
+    // MODE CRÉATION : on vide tout
+    document.getElementById('runName').value = '';
+    document.getElementById('runPatient').value = currentPatientId || '';
+    Object.keys(fields).forEach(elId => {
+      const el = document.getElementById(elId);
+      if(el) el.value = '';
+    });
+    runningPaliers = [];
+  }
+
+  renderRunningPaliers();
+  openModal('modalRunning');
+}
+
+function addRunningPalier(){
+  runningPaliers.push({
+    nom: 'Palier ' + (runningPaliers.length + 1),
+    course: '',
+    marche: '',
+    repetitions: ''
+  });
+  renderRunningPaliers();
+}
+
+function removeRunningPalier(i){
+  runningPaliers.splice(i, 1);
+  renderRunningPaliers();
+}
+
+function updateRunningPalier(i, key, val){
+  if(runningPaliers[i]) runningPaliers[i][key] = val;
+}
+
+function renderRunningPaliers(){
+  const c = document.getElementById('runPaliersContainer');
+  if(!c) return;
+
+  if(!runningPaliers.length){
+    c.innerHTML = `
+      <div style="text-align:center;padding:18px;color:var(--text3);font-size:12px;
+                  border:1px dashed var(--border);border-radius:10px;background:var(--card)">
+        Aucun palier. Cliquez sur "Ajouter un palier".
+      </div>`;
+    return;
+  }
+
+  c.innerHTML = runningPaliers.map((p, i) => `
+    <div class="run-palier">
+      <div class="run-palier-hdr">
+        <div class="run-palier-num">${i + 1}</div>
+        <input class="form-input" style="flex:1"
+               value="${escapeHTML(p.nom || '')}"
+               oninput="updateRunningPalier(${i},'nom',this.value)"
+               placeholder="Nom du palier"/>
+        <button type="button" class="btn btn-danger btn-sm btn-icon-only"
+                onclick="removeRunningPalier(${i})">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+      <div class="run-palier-grid">
+        <div class="dosage-mini">
+          <label>Temps de course</label>
+          <input class="form-input" value="${escapeHTML(p.course || '')}"
+                 oninput="updateRunningPalier(${i},'course',this.value)"
+                 placeholder="Ex: 1 min"/>
+        </div>
+        <div class="dosage-mini">
+          <label>Temps de marche</label>
+          <input class="form-input" value="${escapeHTML(p.marche || '')}"
+                 oninput="updateRunningPalier(${i},'marche',this.value)"
+                 placeholder="Ex: 2 min"/>
+        </div>
+        <div class="dosage-mini">
+          <label>Répétitions</label>
+          <input class="form-input" value="${escapeHTML(p.repetitions || '')}"
+                 oninput="updateRunningPalier(${i},'repetitions',this.value)"
+                 placeholder="Ex: x5"/>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// Construit l'objet running_plan à partir des champs du formulaire
+function buildRunningPlan(){
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  return {
+    objectif: get('runObjectif'),
+    frequence: get('runFrequence'),
+    repos: get('runRepos'),
+    douleur: get('runDouleur'),
+    regle_progression: get('runProgression'),
+    echauffement: get('runEchauffement'),
+    paliers: runningPaliers.map(p => ({
+      nom: p.nom || '',
+      course: p.course || '',
+      marche: p.marche || '',
+      repetitions: p.repetitions || ''
+    })),
+    intensite: get('runIntensite'),
+    terrain: get('runTerrain'),
+    retour_calme: get('runRetourCalme'),
+    foulee: get('runFoulee'),
+    materiel: get('runMateriel')
+  };
+}
+
+async function saveRunning(){
+  const name = document.getElementById('runName').value.trim();
+  const patId = document.getElementById('runPatient').value;
+
+  if(!name){ showToast('Nom requis', 'red'); return; }
+  if(!patId){ showToast('Sélectionnez un patient', 'red'); return; }
+  if(!patients.some(p => p.id === patId)){
+    showToast('Patient sélectionné invalide', 'red');
+    return;
+  }
+
+  const btn = document.getElementById('btnSaveRunning');
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<span class="loading-spinner" style="border-top-color:#fff"></span> Enregistrement...';
+
+  const payload = {
+    practitioner_id: currentPractitioner.id,
+    is_template: false,
+    program_type: 'running',
+    name,
+    phase: 'reprise',
+    frequency: document.getElementById('runFrequence').value.trim(),
+    description: document.getElementById('runObjectif').value.trim(),
+    patient_id: patId,
+    running_plan: buildRunningPlan(),
+    exercises: [],
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    if(editingRunningId){
+      const { error } = await db
+        .from('programs')
+        .update(payload)
+        .eq('id', editingRunningId);
+      if(error) throw error;
+    } else {
+      const { error } = await db
+        .from('programs')
+        .insert(payload);
+      if(error) throw error;
+    }
+
+    await loadAllData();
+    closeModal('modalRunning');
+    showToast('Programme course à pied enregistré', 'green');
+
+    currentPatientId = patId;
+    renderPatientPrograms(patId);
+
+  } catch(e) {
+    console.error('Erreur saveRunning:', e);
+    showToast('Erreur : ' + e.message, 'red');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+async function saveRunningAsTemplate(){
+  const name = document.getElementById('runName').value.trim();
+  if(!name){ showToast('Nom requis', 'red'); return; }
+
+  const payload = {
+    practitioner_id: currentPractitioner.id,
+    patient_id: null,
+    is_template: true,
+    program_type: 'running',
+    name,
+    phase: 'reprise',
+    frequency: document.getElementById('runFrequence').value.trim(),
+    description: document.getElementById('runObjectif').value.trim(),
+    running_plan: buildRunningPlan(),
+    exercises: [],
+    updated_at: new Date().toISOString()
+  };
+
+  try {
+    const { error } = await db.from('programs').insert(payload);
+    if(error) throw error;
+    await loadAllData();
+    showToast('Programme course enregistré comme modèle', 'green');
+  } catch(e) {
+    console.error('Erreur saveRunningAsTemplate:', e);
+    showToast('Erreur : ' + e.message, 'red');
+  }
+}
+
+
+function loadRunningFromModel(modelId){
+  if(!modelId) return;
+
+  const model = programs.find(p => p.id === modelId);
+  if(!model){ showToast('Modèle introuvable', 'red'); return; }
+
+  // On passe en mode création (on ne modifie pas le modèle lui-même)
+  editingRunningId = null;
+
+  const plan = model.running_plan || {};
+
+  // Remplit le nom (on garde le patient déjà sélectionné)
+  document.getElementById('runName').value = model.name || '';
+
+  // Remplit tous les champs texte
+  const fields = {
+    runObjectif: 'objectif',
+    runFrequence: 'frequence',
+    runRepos: 'repos',
+    runDouleur: 'douleur',
+    runProgression: 'regle_progression',
+    runEchauffement: 'echauffement',
+    runIntensite: 'intensite',
+    runTerrain: 'terrain',
+    runRetourCalme: 'retour_calme',
+    runFoulee: 'foulee',
+    runMateriel: 'materiel'
+  };
+  Object.entries(fields).forEach(([elId, key]) => {
+    const el = document.getElementById(elId);
+    if(el) el.value = plan[key] || '';
+  });
+
+  // Remplit les paliers
+  runningPaliers = Array.isArray(plan.paliers)
+    ? JSON.parse(JSON.stringify(plan.paliers))
+    : [];
+  renderRunningPaliers();
+
+  showToast('Modèle chargé !', 'blue');
+}
+
 // ===== PROGRAMS =====
 // Liste des proms disponibles en mémoire pour le builder de programme
 let availableProms = [];
@@ -1980,7 +2279,7 @@ function renderPatientPrograms(patId){
           </div>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openProgramBuilder('${prog.id}')">
+                    <button class="btn btn-secondary btn-sm btn-icon-only" onclick="${prog.program_type === 'running' ? `openRunningBuilder('${prog.id}')` : `openProgramBuilder('${prog.id}')`}">
             <i class="fa-solid fa-pen"></i>
           </button>
           <button class="btn btn-danger btn-sm btn-icon-only" onclick="deleteProgram('${prog.id}')">
@@ -4719,6 +5018,237 @@ function renderQuestionsBuilder() {
     </div>`).join('');
 }
 
+// ============================================================
+// IMPORT DE QUESTIONNAIRE PAR JSON
+// ============================================================
+
+// Le format JSON attendu (à donner à une IA)
+const PROM_IMPORT_FORMAT = {
+  title: "KOOS - Genou",
+  description: "Répondez en pensant à votre genou durant la dernière semaine.",
+  score_mode: "sum",          // "sum" | "average" | "percent"
+  score_max: null,            // nombre ou null (auto)
+  questions: [
+    {
+      question: "Avez-vous un gonflement du genou ?",
+      type: "choice",         // "scale" | "number" | "yesno" | "choice" | "text"
+      options: "Jamais|Rarement|Parfois|Souvent|Toujours",
+      weight: 1
+    },
+    {
+      question: "Évaluez votre douleur en montant les escaliers (0 = aucune, 10 = max)",
+      type: "scale",
+      min: 0,
+      max: 10,
+      weight: 1,
+      invert: false
+    }
+  ]
+};
+
+function openImportProm(){
+  const ta = document.getElementById('importPromJson');
+  if(ta) ta.value = '';
+  const fb = document.getElementById('importPromFeedback');
+  if(fb) fb.innerHTML = '';
+  openModal('modalImportProm');
+}
+
+function fillImportExample(){
+  const ta = document.getElementById('importPromJson');
+  if(ta) ta.value = JSON.stringify(PROM_IMPORT_FORMAT, null, 2);
+}
+
+function copyImportPrompt(){
+  const prompt =
+`Tu vas générer un questionnaire au format JSON STRICT (aucun texte autour, uniquement le JSON valide), destiné à être importé dans une application de suivi kiné.
+
+CONTRAINTES TECHNIQUES DU SYSTÈME (à respecter impérativement) :
+- Le score est calculé automatiquement par l'application selon UN SEUL mode parmi : "sum" (somme), "average" (moyenne) ou "percent" (pourcentage du maximum).
+- Chaque question a un "weight" (coefficient, défaut 1) et une option "invert" (true = une valeur haute compte comme un mauvais résultat, donc le score est inversé).
+- Les questions de type "text" ne comptent PAS dans le score.
+
+RÈGLE IMPORTANTE SUR LES SOUS-ÉCHELLES :
+- Si le questionnaire réel se calcule en PLUSIEURS sous-échelles séparées (ex: le KOOS a 5 dimensions : Douleur, Symptômes, Vie quotidienne, Sport, Qualité de vie), tu NE dois PAS tout mettre dans un seul questionnaire.
+- Dans ce cas, génère un OBJET JSON par sous-échelle, et renvoie un TABLEAU de ces objets. Chaque sous-échelle aura son propre titre (ex: "KOOS - Douleur", "KOOS - Symptômes", etc.) pour que chaque score soit calculé séparément.
+- Si le questionnaire a un score global simple, renvoie un seul objet (pas un tableau).
+
+SCHÉMA D'UN QUESTIONNAIRE :
+{
+  "title": "Nom du questionnaire",
+  "description": "Consigne pour le patient",
+  "score_mode": "sum",
+  "score_max": null,
+  "questions": [
+    {
+      "question": "Intitulé de la question",
+      "type": "choice",
+      "options": "Jamais|Rarement|Parfois|Souvent|Toujours",
+      "weight": 1,
+      "invert": false
+    },
+    {
+      "question": "Question sur une échelle de 0 à 10",
+      "type": "scale",
+      "min": 0,
+      "max": 10,
+      "weight": 1,
+      "invert": false
+    }
+  ]
+}
+
+RÈGLES DE FORMAT :
+- "type" doit être l'un de : "scale", "number", "yesno", "choice", "text".
+- Pour "choice", fournis "options" en texte séparé par des barres verticales |.
+- Pour "scale"/"number", fournis "min" et "max".
+- Aucun commentaire, uniquement du JSON valide (un objet, ou un tableau d'objets si sous-échelles).
+
+INDIQUE AUSSI, EN COMMENTAIRE SÉPARÉ (hors du JSON, après celui-ci) : si le scoring de ce questionnaire est trop complexe pour être reproduit fidèlement avec ces 3 modes simples, préviens-moi clairement que le score affiché ne sera qu'indicatif.
+
+Le questionnaire à générer est : [INDIQUE ICI LE NOM, ex: KOOS pour le genou]`;
+
+  navigator.clipboard.writeText(prompt)
+    .then(() => showToast('Prompt IA copié ! Collez-le dans une IA.', 'green'))
+    .catch(() => showToast('Impossible de copier', 'red'));
+}
+
+
+async function importPromFromJson(){
+  const ta = document.getElementById('importPromJson');
+  const fb = document.getElementById('importPromFeedback');
+  const btn = document.getElementById('btnImportProm');
+
+  const showErr = (msg) => {
+    if(fb) fb.innerHTML = `
+      <div class="alert alert-red">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>${escapeHTML(msg)}</div>
+      </div>`;
+  };
+
+  const raw = ta ? ta.value.trim() : '';
+  if(!raw){ showErr('Collez d’abord un JSON.'); return; }
+
+  // 1) Parsing JSON
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch(e) {
+    showErr('JSON invalide : ' + e.message);
+    return;
+  }
+
+  // 2) On accepte soit un objet unique, soit un tableau de questionnaires
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+
+  if(!list.length){
+    showErr('Le JSON ne contient aucun questionnaire.');
+    return;
+  }
+
+  const validTypes = ['scale','number','yesno','choice','text'];
+  const payloads = [];
+
+  // 3) On valide et nettoie CHAQUE questionnaire de la liste
+  for(let n = 0; n < list.length; n++){
+    const item = list[n] || {};
+    const label = list.length > 1 ? `Questionnaire n°${n + 1} : ` : '';
+
+    if(typeof item !== 'object'){
+      showErr(`${label}ce n'est pas un objet valide.`);
+      return;
+    }
+
+    const title = String(item.title || '').trim();
+    if(!title){
+      showErr(`${label}le champ "title" est obligatoire.`);
+      return;
+    }
+
+    if(!Array.isArray(item.questions) || !item.questions.length){
+      showErr(`${label}le champ "questions" doit être une liste non vide.`);
+      return;
+    }
+
+    const cleanedQuestions = [];
+    for(let i = 0; i < item.questions.length; i++){
+      const q = item.questions[i] || {};
+      const qText = String(q.question || '').trim();
+
+      if(!qText){
+        showErr(`${label}la question n°${i + 1} n'a pas d'intitulé ("question").`);
+        return;
+      }
+
+      let type = String(q.type || 'scale').trim();
+      if(!validTypes.includes(type)) type = 'scale';
+
+      const clean = {
+        question: qText,
+        type,
+        min: Number.isFinite(q.min) ? q.min : 0,
+        max: Number.isFinite(q.max) ? q.max : 10,
+        weight: Number.isFinite(q.weight) ? q.weight : 1,
+        invert: q.invert === true,
+        options: typeof q.options === 'string' ? q.options : ''
+      };
+
+      if(type === 'yesno'){
+        clean.scoreYes = Number.isFinite(q.scoreYes) ? q.scoreYes : 1;
+        clean.scoreNo  = Number.isFinite(q.scoreNo)  ? q.scoreNo  : 0;
+      }
+
+      if(type === 'choice' && !clean.options.trim()){
+        showErr(`${label}la question n°${i + 1} est de type "choice" mais n'a pas d'"options".`);
+        return;
+      }
+
+      cleanedQuestions.push(clean);
+    }
+
+    let scoreMode = String(item.score_mode || 'sum').trim();
+    if(!['sum','average','percent'].includes(scoreMode)) scoreMode = 'sum';
+
+    const scoreMax = Number.isFinite(item.score_max) ? item.score_max : null;
+
+    payloads.push({
+      practitioner_id: currentPractitioner.id,
+      title,
+      description: String(item.description || '').trim(),
+      questions: JSON.stringify(cleanedQuestions),
+      score_mode: scoreMode,
+      score_max: scoreMax,
+      updated_at: new Date().toISOString()
+    });
+  }
+
+  // 4) Insertion (un seul appel, même pour plusieurs questionnaires)
+  if(btn){ btn.disabled = true; }
+
+  try {
+    const { error } = await db
+      .from('prom_templates')
+      .insert(payloads);
+
+    if(error) throw error;
+
+    const msg = payloads.length > 1
+      ? `${payloads.length} questionnaires importés avec succès !`
+      : `Questionnaire "${payloads[0].title}" importé !`;
+
+    showToast(msg, 'green');
+    closeModal('modalImportProm');
+    await loadPromList();
+
+  } catch(e) {
+    console.error('Erreur importPromFromJson:', e);
+    showErr('Erreur d’enregistrement : ' + e.message);
+  } finally {
+    if(btn) btn.disabled = false;
+  }
+}
+
 async function savePromTemplate() {
   const title = document.getElementById('promTitle').value.trim();
   const scoreMode = document.getElementById('promScoreMode').value;
@@ -6564,10 +7094,11 @@ function renderProgramsFiltered(list) {
           </div>
                     <div style="display:flex;gap:6px">
             ${prog.practitioner_id === currentPractitioner.id ? `
-              <button class="btn btn-secondary btn-sm btn-icon-only"
-                      onclick="openProgramBuilder('${prog.id}')" title="Modifier">
+                            <button class="btn btn-secondary btn-sm btn-icon-only"
+                      onclick="${prog.program_type === 'running' ? `openRunningBuilder('${prog.id}')` : `openProgramBuilder('${prog.id}')`}" title="Modifier">
                 <i class="fa-solid fa-pen"></i>
               </button>
+
               ${isTemplate ? `
                 <button class="btn btn-secondary btn-sm btn-icon-only"
                         onclick="toggleProgramPublic('${prog.id}')"

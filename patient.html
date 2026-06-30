@@ -1429,12 +1429,20 @@ if (promIds.length) {
   document.getElementById('promListContainer').innerHTML = '';
 }
 
-  if(!prog) return;
+    if(!prog) return;
 
   const c = document.getElementById('patContent');
 
   allExerciseIds = [];
   checkedExercises = new Set();
+
+    // === PROGRAMME COURSE À PIED ===
+  if(prog.program_type === 'running'){
+    c.innerHTML = buildRunningPlanHTML(prog.running_plan, prog.id);
+    await loadCheckedFromToday(); // recharge les paliers cochés du jour
+    updateProgress();
+    return;
+  }
 
   let html = '';
 
@@ -1694,6 +1702,105 @@ async function submitFlagScreening(){
   }
 }
 
+let _runningProgId = '';
+function buildRunningPlanHTML(plan, progId){
+  _runningProgId = progId || '';
+  if(!plan || typeof plan !== 'object') plan = {};
+
+  // Petit utilitaire : affiche un bloc seulement si la valeur existe
+  const block = (icon, label, value) => {
+    if(!value || !String(value).trim()) return '';
+    return `
+      <div class="d-item full" style="margin-bottom:8px">
+        <div class="d-label"><i class="fa-solid ${icon}"></i>${label}</div>
+        <div class="d-value" style="font-weight:500;white-space:pre-wrap;line-height:1.5">${escapeHTML(value)}</div>
+      </div>`;
+  };
+
+  // Section avec titre
+  const section = (icon, title, inner) => {
+    if(!inner.trim()) return '';
+    return `
+      <div class="sec-title"><i class="fa-solid ${icon}"></i>${title}</div>
+      ${inner}`;
+  };
+
+  let html = '';
+
+  // 1. Cadre général
+  html += section('fa-flag-checkered', 'Cadre général',
+    block('fa-bullseye', 'Objectif final', plan.objectif) +
+    block('fa-calendar-week', 'Fréquence', plan.frequence) +
+    block('fa-bed', 'Jours de repos', plan.repos)
+  );
+
+  // 2. Contrat de rééducation
+  html += section('fa-file-signature', 'Contrat de rééducation',
+    block('fa-heart-pulse', 'Gestion de la douleur', plan.douleur) +
+    block('fa-arrow-trend-up', 'Règle de progression', plan.regle_progression)
+  );
+
+  // 3. Séance
+  let seance = block('fa-fire-flame-curved', 'Échauffement', plan.echauffement);
+
+    // Les paliers (cochables par le patient)
+  const paliers = Array.isArray(plan.paliers) ? plan.paliers : [];
+  if(paliers.length){
+    seance += `
+      <div class="d-item full" style="margin-bottom:8px">
+        <div class="d-label"><i class="fa-solid fa-stairs"></i>Paliers (course / marche)</div>
+        ${paliers.map((p, i) => {
+          const palierId = _runningProgId + '-palier-' + i;
+          allExerciseIds.push(palierId);
+          const done = checkedExercises.has(palierId);
+          return `
+          <div class="ex-card${done ? ' done' : ''}" id="excard-${escapeHTML(palierId)}"
+               style="background:var(--bg);border-left:3px solid var(--accent);margin-top:8px;padding:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="flex:1">
+                <div style="font-weight:800;font-size:13px;color:var(--text);margin-bottom:6px">
+                  ${escapeHTML(p.nom || ('Palier ' + (i + 1)))}
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--text2)">
+                  ${p.course ? `<span class="symptom-tag"><i class="fa-solid fa-person-running" style="color:var(--accent)"></i> Course : ${escapeHTML(p.course)}</span>` : ''}
+                  ${p.marche ? `<span class="symptom-tag"><i class="fa-solid fa-person-walking" style="color:var(--green)"></i> Marche : ${escapeHTML(p.marche)}</span>` : ''}
+                  ${p.repetitions ? `<span class="symptom-tag"><i class="fa-solid fa-repeat"></i> ${escapeHTML(p.repetitions)}</span>` : ''}
+                </div>
+              </div>
+              <button class="chk-btn${done ? ' checked' : ''}" id="chk-${escapeHTML(palierId)}"
+                      onclick="toggleCheck(event,'${escapeHTML(palierId)}')">
+                <i class="fa-solid fa-check"></i>
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  seance += block('fa-gauge-high', 'Intensité / Allure', plan.intensite);
+  seance += block('fa-road', 'Terrain', plan.terrain);
+  seance += block('fa-mug-hot', 'Retour au calme', plan.retour_calme);
+
+  html += section('fa-dumbbell', 'Contenu de la séance', seance);
+
+  // 4. Technique
+  html += section('fa-person-walking', 'Consignes techniques',
+    block('fa-shoe-prints', 'Foulée / cues', plan.foulee)
+  );
+
+  // 5. À-côtés
+  html += section('fa-shoe-prints', 'À-côtés thérapeutiques',
+    block('fa-shoe-prints', 'Matériel / Chaussures', plan.materiel)
+  );
+
+  if(!html.trim()){
+    html = `<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">
+      Ce programme course n'a pas encore de contenu détaillé.
+    </div>`;
+  }
+
+  return html;
+}
 
 function buildExCard(ex, num, exId){
   const done = checkedExercises.has(exId);
@@ -1865,12 +1972,24 @@ async function saveExerciseCheckToSupabase(exId, isChecked) {
   const prog = currentPrograms[currentPhaseIdx];
   if (!prog) return;
 
-  const exercise = (prog.exercises || []).find((ex, k) => {
-    const currentExId = prog.id + '-' + (ex.id || k);
-    return currentExId === exId;
-  });
+  let exerciseName = exId;
 
-  const exerciseName = exercise?.name || exId;
+  if(prog.program_type === 'running'){
+    // Pour un palier : on retrouve son nom dans le running_plan
+    const match = exId.match(/-palier-(\d+)$/);
+    const paliers = (prog.running_plan && Array.isArray(prog.running_plan.paliers))
+      ? prog.running_plan.paliers
+      : [];
+    if(match && paliers[match[1]]){
+      exerciseName = paliers[match[1]].nom || ('Palier ' + (Number(match[1]) + 1));
+    }
+  } else {
+    const exercise = (prog.exercises || []).find((ex, k) => {
+      const currentExId = prog.id + '-' + (ex.id || k);
+      return currentExId === exId;
+    });
+    exerciseName = exercise?.name || exId;
+  }
 
   const { error } = await db.rpc('upsert_daily_exercise_check', {
     p_token: patientToken,

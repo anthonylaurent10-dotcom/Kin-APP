@@ -1001,3 +1001,59 @@ tr:hover td{background:var(--bg)}
 .sidebar {
   pointer-events: auto !important;
 }
+
+/* ===== PROGRAMME COURSE À PIED ===== */
+.run-section{
+  background:var(--bg);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+  margin-bottom:16px;
+}
+.run-section-title{
+  font-size:13px;
+  font-weight:800;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+}
+.run-palier{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-left:4px solid var(--accent);
+  border-radius:10px;
+  padding:12px;
+  box-shadow:var(--shadow);
+}
+.run-palier-hdr{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:10px;
+}
+.run-palier-num{
+  width:24px;
+  height:24px;
+  border-radius:7px;
+  background:linear-gradient(135deg,var(--accent),var(--purple));
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-shrink:0;
+}
+.run-palier-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+@media(max-width:640px){
+  .run-palier-grid{grid-template-columns:1fr 1fr;}
+}
+
