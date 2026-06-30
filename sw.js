@@ -50,21 +50,34 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch basique
+// Fetch — stratégie "cache d'abord, sinon réseau"
 self.addEventListener('fetch', event => {
   const request = event.request;
 
   if (request.method !== 'GET') return;
 
+  // On ne gère QUE les requêtes de notre propre origine (même domaine).
+  // Les ressources externes (CDN Supabase, Font Awesome, YouTube...) passent
+  // directement au réseau sans interception → évite les erreurs "response null".
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) {
+    return; // on laisse le navigateur gérer normalement
+  }
+
   event.respondWith(
     caches.match(request).then(cached => {
       if (cached) return cached;
 
-      return fetch(request).catch(() => {
-        if (request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
+      return fetch(request)
+        .then(response => response)
+        .catch(() => {
+          // Si on est hors-ligne et que c'est une navigation, on sert index.html
+          if (request.mode === 'navigate') {
+            return caches.match('./index.html');
+          }
+          // Sinon, on renvoie une réponse vide propre (jamais null)
+          return new Response('', { status: 504, statusText: 'Hors ligne' });
+        });
     })
   );
 });
