@@ -2,7 +2,7 @@
 // SERVICE WORKER — Alyzio
 // ============================================================
 
-const CACHE_NAME = 'kineapp-v1';
+const CACHE_NAME = 'kineapp-v2';
 
 const APP_SHELL = [
   './',
@@ -150,3 +150,13 @@ self.addEventListener('notificationclick', event => {
 self.addEventListener('notificationclose', event => {
   console.log('[SW] Notification fermée sans clic');
 });
+// Supprime les anciennes versions du cache
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+// Active la nouvelle version immédiatement
+self.addEventListener('install', () => self.skipWaiting());

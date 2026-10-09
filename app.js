@@ -2119,6 +2119,52 @@ function addExercise(){
   renderExercisesBuilder();
 }
 function removeExercise(idx){exercisesInBuilder.splice(idx,1);renderExercisesBuilder()}
+
+// ===================================================
+// LISTES DÉROULANTES DU DOSAGE (Séries, Reps, Récup, Tempo)
+// Pour ajouter un choix : ajoutez-le ici ET dans index.html
+// ===================================================
+const DOSAGE_OPTIONS = {
+  series: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+  reps:   ['5', '6', '8', '10', '12', '15', '20', '25', '30',
+           '10s', '15s', '20s', '30s', '45s', '60s', '90s', '2 min', '3 min', '5 min'],
+  rest:   ['15s', '30s', '45s', '60s', '60-90s', '90s', '2 min', '3 min'],
+  tempo:  ['1-0-1', '2-0-2', '2-1-2', '3-0-3', '3-1-3', '3-0-1', '4-0-1', '4-2-1', '5-0-5']
+};
+
+// Petit outil pour éviter que des guillemets (ex : 30") cassent le HTML
+function escDosage(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// Fabrique une liste déroulante pour le constructeur de programme
+function buildDosageSelect(key, current, i) {
+  const val = (current === null || current === undefined) ? '' : String(current);
+  const options = [...DOSAGE_OPTIONS[key]];
+  // Ancienne valeur absente de la liste ? On l'ajoute pour ne pas la perdre
+  if (val && !options.includes(val)) options.unshift(val);
+  const html = options.map(o =>
+    `<option value="${escDosage(o)}"${o === val ? ' selected' : ''}>${escDosage(o)}</option>`
+  ).join('');
+  return `<select class="form-select" onchange="updateEx(${i}, '${key}', this.value)"><option value="">—</option>${html}</select>`;
+}
+
+// Choisit une valeur dans une liste déroulante (et l'ajoute si elle n'existe pas)
+function setSelectValue(id, val) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const v = (val === null || val === undefined) ? '' : String(val);
+  if (v && ![...sel.options].some(o => o.value === v)) {
+    sel.add(new Option(v, v));
+  }
+  sel.value = v;
+}
+
+
 function renderExercisesBuilder(){
   const c=document.getElementById('exercisesContainer');
   if(!exercisesInBuilder.length){c.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:13px">Ajoutez des exercices via les boutons ci-dessus.</div>`;return;}
@@ -2133,15 +2179,15 @@ function renderExercisesBuilder(){
       <div class="ex-item-body">
         <div class="form-grid" style="margin-bottom:12px">
           <div class="form-group full"><label class="form-label">Nom</label><input class="form-input" value="${escapeHTML(ex.name||'')}" oninput="updateEx(${i},'name',this.value)"/></div>
-          <div class="form-group full"><label class="form-label">Focus / Cue</label><textarea class="form-textarea" style="min-height:50px" oninput="updateEx(${i},'focus',this.value)">${escapeHTML(ex.focus||'')}</textarea></div>
+          <div class="form-group full"><label class="form-label">Description</label><textarea class="form-textarea" style="min-height:50px" oninput="updateEx(${i},'focus',this.value)">${escapeHTML(ex.focus||'')}</textarea></div>
         </div>
         <div class="dosage-row">
-          <div class="dosage-mini"><label>Séries</label><input class="form-input" value="${escapeHTML(ex.series||'')}" oninput="updateEx(${i},'series',this.value)"/></div>
-          <div class="dosage-mini"><label>Reps / Durée</label><input class="form-input" value="${escapeHTML(ex.reps||'')}" oninput="updateEx(${i},'reps',this.value)"/></div>
-          <div class="dosage-mini"><label>Récup.</label><input class="form-input" value="${escapeHTML(ex.rest||'')}" oninput="updateEx(${i},'rest',this.value)"/></div>
+          <div class="dosage-mini"><label>Séries</label>${buildDosageSelect('series', ex.series, i)}</div>
+          <div class="dosage-mini"><label>Reps / Durée</label>${buildDosageSelect('reps', ex.reps, i)}</div>
+          <div class="dosage-mini"><label>Récup.</label>${buildDosageSelect('rest', ex.rest, i)}</div>
         </div>
         <div class="dosage-row">
-          <div class="dosage-mini"><label>Tempo</label><input class="form-input" value="${escapeHTML(ex.tempo||'')}" oninput="updateEx(${i},'tempo',this.value)"/></div>
+          <div class="dosage-mini"><label>Tempo</label>${buildDosageSelect('tempo', ex.tempo, i)}</div>
           <div class="dosage-mini"><label>EVA cible</label><input class="form-input" value="${escapeHTML(ex.evaTarget||'')}" oninput="updateEx(${i},'evaTarget',this.value)"/></div>
           <div class="dosage-mini"><label>Vidéo (URL)</label><input class="form-input" value="${escapeHTML(ex.video||'')}" oninput="updateEx(${i},'video',this.value)"/></div>
         </div>
@@ -2486,10 +2532,10 @@ function openNewExercise(exData = null, idx = null) {
     const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.value = val || ''; };
     setVal('exName', ex.name);
     setVal('exFocus', ex.focus);
-    setVal('exSeries', ex.series);
-    setVal('exReps', ex.reps);
-    setVal('exRest', ex.rest);
-    setVal('exTempo', ex.tempo);
+    setSelectValue('exSeries', ex.series);
+    setSelectValue('exReps', ex.reps);
+    setSelectValue('exRest', ex.rest);
+    setSelectValue('exTempo', ex.tempo);
     setVal('exEVA', ex.eva_target);
     setVal('exRegion', ex.region || 'Autre');
     setVal('exVideo', ex.video);

@@ -539,7 +539,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;heigh
   </div>
 </div>
 
-<div class="eva-banner"><i class="fa-solid fa-heart-pulse"></i><div class="eva-text">Règle douleur : rester <span class="eva-pill">≤ 3-4/10</span> pendant l'effort. Si douleur > 4 → stopper ou régresser.</div></div>
 <div class="legal-notice"><i class="fa-solid fa-shield-halved"></i><span>Ces exercices sont prescrits par votre kinésithérapeute. Ils ne remplacent pas une consultation. En cas de douleur inhabituelle, contactez votre praticien.</span></div>
 <div id="patientAdviceBox" style="display:none; margin:16px;">
   <!-- En-tête cliquable -->
@@ -928,42 +927,13 @@ buildBorgGrid();
 await checkUnreadMessages();
 setupRealtimeForPatient();
 
-// ===== CHARGEMENT DES FLAGS =====
-try {
-  flagQuestions = await loadFlagQuestions();
-} catch(e) {
-  console.error('Erreur chargement flags:', e);
-  flagQuestions = [];
-}
+    // ===== QUESTIONNAIRE FLAGS DÉSACTIVÉ =====
+    // On cache l'écran de chargement et on affiche directement l'application
+    document.getElementById('loadingScreen').classList.add('app-hidden');
+    mustCompleteFlagScreening = false;
+    document.getElementById('flagScreeningView').classList.add('app-hidden');
+    document.getElementById('appRoot').classList.remove('app-hidden');
 
-// Vérifie si le patient a déjà rempli le questionnaire aujourd'hui
-let alreadyScreened = false;
-try {
-  const today = getTodayLocalDate();
-  const { data: lastScreening } = await db
-    .from('patient_flag_screenings')
-    .select('id, created_at')
-    .eq('patient_id', currentPatient.id)
-    .gte('created_at', today + 'T00:00:00')
-    .maybeSingle();
-  alreadyScreened = !!lastScreening;
-} catch(e) {
-  alreadyScreened = false;
-}
-
-// Masque TOUJOURS le loading screen ici
-document.getElementById('loadingScreen').classList.add('app-hidden');
-
-if (!alreadyScreened && flagQuestions.length > 0) {
-  // Affiche le questionnaire flags
-  mustCompleteFlagScreening = true;
-  renderFlagScreening();
-
-} else {
-  mustCompleteFlagScreening = false;
-  document.getElementById('flagScreeningView').classList.add('app-hidden');
-  document.getElementById('appRoot').classList.remove('app-hidden');
-}
 
 // Rafraîchit le badge des messages non lus une fois l'app affichée
 await checkUnreadMessages();
@@ -1890,6 +1860,9 @@ function buildExCard(ex, num, exId){
           <p class="adapt-text">${progression}</p>
         </div>
       ` : ''}
+      
+      ${ex.alt ? `<div class="adapt-row"><span class="adapt-badge" style="background:var(--bg);color:var(--text2);border:1px solid var(--border)">🧰 Matériel</span><p class="adapt-text">${escapeHTML(ex.alt)}</p></div>` : ''}
+
 
       <div class="action-row">
         ${videoId ? `
@@ -1898,9 +1871,6 @@ function buildExCard(ex, num, exId){
           </button>
         ` : ''}
 
-        <button class="btn-mat" onclick="openModal('matModal')">
-          <i class="fa-solid fa-toolbox"></i>Matériel ?
-        </button>
       </div>
     </div>
   </div>`;
